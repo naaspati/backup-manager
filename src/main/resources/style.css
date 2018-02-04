@@ -1,0 +1,169 @@
+
+.root {
+	-fx-font-family: 'Consolas';
+	-fx-background-color: white;
+}
+
+.scroll-pane .viewport, .accordion {
+-fx-background-color: white;	
+}
+
+.root-view {
+	-fx-background-color: derive(black, 20%);
+	-fx-padding:0 2px 10px 10px;
+}
+.root-view * {
+	-fx-font-family: 'Arial Rounded MT';
+	-fx-fill: white;
+}
+.root-view .full-path-text {
+	-fx-font-size: 3em;
+}
+.root-view .size-text {
+	-fx-font-size: 0.75em;
+	-fx-font-weight: bold;
+}
+
+#task-text {
+	-fx-padding:5;
+	-fx-font-size: 2em;
+	-fx-background-color: white;
+}
+
+
+.config-view .title {
+	-fx-background-color: #FAF0E6;
+    -fx-border-width: 0.2 0 0.2 0;
+	-fx-border-color: derive(black, 70%);
+}
+.config-view .title .text {
+	-fx-fill:black;
+}
+.config-view .container {
+	-fx-background-color: white;
+	-fx-padding: 5 0 10 10;
+}
+.config-view .content {
+	-fx-border-width: 0;
+	-fx-background-color: white;
+}
+.config-view .container .text {
+	-fx-font-size: 0.9em;
+}
+.config-view.source-not-exists .title {
+	-fx-background-color: derive(#FF7F50, 50%) ;
+}
+.config-view.source-not-exists .source-not-found-text {
+	-fx-font-size: 1.2em;
+	-fx-font-weight: bold;
+	-fx-fill:crimson;
+
+}
+.config-view.no-backup .title {
+	-fx-background-color: #2F4F4F;
+}
+.config-view.no-backup .title * {
+	-fx-fill:white;
+}
+.config-view.no-backup .no-backup-text {
+	-fx-font-size: 1.2em;
+	-fx-font-weight: bold;
+	-fx-fill:green;
+
+}
+.config-view .tree-view {
+	-fx-border-width: 0 0 0 1;
+	-fx-border-color: black;
+	-fx-background-color: null;	
+}
+.center-view, .center-view .top {
+	-fx-background-color: white;
+}
+.center-view, .accordion {
+	-fx-background-color: white;
+	-fx-border-width: 0;
+}
+.center-view, .accordion {
+	-fx-background-color: white;
+	-fx-border-width: 0;
+}
+.center-view .btn {
+	-fx-font-size: 1.5em;
+	-fx-padding: 3px;
+	-fx-alignment: center;
+	-fx-border-width: 0 0.5 0 0;
+	-fx-border-color: black;
+}
+.center-view .btn.active {
+	-fx-border-width: 0 0 2 0;
+	-fx-border-color: linear-gradient(to left, springgreen, derive(springgreen, 80%), springgreen);
+}
+
+.status-view {
+	-fx-padding: 10, 5, 10, 5;
+	-fx-background-color: derive(white, -3%);
+}
+.status-view .speed {
+	-fx-font-family: 'Franklin Gothic';
+	-fx-font-size: 2em;
+	-fx-padding: 0 15 0 0;
+}
+.status-view .text{
+	-fx-font-size: 0.8em;
+}
+
+#start-btn, #cancel-btn {
+	-fx-padding:8 20 8 20;
+	-fx-background-color: #3AE2CE;
+	-fx-text-fill:white;
+	-fx-font-weight: bold;
+	-fx-font-size: 1.2em;
+}
+#start-btn:armed {
+	-fx-background-color: #00FFFF;
+}
+#cancel-btn {
+	-fx-background-color: crimson;
+}
+.copying-view {
+	-fx-background-color:white;
+	-fx-padding: 10 5 10 5;
+}
+.copying-view .header {
+	-fx-font-size:1.2em;
+	-fx-padding:10 0 2 0;
+}
+.copying-view .text {
+	-fx-font-size:0.8em;
+	-fx-font-family:Consolas;
+}
+.copying-view  .progress-bar{
+	-fx-accent:springgreen;
+	-fx-border-width: 0;
+	-fx-padding: 0 0 2 0;
+}
+
+.custom-btn-text {
+	-fx-padding:5 10 5 10;
+	-fx-border-width: 1;
+	-fx-border-color:black;
+	-fx-border-radius: 5%;
+	-fx-pref-width: 70;
+	-fx-min-width: 70;
+	-fx-max-width: 70;
+	-fx-alignment: center;
+}
+.custom-btn-text:active {
+	-fx-background-color: derive(black, 70%);
+}
+.listing-view {
+	-fx-background-color: white;
+	-fx-spacing:5;
+	-fx-padding:5;
+	-fx-border-width: 0 0 1 0;
+	-fx-border-color: black;
+}
+.listing-view .header {
+	-fx-font-size: 1.2em;
+}
+

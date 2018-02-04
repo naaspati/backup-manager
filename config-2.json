@@ -1,0 +1,19 @@
+{
+  "backupRoot": "Sameer",
+  "excludes": ["*.tmp", "desktop.ini", "Thumbs.db"],
+
+  "configs": [
+   {"source": "D:\\Downloads\\zip"},
+    {
+      "source": "D:\\Core Files\\Emulator\\dolphin\\Manga",
+	  "excludes": ["cache"]
+    },
+    {
+      "source": "C:\\Users\\Sameer\\Documents\\MEGA",
+      "excludes": [ "*.class", ".git", ".gradle", ".metadata", ".recommenders", ".sass-cache",
+        "bin", "build", "current_session", "node_modules", "noter.zip", "RemoteSystemsTempFiles",
+        "thumbs", "typings", "yarn.lock"
+      ]
+    }
+  ]
+}

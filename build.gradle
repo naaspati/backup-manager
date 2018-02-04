@@ -1,0 +1,37 @@
+apply plugin: 'java'
+apply plugin: 'application'
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+   compile 'com.google.code.gson:gson:2.8.2'
+   compile files('myutils.jar')
+   
+   testCompile files(/C:\Users\Sameer\Documents\MEGA\eclipse_workplace\java\MyUtils\myutils.jar/)
+   testCompile 'junit:junit:4.12'
+   testCompile 'org.testfx:testfx-core:4.0.11-alpha'
+   testCompile 'org.testfx:testfx-junit:4.0.11-alpha'   
+}
+ 
+version = 0.01
+sourceCompatibility = JavaVersion.VERSION_1_8 
+targetCompatibility = JavaVersion.VERSION_1_8
+ 
+mainClassName = 'Main'
+
+task copy(type: Copy) {
+  from(fileTree("$buildDir/install/${distributions.main.baseName}"))
+  into("$rootDir/compiled")
+}
+
+jar {
+  manifest {
+        attributes('Manifest-Version': '1.0',
+                   'Implementation-Version': version,
+                   'Main-Class':"$mainClassName",	
+                   'Class-Path':'.'
+                   )
+    }
+}

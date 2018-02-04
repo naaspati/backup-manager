@@ -1,0 +1,43 @@
+{
+  "backupRoot": "Sameer",
+  "excludes": ["*.tmp", "desktop.ini", "Thumbs.db", "*.lnk"],
+
+  "backups": [
+     {"source":"D:/Core Files/Adobe/ProgrammingComputer Books"},
+	 {
+	  "source":"D:/movies_Unchecked",
+	  "excludes": ["IDM TEMP", "D:/movies_Unchecked/_tubemate/file_youtube-dl/youtube-dl",
+	   "D:/movies_Unchecked/_torrent/_t", "serial",
+	   "Queen's Blade Complete Series", "Hatsuyuki Sket Dance",
+	   "Trinity Seven", "Teekyuu season 1-8",
+	   "[LostYears] Gamers! (WEB 720p Hi10 AAC) [Dual-Audio]", 
+	   "[AnimeKaizoku] Tsuki ga Kirei 720p Eng Sub [Dhruboz]",
+	   "[Chihiro]_Soredemo_Sekai_wa_Utsukushii_v2_[1920x1080_Blu-ray_FLAC]",
+	   "Sin - Nanatsu no Taizai [TV] [UNCENSORED] [720p] [MX-ES-EN-DE-FR-IT-PT]",
+	   "[Erai-raws] SukaSuka - 01~12 [720p][Multiple Subtitle]",
+	   "[Sumire] Saenai Heroine no Sodatekata Flat [WEB 720p Hi444 E-AC-3]",
+	   "Guilty Crown (2011) [Doki][848x480 h264 BD AAC]",
+	   "Masou Gakuen HxH",
+	   "[AC] God Eater [720p][Lucifer22]"
+	   ]
+	 },
+    {
+      "source": "D:\\Core Files\\Emulator\\dolphin\\Manga",
+	  "excludes": ["cache"]
+    },
+    {
+      "source": "C:\\Users\\Sameer\\Documents\\MEGA",
+	  "target":"Mega",
+      "excludes": [ "*.class", ".git", ".gradle", ".metadata", ".recommenders", ".sass-cache",
+        "bin", "build", "current_session", "node_modules", "noter.zip", "RemoteSystemsTempFiles",
+        "thumbs", "typings", "yarn.lock", 
+		"C:/Users/Sameer/Documents/MEGA/Rubbish"
+      ]
+    }
+  ],
+  lists: [
+    {"source":"D:/movies_Unchecked/_torrent/_anime"},
+	{"source":"D:/Downloads/save"},
+	{"source":"D:/movies_Unchecked/_tubemate/file_youtube-dl/youtube-dl"}
+  ]
+}

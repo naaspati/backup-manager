@@ -3,11 +3,13 @@ package sam.backup.manager.view;
 import static sam.fx.helpers.FxHelpers.addClass;
 import static sam.fx.helpers.FxHelpers.removeClass;
 import static sam.fx.helpers.FxHelpers.setClass;
+import static sam.fx.helpers.FxHelpers.text;
+
+import java.util.List;
 
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
-import javafx.scene.control.Accordion;
 import javafx.scene.control.Button;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
@@ -15,17 +17,18 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import sam.backup.manager.config.view.ConfigView;
+import sam.backup.manager.config.view.ListingView;
+import sam.backup.manager.view.enums.ViewType;
 
 public class CenterView extends BorderPane implements EventHandler<ActionEvent> {
 	private Button backupBtn;
-	private Button copyingBtn;
+	private Button transferBtn;
 	private Button listingBtn;
 	private HBox buttonBox = new HBox();
 
-	private Accordion backupView;
-	private VBox copyingView,listingView;
-
-	private ScrollPane copyingViewSP, listingViewSP;
+	private ScrollPane backupView, transferView, listView;
+	private Node disableTransferView, disableListingView, disableBackupView;
 
 	public CenterView() {
 		addClass(this, "center-view");
@@ -33,37 +36,50 @@ public class CenterView extends BorderPane implements EventHandler<ActionEvent> 
 		setTop(buttonBox);
 	}
 
-	private void initCopyingView() {
-		if(copyingView != null) return;
-		copyingView = new VBox(2);
-		copyingViewSP = scrollpane(copyingView);
-		copyingBtn = button("Copying");
-		buttonBox.getChildren().add(copyingBtn);
-	}
-	private void initBackupView() {
-		if(backupView  != null) return;
-		backupView = new Accordion();
-		backupBtn = button("Backups");
-		buttonBox.getChildren().add(backupBtn);
-	}
-	private void initListingView() {
-		if(listingView != null) return;
-		listingView = new VBox(2);
-		listingViewSP = scrollpane(listingView);
-		listingBtn = button("Listings");
-		buttonBox.getChildren().add(listingBtn);
+	private void initView(ViewType type) {
+		Button b = null;
+		switch (type) {
+			case TRANSFER:
+				if(transferView != null) return;
+				transferView = scrollpane();
+				b = transferBtn = button("Transfer");
+				break;
+			case BACKUP:
+				if(backupView  != null) return;
+				backupView = scrollpane();
+				b = backupBtn = button("Backups");
+				break;
+			case LIST:
+				if(listView != null) return;
+				listView = scrollpane();
+				b = listingBtn = button("Listings");
+				break;
+		}
+		buttonBox.getChildren().add(b);
 	}
 	public void add(Node c) {
+		if(c == null)
+			return;
+		
+		ScrollPane sp;
 		if(c instanceof ConfigView) {
-			initBackupView();
-			backupView.getPanes().add((ConfigView)c);
+			initView(ViewType.BACKUP);
+			sp = backupView;
 		}else if(c instanceof  ListingView) {
-			initListingView();
-			listingView.getChildren().add(c);
+			initView(ViewType.LIST);
+			sp = listView;
 		} else {
-			initCopyingView();
-			copyingView.getChildren().add(c);
+			initView(ViewType.TRANSFER);
+			sp = transferView;
 		} 
+		addNode(sp, c);
+	}
+	public void addAllListView(List<ListingView> list) {
+		initView(ViewType.LIST);
+		((VBox)listView.getContent()).getChildren().addAll(list);
+	}
+	private void addNode(ScrollPane sp, Node c) {
+		((VBox)sp.getContent()).getChildren().add(c);
 	}
 
 	@Override
@@ -72,20 +88,24 @@ public class CenterView extends BorderPane implements EventHandler<ActionEvent> 
 		if(b.getStyleClass().contains("active"))
 			return;
 
-		getChildren().remove(getCenter());
 		if(backupBtn != null) removeClass(backupBtn, "active");
-		if(copyingBtn != null) removeClass(copyingBtn, "active");
+		if(transferBtn != null) removeClass(transferBtn, "active");
 		if(listingBtn != null) removeClass(listingBtn, "active");
 
 		addClass(b, "active");
-		if(b == backupBtn) setCenter(backupView);
-		if(b == copyingBtn) setCenter(copyingViewSP);
-		if(b == listingBtn) setCenter(listingViewSP);
+		setCenter(b, backupBtn, disableBackupView, backupView);
+		setCenter(b, transferBtn,disableTransferView, transferView);
+		setCenter(b, listingBtn,disableListingView,listView);
+	}
+	private void setCenter(Button source, Button expected, Node disabled, Node original) {
+		if(source == expected) 
+			setCenter(disabled != null ? disabled : original);
 	}
 
-	private ScrollPane scrollpane(Node v) {
-		ScrollPane sp = new ScrollPane(v);
-		// sp.setFitToHeight(true);
+	private ScrollPane scrollpane() {
+		VBox box = new VBox(2);
+		box.setFillWidth(true);
+		ScrollPane sp = new ScrollPane(box);
 		sp.setFitToWidth(true);
 		sp.setHbarPolicy(ScrollBarPolicy.NEVER);
 		return sp;
@@ -102,5 +122,34 @@ public class CenterView extends BorderPane implements EventHandler<ActionEvent> 
 	public void firstClick() {
 		if(!buttonBox.getChildren().isEmpty())
 			((Button)buttonBox.getChildren().get(0)).fire();
+	}
+
+	public void disable(ViewType type) {
+		initView(type);
+
+		switch (type) {
+			case BACKUP:
+				disableBackupView = text("No Backup Tasks Found", "disable-txt");
+				break;
+			case TRANSFER:
+				disableTransferView = text("Nothing To Transfer", "disable-txt");
+				break;
+			case LIST:
+				disableListingView = text("No Listing tasks Found", "disable-txt");
+				break;
+		}
+	}
+	public void enable(ViewType type) {
+		switch (type) {
+			case BACKUP:
+				disableBackupView = null;
+				break;
+			case TRANSFER:
+				disableTransferView = null;
+				break;
+			case LIST:
+				disableListingView = null;
+				break;
+		}
 	}
 }

@@ -1,9 +1,12 @@
 {
   "backupRoot": "Sameer",
   "excludes": ["*.tmp", "desktop.ini", "Thumbs.db", "*.lnk"],
+  "backupSkips":["FILE_EXISTS"],
 
   "backups": [
-     {"source":"D:/Core Files/Adobe/ProgrammingComputer Books"},
+     {"source":"D:/Core Files/Adobe/ProgrammingComputer Books"
+	 
+	 },
 	 {
 	  "source":"D:/movies_Unchecked",
 	  "excludes": ["IDM TEMP", "D:/movies_Unchecked/_tubemate/file_youtube-dl/youtube-dl",

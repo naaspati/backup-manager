@@ -10,7 +10,7 @@
 
 .root-view {
 	-fx-background-color: derive(black, 20%);
-	-fx-padding:0 2px 10px 10px;
+	-fx-padding:10px 2px 10px 10px;
 }
 .root-view * {
 	-fx-font-family: 'Arial Rounded MT';
@@ -20,8 +20,12 @@
 	-fx-font-size: 3em;
 }
 .root-view .size-text {
-	-fx-font-size: 0.75em;
-	-fx-font-weight: bold;
+	-fx-font-size: 0.85em;
+	-fx-font-family: 'Consolas';
+}
+.root-view .drive-warning-text-2 {
+-fx-font-size: 0.95em;
+-fx-fill:yellow;
 }
 
 #task-text {
@@ -29,43 +33,51 @@
 	-fx-font-size: 2em;
 	-fx-background-color: white;
 }
+.config-view {
+	-fx-padding: 2 0 10 0;
+}
 
+.config-view  .container{
+	-fx-hgap: 10;
+	-fx-vgap: 5;
+	-fx-padding: 10;
+}
 
 .config-view .title {
-	-fx-background-color: #FAF0E6;
-    -fx-border-width: 0.2 0 0.2 0;
-	-fx-border-color: derive(black, 70%);
+	-fx-background-color: lightblue  ;
+    -fx-border-width: 1 0 0 0;
+	-fx-border-color: black;
+	-fx-font-size: 1.3em;
+	-fx-padding: 5 5 5 10;
+	-fx-wrap-text: true;
 }
-.config-view .title .text {
-	-fx-fill:black;
+
+.config-view .summery {
+	-fx-padding: 10 0 0 0;
+	-fx-border-width: 0 0 1 0;
+	-fx-border-color: black;
+	-fx-halignment: center;
 }
-.config-view .container {
-	-fx-background-color: white;
-	-fx-padding: 5 0 10 10;
+.config-view .header {
+	-fx-border-width: 0 0 0.3 0;
+	-fx-border-color: black;
 }
-.config-view .content {
-	-fx-border-width: 0;
-	-fx-background-color: white;
+.config-view.disable .title {
+	-fx-background-color: maroon;
+	-fx-text-fill:white;
 }
-.config-view .container .text {
-	-fx-font-size: 0.9em;
-}
-.config-view.source-not-exists .title {
-	-fx-background-color: derive(#FF7F50, 50%) ;
-}
-.config-view.source-not-exists .source-not-found-text {
+.config-view.disable .disable-text {
 	-fx-font-size: 1.2em;
 	-fx-font-weight: bold;
 	-fx-fill:crimson;
 
 }
-.config-view.no-backup .title {
-	-fx-background-color: #2F4F4F;
+.config-view.completed .title {
+	-fx-background-color: teal;
+	-fx-text-fill:white;
 }
-.config-view.no-backup .title * {
-	-fx-fill:white;
-}
-.config-view.no-backup .no-backup-text {
+
+.config-view.completed .completed-text {
 	-fx-font-size: 1.2em;
 	-fx-font-weight: bold;
 	-fx-fill:green;
@@ -86,6 +98,20 @@
 .center-view, .accordion {
 	-fx-background-color: white;
 	-fx-border-width: 0;
+}
+.center-view .scroll-bar {
+	-fx-background-color: white;
+	-fx-border-width: 0;
+	-fx-padding: 2;
+}
+.center-view .scroll-bar .increment-arrow, .center-view .scroll-bar .decrement-arrow {
+	-fx-background-color: transparent;
+}
+.center-view .scroll-bar .thumb {
+	-fx-background-color: white;
+	-fx-border-width: 1;
+	-fx-border-radius: 50%;
+	-fx-border-color: black;
 }
 .center-view .btn {
 	-fx-font-size: 1.5em;
@@ -143,18 +169,23 @@
 	-fx-padding: 0 0 2 0;
 }
 
-.custom-btn-text {
+.custom-btn {
 	-fx-padding:5 10 5 10;
 	-fx-border-width: 1;
 	-fx-border-color:black;
 	-fx-border-radius: 5%;
-	-fx-pref-width: 70;
 	-fx-min-width: 70;
-	-fx-max-width: 70;
 	-fx-alignment: center;
 }
-.custom-btn-text:active {
-	-fx-background-color: derive(black, 70%);
+.custom-btn:hover {
+	-fx-background-color: derive(white, -5%);
+	-fx-scale-x: 1.01;
+	-fx-scale-y: 1.01;
+}
+.custom-btn:armed {
+	-fx-background-color: derive(white, -25%);
+	-fx-scale-x: 0.9;
+	-fx-scale-y: 0.9;
 }
 .listing-view {
 	-fx-background-color: white;

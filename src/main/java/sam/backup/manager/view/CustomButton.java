@@ -1,11 +1,14 @@
 package sam.backup.manager.view;
 
+import static sam.fx.helpers.FxHelpers.addClass;
+import static sam.fx.helpers.FxHelpers.removeClass;
+import static sam.fx.helpers.FxHelpers.setClass;
+
 import java.util.function.Consumer;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
-
-import static sam.fx.helpers.FxHelpers.*;
+import sam.backup.manager.view.enums.ButtonType;
 
 public class CustomButton extends Button {
 	private volatile ButtonType type;
@@ -37,20 +40,5 @@ public class CustomButton extends Button {
 	}
 	public void setType(ButtonType type) {
 		setType(type, null);
-	}
-}
-
-enum ButtonType {
-	CANCEL("cancel-btn", "Cancel"), 
-	WALK("walk-btn", "Walk"), 
-	UPLOAD("upload-btn", "Backup"), 
-	OPEN("open-btn", "Open"),
-	SAVE("save-btn", "Save"),
-	;
-
-	public final String cssClass, text;
-	private ButtonType(String cssClass, String text) {
-		this.cssClass = cssClass; 
-		this.text = text;
 	}
 }

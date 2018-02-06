@@ -23,18 +23,15 @@ import sam.backup.manager.extra.TransferSummery;
 public class StatusView extends HBox {
 	private final AtomicLong total = new AtomicLong();
 	private volatile String totalString;
-	//TODO private final Set<TransferSummery> summeries = Collections.synchronizedSet(new HashSet<>());
 	private final AtomicLong bytesRead = new AtomicLong(), speed = new AtomicLong();
 
-	private final Text speedT = new Text("--");
-	private final Label totalProgressT = new Label("--");
-	private final Label remainingTimeT = new Label("--");
+	private final Text speedT = new Text();
+	private final Label totalProgressT = new Label();
+	private final Label remainingTimeT = new Label();
 
-	public StatusView(Button startButton, Button cancelButton) {
+	public StatusView() {
 		super(5);
 		setClass(this, "status-view");
-		startButton.setId("start-btn");
-		cancelButton.setId("cancel-btn");
 
 		totalProgressT.setTooltip(new Tooltip("Total progress"));
 		remainingTimeT.setTooltip(new Tooltip("Estimated remaining time"));
@@ -46,16 +43,14 @@ public class StatusView extends HBox {
 		v.setAlignment(Pos.CENTER);
 
 		Pane pane = new Pane();
-		getChildren().addAll(speedT, v);//TODO, pane, cancelButton, startButton);
+		getChildren().addAll(speedT, v);
 		HBox.setHgrow(pane, Priority.ALWAYS);
 		pane.setMaxWidth(Double.MAX_VALUE);
-		startButton.setAlignment(Pos.CENTER_RIGHT);
 	}
 
 	public void addSummery(TransferSummery ts) {
 		updateTotal(ts.getTotal());
 		
-		//TODO summeries.add(ts);
 		bytesRead.addAndGet(ts.getBytesRead());
 		speed.addAndGet(ts.getSpeed());
 		ts.setStatusView(this);
@@ -63,7 +58,6 @@ public class StatusView extends HBox {
 	}
 	public void removeSummery(TransferSummery ts) {
 		updateTotal(ts.getTotal()*-1);
-		//TODO summeries.remove(ts);
 		ts.setStatusView(null);
 		bytesRead.addAndGet(ts.getBytesRead()*-1);
 		speed.addAndGet(ts.getSpeed()*-1);

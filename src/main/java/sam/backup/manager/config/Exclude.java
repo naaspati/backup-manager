@@ -11,7 +11,7 @@ import java.util.function.Predicate;
 
 import sam.myutils.stringutils.StringUtils;
 
-public class Exclude {
+public class Exclude implements Predicate<Path> {
 	private Set<Path> fullPaths, names;
 	private Predicate<Path> partialPaths, globs, nameGlobs;
 	private boolean noExclude = false;
@@ -58,8 +58,9 @@ public class Exclude {
 		list.add(s);
 		return list;
 	}
-
-	public boolean exclude(Path p) {
+	
+	@Override
+	public boolean test(Path p) {
 		if(noExclude) return false;
 		
 		if((fullPaths != null && fullPaths.contains(p)) || (names != null && names.contains(p.getFileName())))
@@ -72,5 +73,8 @@ public class Exclude {
 			return true;
 
 		return false;
+	}
+	public boolean isNoExclude() {
+		return noExclude;
 	}
 }

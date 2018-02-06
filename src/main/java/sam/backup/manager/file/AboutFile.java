@@ -1,46 +1,26 @@
 package sam.backup.manager.file;
 
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileTime;
 
 public class AboutFile {
-	private final FileTime modifiedTime;
-	private final long size;
+	public final long modifiedTime;
+	public final long size;
 	
 	public AboutFile(BasicFileAttributes attrs) {
-		modifiedTime = attrs.lastModifiedTime();
+		modifiedTime = attrs.lastModifiedTime().toMillis();
 		size = attrs.size();
 	}
 	
-	public AboutFile(FileTime modifiedTime, long size) {
+	public AboutFile(long modifiedTime, long size) {
 		this.modifiedTime = modifiedTime;
 		this.size = size;
 	}
-	public FileTime getModifiedTime() {
+	public long getModifiedTime() {
 		return modifiedTime;
 	}
 	public long getSize() {
 		return size;
 	}
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		AboutFile other = (AboutFile) obj;
-		if (modifiedTime == null) {
-			if (other.modifiedTime != null)
-				return false;
-		} else if (!modifiedTime.equals(other.modifiedTime))
-			return false;
-		if (size != other.size)
-			return false;
-		return true;
-	}
-
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
@@ -51,6 +31,21 @@ public class AboutFile {
 		builder.append("]");
 		return builder.toString();
 	}
-	
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		AboutFile other = (AboutFile) obj;
+		if (modifiedTime != other.modifiedTime)
+			return false;
+		if (size != other.size)
+			return false;
+		return true;
+	}
 	
 }

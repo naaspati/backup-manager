@@ -1,7 +1,0 @@
-{
-  "backupRoot": "Sameer",
-  "excludes": ["*.tmp", "desktop.ini", "Thumbs.db"],
-  "lists":[ 
-   {"source":"D:\\Downloads\\save"}
-  ]
-}

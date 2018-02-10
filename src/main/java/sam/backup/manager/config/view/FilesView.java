@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Cell;
@@ -27,8 +28,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.file.FileTree;
+import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.backup.manager.view.enums.ButtonType;
 import sam.weakstore.WeakStore;
 
 public class FilesView extends BorderPane {
@@ -50,10 +51,12 @@ public class FilesView extends BorderPane {
 		this.allFiles = type == ButtonType.ALL_FILES;
 		
 		addClass(this, "files-view");
-		filesView.set(getTreeView());
+		filesView.set(getListView());
 		aboutFileTreeTA.setEditable(false);
 		aboutFileTreeTA.setPrefColumnCount(12);
 
+		sp.setOrientation(Orientation.VERTICAL);
+		sp.setDividerPosition(1, 0.5);
 		sp.getItems().addAll(filesView.get(), aboutFileTreeTA);
 		setCenter(sp);
 		setTop(top(type));
@@ -69,7 +72,7 @@ public class FilesView extends BorderPane {
 		return new BorderPane(l, null, button(), null, null);
 	}
 	private Node button() {
-		CustomButton b = new CustomButton(ButtonType.LIST_VIEW);
+		CustomButton b = new CustomButton(ButtonType.TREE_VIEW);
 		b.setEventHandler(t -> {
 			boolean list = t == ButtonType.LIST_VIEW;
 			filesView.set(list ? getListView() : getTreeView());
@@ -184,7 +187,7 @@ public class FilesView extends BorderPane {
 					"About Source:\r\n" + 
 					"   new last-modifed     %s (%s)\r\n",
 					n.getSourcePath(),
-					(config.getTargetPath() == null ? "--" : config.getTargetPath()),
+					(n.getTargetPath() == null ? "--" : n.getTargetPath()),
 					millsToTimeString(n.getModifiedTime()),
 					millsToTimeString(n.getSourceAboutFile().modifiedTime), n.getSourceAboutFile().modifiedTime
 					));
@@ -199,7 +202,7 @@ public class FilesView extends BorderPane {
 
 			aboutFileTreeTA.setText(String.format(format,
 					n.getSourcePath(),
-					(config.getTargetPath() == null ? "--" : config.getTargetPath()),
+					(n.getTargetPath() == null ? "--" : n.getTargetPath()),
 					millsToTimeString(n.getModifiedTime()),
 					bytesToString(n.getSourceSize()),
 					millsToTimeString(n.getSourceAboutFile().modifiedTime), n.getSourceAboutFile().modifiedTime,

@@ -7,8 +7,10 @@ import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.fx.helpers.FxHelpers.addClass;
 import static sam.fx.helpers.FxHelpers.removeClass;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,15 +29,17 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import sam.backup.manager.Main;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
+import sam.backup.manager.file.AboutFile;
 import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.FileTreeWalker;
+import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.backup.manager.view.enums.ButtonType;
+import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxHelpers;
 
 public class ConfigView extends BorderPane implements IStopStart, Consumer<ButtonType>, ICanceler {
@@ -53,7 +57,7 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 	private final AtomicReference<Node> filesView = new AtomicReference<Node>();
 
 	public ConfigView(Config config, IStartOnComplete<ConfigView> startEndAction, Long lastUpdated) {
-		setCenter(container);
+		//TODO setCenter(container);
 		this.config = config;
 		addClass(this, "config-view");
 		addClass(container, "container");
@@ -63,6 +67,12 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 		Label l = FxHelpers.label(String.valueOf(config.getSource()),"title");
 		l.setMaxWidth(Double.MAX_VALUE);
 		setTop(l);
+		l.setOnMouseClicked(e -> {
+			if(getCenter() == null)
+				setCenter(container);
+			else 
+				getChildren().remove(container);
+		});
 
 		sourceSize = text("---");
 		sourceFileCount = text("---");
@@ -81,7 +91,7 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 		container.addRow(row, text("Source: "));
 		container.add(text(String.valueOf(config.getSource())), 1, row++, REMAINING, 1);
 		container.addRow(row,text("Target: "));
-		container.add(text(String.valueOf(config.getTargetPath())), 1, row++, REMAINING, 1);
+		container.add(text(String.valueOf(config.getTarget())), 1, row++, REMAINING, 1);
 		container.addRow(row, text("Last updated: "));
 		container.add(text(lastUpdated == null ? "N/A" : Utils.millsToTimeString(lastUpdated)), 1, row++, REMAINING, 1);
 
@@ -110,7 +120,7 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 			allFilesButton.setVisible(false);
 			setModified = new CustomButton(ButtonType.SET_MODIFIED, this);
 			setModified.setVisible(false);
-			container.add(new HBox(2, button, allFilesButton, setModified), 0, row++, REMAINING, 2);
+			container.add(new HBox(2, button, allFilesButton /*TODO, setModified */), 0, row++, REMAINING, 2);
 			row++;
 		}
 
@@ -125,8 +135,9 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 	@Override
 	public void accept(ButtonType type) {
 		if(type == ButtonType.WALK) {
-			button.setType(ButtonType.CANCEL);
+			button.setType(ButtonType.LOADING);
 			startEndAction.start(ConfigView.this);
+			button.setType(ButtonType.CANCEL);
 		} else if(type == ButtonType.CANCEL)
 			stop();
 		else if(type == ButtonType.FILES || type == ButtonType.ALL_FILES) {
@@ -135,9 +146,24 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 		} 
 		else if(type == ButtonType.SET_MODIFIED) {
 			setModified.setVisible(false);
-			Main.addToBeModified(config);
+			config.getFileTree().walk(new FileTreeWalker() {
+				@Override
+				public FileVisitResult file(FileTree ft, AboutFile source, AboutFile backup) {
+					ft.setCopied();
+					return FileVisitResult.CONTINUE;
+				}
+				@Override
+				public FileVisitResult dir(FileTree ft, AboutFile source, AboutFile backup) {
+					ft.setCopied();
+					return FileVisitResult.CONTINUE;
+				}
+			});
+			try {
+				Utils.saveFiletree(config);
+			} catch (IOException e) {
+				Platform.runLater(() -> FxAlert.showErrorDialog(config.getSource(), "Failed to save filetree", e));
+			}
 		}
-			
 	}
 
 	@Override
@@ -242,5 +268,9 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 			else if(n instanceof TreeView)
 				((TreeView)n).refresh();
 		});
+	}
+	public void setLoading(boolean b) {
+		// TODO Auto-generated method stub
+		
 	}
 }

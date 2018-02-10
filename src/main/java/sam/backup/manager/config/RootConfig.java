@@ -65,12 +65,16 @@ public class RootConfig extends ConfigBase {
 	@Override
 	public Predicate<Path> getSourceExcluder() {
 		if(excluder != null) return excluder;
-		return excluder = createExclude(excludes);
+		return excluder = createFilter(excludes);
 	}
 	@Override
 	public Predicate<Path> getTargetExcluder() {
 		if(targetExcluder != null) return targetExcluder;
-		return targetExcluder = createExclude(targetExcludes);
+		return targetExcluder = createFilter(targetExcludes);
+	}
+	@Override
+	public Predicate<Path> getSourceIncluder() {
+		throw new IllegalAccessError("Root cannot have a Includer");
 	}
 	@Override
 	protected RootConfig getRoot() {

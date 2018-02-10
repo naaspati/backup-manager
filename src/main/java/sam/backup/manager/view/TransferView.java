@@ -47,9 +47,11 @@ import sam.backup.manager.extra.TransferSummery;
 import sam.backup.manager.file.AboutFile;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeWalker;
-import sam.backup.manager.view.enums.ButtonType;
+import sam.weakstore.WeakStore;
 
 public class TransferView extends VBox implements Runnable, IStopStart, Consumer<ButtonType>, ICanceler {
+	private static final WeakStore<ByteBuffer> buffers = new WeakStore<>(() -> ByteBuffer.allocateDirect(2*1024*1024), true);
+			
 	private final ConfigView view;
 	private final Config config;
 
@@ -115,7 +117,8 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 		button.setType(ButtonType.UPLOAD);
 		summery.stop();
 	}
-
+	
+	@Override 
 	public void start() {
 		if(sourceTargetTa == null) {
 			sourceTargetTa = new TextArea();
@@ -181,7 +184,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 
 		summery.start();
 		filesMoved.set(0);
-		ByteBuffer buffer = ByteBuffer.allocateDirect(2*1024*1024);
+		ByteBuffer buffer = buffers.get();
 
 		for (FileTree ft : config.getBackupFiles()) {
 			if(isCancelled())
@@ -203,6 +206,8 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 			}
 		}
 		summery.stop();
+		buffer.clear();
+		buffers.add(buffer);
 		return COMPLETED;
 	}
 	private boolean copy(FileTree ft, ByteBuffer buffer) {

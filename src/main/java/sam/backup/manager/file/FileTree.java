@@ -24,7 +24,7 @@ public class FileTree implements Serializable {
 
 	private final String pathString;
 	private List<FileTree> children;
-	private long modifiedTime; 
+	private long modifiedTime = -1; 
 	private final boolean isDirectory;
 
 	private transient boolean copied;
@@ -128,23 +128,17 @@ public class FileTree implements Serializable {
 			backupAF = aboutFile;
 		}
 	}
-	public void append(StringBuilder sb) {
-		append(new char[0], sb);
-	}
 	private void append(final char[] separator, final StringBuilder sb) {
 		if(children == null || children.isEmpty()) return;
 
 		for (FileTree f : children) {
-			sb.append(separator).append(f.pathString);
-			if(modifiedTime != 0)
-				sb.append('>').append(modifiedTime);
-			sb.append('\n');
+			sb.append(separator).append(f.pathString).append('\n');
 
 			if(f.isDirectory) {
 				int length = separator.length;
 				char[] sp2 = Arrays.copyOf(separator, length + 6);
 				Arrays.fill(sp2, length, sp2.length, ' ');
-				if(length != 0) {
+				if(length != 2) {
 					sp2[length - 1] = ' ';
 					sp2[length - 2] = ' ';
 				}
@@ -156,8 +150,8 @@ public class FileTree implements Serializable {
 		}
 	}
 	public String toTreeString() {
-		StringBuilder sb = new StringBuilder().append(getSourcePath()).append('\n');
-		append(sb);
+		StringBuilder sb = new StringBuilder().append(pathString).append('\n');
+		append(new char[] {' ', '|'}, sb);
 		return sb.toString();	
 	}
 	@Override
@@ -171,7 +165,7 @@ public class FileTree implements Serializable {
 		return target;
 	}
 	public void calculateTargetPath(Config config) {
-		_calculateTargetPath(config.getTargetPath());
+		_calculateTargetPath(config.getTarget());
 	}
 	private void calculateTargetPath(Path p) {
 		this.target = p.resolve(getFileName());
@@ -207,6 +201,9 @@ public class FileTree implements Serializable {
 				return TERMINATE;
 		}
 		return CONTINUE;
+	}
+	public boolean isNew() {
+		return modifiedTime == -1;
 	}
 }
 

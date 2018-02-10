@@ -20,8 +20,8 @@ import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
+import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.backup.manager.view.enums.ButtonType;
 import sam.fx.alert.FxAlert;
 
 public class ListingView extends VBox implements ICanceler, IStopStart, Consumer<ButtonType> {

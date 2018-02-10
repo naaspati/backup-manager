@@ -8,7 +8,6 @@ import java.util.function.Consumer;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;
-import sam.backup.manager.view.enums.ButtonType;
 
 public class CustomButton extends Button {
 	private volatile ButtonType type;
@@ -32,6 +31,11 @@ public class CustomButton extends Button {
 	public ButtonType getType() { return type; }
 
 	public void setType(ButtonType type, String tooltip) {
+		if(type == ButtonType.LOADING)
+			setDisable(true);
+		else if(this.type == ButtonType.LOADING)
+			setDisable(false);
+		
 		if(type != null) removeClass(this, type.cssClass);
 		addClass(this, type.cssClass);
 		setText(type.text);

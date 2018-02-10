@@ -19,7 +19,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import sam.backup.manager.config.view.ConfigView;
 import sam.backup.manager.config.view.ListingView;
-import sam.backup.manager.view.enums.ViewType;
 
 public class CenterView extends BorderPane implements EventHandler<ActionEvent> {
 	private Button backupBtn;

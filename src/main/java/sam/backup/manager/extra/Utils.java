@@ -14,28 +14,28 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
-import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.gson.Gson;
 
-import javafx.application.Platform;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sam.backup.manager.Main;
+import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTree;
 import sam.fx.alert.FxAlert;
 import sam.myutils.fileutils.FilesUtils;
 
 public class Utils {
+	public static Path APP_DATA = Paths.get("app_data");
+
 	private Utils() {}
 
 	public static String bytesToString(long bytes) {
@@ -55,12 +55,11 @@ public class Utils {
 		if(d == (int)d) return String.valueOf((int)d);
 		else return String.valueOf(d);
 	}
-
-	private final static StringBuilder sb = new StringBuilder();
 	public static String millisToString(long millis) {
-		if(millis == 0) return "N/A";
+		if(millis <= 0) return "N/A";
 		return durationToString(Duration.ofMillis(millis));
 	}
+	private final static StringBuilder sb = new StringBuilder();
 	public static String durationToString(Duration d) {
 		synchronized (sb) {
 			sb.setLength(0);
@@ -95,7 +94,7 @@ public class Utils {
 		return (dividend*100/divisor)/100D;
 	}
 	public static String millsToTimeString(Long d) {
-		return d == null || d == 0 ? "--" : LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneOffset.of("+05:30")).format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM));
+		return d == null || d <= 0 ? "--" : LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneOffset.of("+05:30")).format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM));
 	}
 	private static void waitUntil(AtomicBoolean stopper) {
 		while(!stopper.get()) {}
@@ -109,7 +108,7 @@ public class Utils {
 		waitUntil(b);
 	}
 	public static  Path getConfigPath() {
-		return Paths.get("config.json");
+		return APP_DATA.resolve("config.json");
 	} 
 	public static RootConfig readConfigJson() {
 		try(Reader r = Files.newBufferedReader(getConfigPath());) {
@@ -122,54 +121,38 @@ public class Utils {
 		}
 		return null;
 	}
+	public static FileTree readFiletree(Config config) throws ClassNotFoundException, IOException {
+		Path p = APP_DATA.resolve("trees/"+config.getSource().hashCode()+".filetree");
+		Path p2 = APP_DATA.resolve("trees/"+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
+		
+		if(Files.exists(p))
+			Files.move(p, p2);
+		
+		p = p2;
+		if(Files.exists(p))
+			return FilesUtils.readObjectFromFile(p, FileTree.class);
 
-	public static  Path getPathFiletreeMapPath() {
-		return Paths.get("path-filetree.dat");
-	} 
-	public static ConcurrentHashMap<String, FileTree> readPathFiletreeMap() {
-		Path p = getPathFiletreeMapPath();
-		if(Files.notExists(p)) {
-			AtomicBoolean proceed = new AtomicBoolean();
-			AtomicBoolean waitStop = new AtomicBoolean();
-			Platform.runLater(() -> {
-				proceed.set(FxAlert.showConfirmDialog("expected path: "+getPathFiletreeMapPath().toAbsolutePath(), "filetree backup not found\nProceed Anyways?"));
-				waitStop.set(true);
-			});
-			waitUntil(waitStop);
-			if(proceed.get())
-				return new ConcurrentHashMap<>();
-			else
-				System.exit(0);
-		} else {
-			try {
-				return FilesUtils.readObjectFromFile(p);
-			} catch (IOException | ClassNotFoundException e) {
-				showErrorAndWait(p, "Failed to read file tree backup", e);
-				System.exit(0);
-			}
-		}
 		return null;
 	}
 
-	public static void savePathFiletreeMap(ConcurrentHashMap<String, FileTree> map) {
-		Path p = getPathFiletreeMapPath();
-		try {
-			FilesUtils.writeObjectToFile(map, p);
-			System.out.println("modified: "+p);
-		} catch (IOException e) {
-			FxAlert.showErrorDialog(null, "failed to write: "+p, e);
-		}
+	public static void saveFiletree(Config config) throws IOException {
+		Objects.requireNonNull(config.getFileTree(), "config does not have a filetree: "+config.getSource());
+		
+		Path p = APP_DATA.resolve("trees/"+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
+		Files.createDirectories(p.getParent());
+		FilesUtils.writeObjectToFile(config.getFileTree(), p);
 	}
 	public static Path getBackupLastPerformedPathTimeMapPath() {
-		return Paths.get("backup-last-performed.txt");
+		return APP_DATA.resolve("backup-last-performed.txt");
 	}
-	
 	public static void saveBackupLastPerformedPathTimeMap(Map<String, Long>  map) {
 		try {
 			StringBuilder sb = new StringBuilder();
 			map.forEach((s,t) -> sb.append(s).append('\t').append(t).append('\n'));
 			Files.write(getBackupLastPerformedPathTimeMapPath(), sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-		} catch (IOException e) {}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public static Map<String, Long> readBackupLastPerformedPathTimeMap() {
@@ -189,34 +172,6 @@ public class Utils {
 		} catch (IOException e) {}
 		return map;
 	}
-	public static void saveExcludes(Map<Path, List<Path>> map) {
-		Path p = Paths.get("excluded-files.txt"); 
-		try {
-			StringBuilder sb = new StringBuilder();
-
-			sb.append(LocalDateTime.now().format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM))).append('\n').append('\n');
-			map.forEach((s,t) -> {
-				if(t.isEmpty())
-					return;
-				sb.append(s).append('\n');
-				t.forEach(path -> sb.append("   ").append(path.startsWith(s) ? path.subpath(s.getNameCount(),path.getNameCount()) : path).append('\n'));
-				sb.append('\n');
-			});
-
-			if(Files.exists(p)) {
-				char[] c = new char[30];
-				Arrays.fill(c, '-');
-				sb.append('\n').append(c).append('\n');
-				sb.append(new String(Files.readAllBytes(p)));
-			}
-
-			Files.write(p, sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.APPEND);
-			System.out.println("modified: excluded-files.txt");
-		} catch (IOException e) {
-			System.out.println("failed to save: excluded-files.txt");
-			e.printStackTrace();
-		}
-	}
 
 	public static Stage showStage(Parent ta) {
 		Stage stg = new Stage();
@@ -228,7 +183,7 @@ public class Utils {
 		stg.setWidth(300);
 		stg.setHeight(400);
 		runLater(stg::show);
-		
+
 		return stg;
 	}
 }

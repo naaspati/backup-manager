@@ -5,18 +5,11 @@ import static javafx.application.Platform.runLater;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -35,17 +28,16 @@ import sam.backup.manager.config.view.RootView;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.AboutFile;
 import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.view.CenterView;
 import sam.backup.manager.view.StatusView;
 import sam.backup.manager.view.TransferView;
-import sam.backup.manager.view.enums.ViewType;
+import sam.backup.manager.view.ViewType;
 import sam.backup.manager.walk.WalkTask;
 import sam.backup.manager.walk.WalkType;
 import sam.fx.alert.FxAlert;
 
+// FIXME worst choice object serializing FileTree 
 public class Main extends Application {
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
@@ -56,14 +48,9 @@ public class Main extends Application {
 	}
 	
 	private static Stage stage;
-	private static Set<Config> forceModified; 
 	
 	public static Stage getStage() {
 		return stage;
-	}
-	public static void addToBeModified(Config c) {
-		if(forceModified == null) forceModified = new HashSet<>();
-		forceModified.add(c);
 	}
 
 	private RootConfig root;
@@ -73,11 +60,8 @@ public class Main extends Application {
 
 	private CenterView centerView;
 	private List<IStopStart> stoppableTasks ;
-	private Map<Path, List<Path>> excludedFiles;
-	private volatile boolean modified, backupLastPerformedModified;
+	private volatile boolean backupLastPerformedModified;
 	private Map<String, Long> backupLastPerformed ;
-
-	private ConcurrentHashMap<String, FileTree> pathFileTreeMap;
 
 	@Override
 	public void start(Stage stage) throws Exception {
@@ -116,13 +100,9 @@ public class Main extends Application {
 			rootContainer.setTop(rootView);
 		});
 		
-
-		pathFileTreeMap = Utils.readPathFiletreeMap();
 		backupLastPerformed = Utils.readBackupLastPerformedPathTimeMap();  
-		
 		stoppableTasks = new ArrayList<>();
-		excludedFiles = Collections.synchronizedMap(new LinkedHashMap<Path, List<Path>>());
-
+		
 		centerView = new CenterView();
 		runLater(() -> rootContainer.setCenter(centerView));
 
@@ -149,6 +129,13 @@ public class Main extends Application {
 		IStartOnComplete<ListingView> action = new IStartOnComplete<ListingView>() {
 			@Override
 			public void start(ListingView e) {
+				Config c = e.getConfig();
+				c.setFileTree(new FileTree(c.getSource()));
+				
+				if(c.getDepth() <= 0) {
+					runLater(() -> FxAlert.showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getDepth(), null, true));
+					return;
+				}
 				ex.execute(new WalkTask(e));
 			}
 			@Override
@@ -174,13 +161,18 @@ public class Main extends Application {
 			public void start(TransferView view) {
 				ex.execute(view);
 				statusView.addSummery(view.getSummery());
-				modified = true;
 			}
 			@Override
 			public void onComplete(TransferView view) {
 				statusView.removeSummery(view.getSummery());
 				backupLastPerformed.put("backup:"+view.getConfigView().getConfig().getSource(), System.currentTimeMillis());
 				backupLastPerformedModified = true;
+				rootView.refreshSize();
+				try {
+					Utils.saveFiletree(view.getConfigView().getConfig());
+				} catch (IOException e) {
+					runLater(() -> FxAlert.showErrorDialog(null, "failed to save TreeFile: ", e));	
+				}
 			}
 		};
 
@@ -188,28 +180,40 @@ public class Main extends Application {
 			@Override
 			public void start(ConfigView view) {
 				if(!view.getConfig().isDisabled()) {
-					List<Path> list = excludedFiles.get(view.getConfig().getSource());
-					if(list == null)
-						excludedFiles.put(view.getConfig().getSource(), list = new ArrayList<>());
-
-					Config c = view.getConfig();
-					WalkType w;
-					if(c.getFileTree() == null) {
-						FileTree ft = pathFileTreeMap.get(c.getSource().toString());
-						if(ft == null) {
-							w = WalkType.NEW_SOURCE;
-							ft = new FileTree(c.getSource()); 
-							c.setFileTree(ft);	
-							pathFileTreeMap.put(c.getSource().toString(), ft);
+					view.setLoading(true);
+					try {
+						Config c = view.getConfig();
+						
+						if(c.getDepth() <= 0) {
+							runLater(() -> view.finish("Walk failed: \nbad value for depth: "+c.getDepth(), true));
+							return;
 						}
-						else {
+						WalkType w;
+						if(c.getFileTree() == null) {
+							FileTree ft;
+							try {
+								ft = Utils.readFiletree(c);
+							} catch (ClassNotFoundException | IOException e) {
+								runLater(() -> FxAlert.showErrorDialog(null, "failed to read TreeFile: ", e));
+								return;
+							}
+							if(ft == null) {
+								w = WalkType.NEW_SOURCE;
+								ft = new FileTree(c.getSource()); 
+								c.setFileTree(ft);	
+							}
+							else {
+								w = WalkType.SOURCE;
+								c.setFileTree(ft);
+							} 
+						} else {
 							w = WalkType.SOURCE;
-							c.setFileTree(ft);
-						} 
-					} else {
-						w = WalkType.SOURCE;
+						}
+						
+						ex.execute(new WalkTask(view, w));
+					} finally {
+						
 					}
-					ex.execute(new WalkTask(view, list, w));
 				}
 			}
 			@Override
@@ -231,26 +235,6 @@ public class Main extends Application {
 
 	@Override
 	public void stop() throws Exception {
-		if(forceModified != null || modified) {
-			if(forceModified != null) {
-				FileTreeWalker walker = new FileTreeWalker() {
-					@Override
-					public FileVisitResult file(FileTree ft, AboutFile source, AboutFile backup) {
-						ft.setCopied();
-						return FileVisitResult.CONTINUE;
-					}
-					@Override
-					public FileVisitResult dir(FileTree ft, AboutFile source, AboutFile backup) {
-						ft.setCopied();
-						return FileVisitResult.CONTINUE;
-					}
-				};
-				forceModified.forEach(c -> c.getFileTree().walk(walker));
-			}
-			
-			Utils.savePathFiletreeMap(pathFileTreeMap);
-			Utils.saveExcludes(excludedFiles);
-		}
 		if(backupLastPerformedModified)
 			Utils.saveBackupLastPerformedPathTimeMap(backupLastPerformed);
 		System.exit(0);

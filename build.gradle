@@ -7,7 +7,7 @@ repositories {
 
 dependencies {
    compile 'com.google.code.gson:gson:2.8.2'
-   compile files('myutils.jar')
+    compile files('myutils.jar')
    
    // compile files(/C:\Users\Sameer\Documents\MEGA\eclipse_workplace\java\MyUtils\myutils.jar/)
   
@@ -21,7 +21,7 @@ version = 0.01
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
-mainClassName = 'sam.backup.manager.Main'// */ 'MainTest'
+mainClassName =   'sam.backup.manager.Main'// */ 'MainTest'
 
 task copy(type: Copy) {
   from(fileTree("$buildDir/install/${distributions.main.baseName}"))

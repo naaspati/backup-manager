@@ -19,8 +19,6 @@ public class Config extends ConfigBase {
 	private transient boolean sourceWalkComplete;
 	private transient List<FileTree> backupFilesList;
 
-	public Config() {}
-
 	public Config(RootConfig root, Path source, Path target) {
 		this.root = root;
 		this.sourceP = source;
@@ -32,10 +30,10 @@ public class Config extends ConfigBase {
 	public Path getSource() {
 		return sourceP = sourceP == null ? Paths.get(source) : sourceP;
 	}
-	public Path getTargetPath() {
+	public Path getTarget() {
 		if(targetP == null && !root.isNoDriveMode()) {
 			Path s = target == null ? getSource() : Paths.get(target);
-			targetP = root.getFullBackupRoot().resolve(s.getRoot() == null ? s : s.subpath(0, s.getNameCount()));
+			targetP = root.getFullBackupRoot().resolve(s.getRoot() == null ? s : s.subpath(0, s.getNameCount())).normalize().toAbsolutePath();
 		}
 		return targetP;
 	}
@@ -53,12 +51,17 @@ public class Config extends ConfigBase {
 	@Override
 	public Predicate<Path> getSourceExcluder() {
 		if(excluder != null) return excluder;
-		return excluder = createExcluder(root.getSourceExcluder(), excludes);
+		return excluder = createFilter(root.getSourceExcluder(), excludes);
 	}
 	@Override
 	public Predicate<Path> getTargetExcluder() {
 		if(targetExcluder != null) return targetExcluder;
-		return targetExcluder = createExcluder(root.getTargetExcluder(), targetExcludes);
+		return targetExcluder = createFilter(root.getTargetExcluder(), targetExcludes);
+	}
+	@Override
+	public Predicate<Path> getSourceIncluder() {
+		if(includer != null) return includer;
+		return includer = createFilter(includes);
 	}
 	public FileTree getFileTree() {
 		return fileTree;

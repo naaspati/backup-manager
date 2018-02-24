@@ -4,6 +4,7 @@ package sam.backup.manager.config.view;
 import static java.lang.String.valueOf;
 import static javafx.scene.layout.GridPane.REMAINING;
 import static sam.backup.manager.extra.Utils.bytesToString;
+import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.fx.helpers.FxHelpers.addClass;
 import static sam.fx.helpers.FxHelpers.removeClass;
 
@@ -57,7 +58,6 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 	private final AtomicReference<Node> filesView = new AtomicReference<Node>();
 
 	public ConfigView(Config config, IStartOnComplete<ConfigView> startEndAction, Long lastUpdated) {
-		//TODO setCenter(container);
 		this.config = config;
 		addClass(this, "config-view");
 		addClass(container, "container");
@@ -87,11 +87,11 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 		backupFileCount = text("---");
 
 		int row = 0;
-
+		
 		container.addRow(row, text("Source: "));
-		container.add(text(String.valueOf(config.getSource())), 1, row++, REMAINING, 1);
+		container.add(hyperlink(config.getSource()), 1, row++, REMAINING, 1);
 		container.addRow(row,text("Target: "));
-		container.add(text(String.valueOf(config.getTarget())), 1, row++, REMAINING, 1);
+		container.add(hyperlink(config.getTarget()), 1, row++, REMAINING, 1);
 		container.addRow(row, text("Last updated: "));
 		container.add(text(lastUpdated == null ? "N/A" : Utils.millsToTimeString(lastUpdated)), 1, row++, REMAINING, 1);
 

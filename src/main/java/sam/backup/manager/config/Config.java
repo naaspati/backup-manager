@@ -26,14 +26,24 @@ public class Config extends ConfigBase {
 		this.source = source.toString();
 		this.target = target.toString();
 	}
-
 	public Path getSource() {
-		return sourceP = sourceP == null ? Paths.get(source) : sourceP;
+		return sourceP != null ? sourceP :  (sourceP = _getSource());
+	}
+	private Path _getSource() {
+		if(source.startsWith("%root%") || source.startsWith("%ROOT%"))
+			return Paths.get((root.getFullBackupRoot() == null ? "G:/Sameer" : root.getFullBackupRoot().toString()) + source.substring(6)); 
+		
+		return Paths.get(source);
 	}
 	public Path getTarget() {
 		if(targetP == null && !root.isNoDriveMode()) {
-			Path s = target == null ? getSource() : Paths.get(target);
-			targetP = root.getFullBackupRoot().resolve(s.getRoot() == null ? s : s.subpath(0, s.getNameCount())).normalize().toAbsolutePath();
+			Path t = null;
+			if(target != null && (t = Paths.get(target)).getRoot() != null)
+				targetP = t;
+			else {
+				Path s = target != null  ?  Paths.get(target) : getSource();
+				targetP = root.getFullBackupRoot().resolve(s.getRoot() == null ? s : s.subpath(0, s.getNameCount())).normalize().toAbsolutePath();	
+			}
 		}
 		return targetP;
 	}

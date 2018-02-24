@@ -23,11 +23,10 @@ targetCompatibility = JavaVersion.VERSION_1_8
  
 mainClassName =   'sam.backup.manager.Main'// */ 'MainTest'
 
-task copy(type: Copy) {
+task copy(type: Copy, dependsOn:'installDist') {
   from(fileTree("$buildDir/install/${distributions.main.baseName}"))
   into("$rootDir/compiled")
 }
-
 jar {
   manifest {
         attributes('Manifest-Version': '1.0',

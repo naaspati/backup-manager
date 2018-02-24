@@ -2,6 +2,7 @@ package sam.backup.manager.extra;
 
 import static javafx.application.Platform.runLater;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
@@ -23,6 +24,7 @@ import com.google.gson.Gson;
 
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Hyperlink;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -31,12 +33,30 @@ import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTree;
 import sam.fx.alert.FxAlert;
+import sam.fx.popup.FxPopupShop;
 import sam.myutils.fileutils.FilesUtils;
 
 public class Utils {
 	public static Path APP_DATA = Paths.get("app_data");
 
 	private Utils() {}
+	
+	public static Hyperlink hyperlink(Path path) {
+		Hyperlink link = new Hyperlink(String.valueOf(path));
+		if(path != null) {
+			File f = path.toFile();
+			if(!f.exists())
+				link.setOnAction(e -> FxPopupShop.showHidePopup("file not found: \n"+f, 2000));
+			else {
+				if(f.isDirectory())
+					link.setOnAction(e -> FilesUtils.openFileNoError(f));
+				else
+					link.setOnAction(e -> FilesUtils.openFileLocationInExplorerNoError(f));
+			}
+		} 
+		link.setMinWidth(400);
+		return link;
+	}
 
 	public static String bytesToString(long bytes) {
 		if(bytes == 0)

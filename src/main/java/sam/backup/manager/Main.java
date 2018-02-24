@@ -3,6 +3,7 @@ package sam.backup.manager;
 
 import static javafx.application.Platform.runLater;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javafx.application.Application;
+import javafx.application.HostServices;
 import javafx.scene.Scene;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
@@ -36,10 +38,16 @@ import sam.backup.manager.view.ViewType;
 import sam.backup.manager.walk.WalkTask;
 import sam.backup.manager.walk.WalkType;
 import sam.fx.alert.FxAlert;
+import sam.fx.popup.FxPopupShop;
+import sam.myutils.fileutils.FilesUtils;
 
 // FIXME worst choice object serializing FileTree 
 public class Main extends Application {
 	public static void main(String[] args) throws IOException, ClassNotFoundException {
+		if(args.length == 1 && args[0].equals("open")) {
+			FilesUtils.openFileNoError(new File("."));
+			System.exit(0);
+		}
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
 			System.out.println("thread: "+thread.getName());
 			exception.printStackTrace();
@@ -48,11 +56,14 @@ public class Main extends Application {
 	}
 	
 	private static Stage stage;
+	private static HostServices hs;
 	
 	public static Stage getStage() {
 		return stage;
 	}
-
+	public static HostServices getHostService() {
+		return hs;
+	}
 	private RootConfig root;
 	private RootView rootView;
 	private StatusView statusView;
@@ -66,7 +77,10 @@ public class Main extends Application {
 	@Override
 	public void start(Stage stage) throws Exception {
 		FxAlert.setParent(stage);
+		FxPopupShop.setParent(stage);
+		
 		Main.stage = stage;
+		Main.hs = getHostServices();
 
 		ProgressIndicator pi = new ProgressIndicator();
 		pi.setMaxWidth(40);

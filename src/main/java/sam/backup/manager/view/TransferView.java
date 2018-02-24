@@ -47,11 +47,13 @@ import sam.backup.manager.extra.TransferSummery;
 import sam.backup.manager.file.AboutFile;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeWalker;
+import sam.fx.popup.FxPopupShop;
+import sam.myutils.myutils.MyUtils;
 import sam.weakstore.WeakStore;
 
 public class TransferView extends VBox implements Runnable, IStopStart, Consumer<ButtonType>, ICanceler {
 	private static final WeakStore<ByteBuffer> buffers = new WeakStore<>(() -> ByteBuffer.allocateDirect(2*1024*1024), true);
-			
+
 	private final ConfigView view;
 	private final Config config;
 
@@ -85,10 +87,10 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 		this.view = view;
 		this.startEndAction = startCompleteAction;
 		this.config = view.getConfig();
-		
+
 		totalFilesCount = config.getBackupFiles().size();
 		summery.setTotal(config.getBackupFiles().stream().mapToLong(FileTree::getSourceSize).sum());
-		
+
 		button = new CustomButton(ButtonType.UPLOAD, this);
 		getChildren().addAll(getHeaderText(), new Text("Files: "+totalFilesCount+"\nSize: "+bytesToString(summery.getTotal())), button);
 	}
@@ -98,7 +100,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 		setClass(header, "header");
 		return header;
 	}
-	
+
 	public ConfigView getConfigView() {
 		return view;
 	}
@@ -117,7 +119,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 		button.setType(ButtonType.UPLOAD);
 		summery.stop();
 	}
-	
+
 	@Override 
 	public void start() {
 		if(sourceTargetTa == null) {
@@ -131,7 +133,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 			currentFileSize = new AtomicLong();
 			currentBytesRead = new AtomicLong();
 			createdDirs = new HashSet<>();
-			
+
 			totalProgressFormat = "Total Progress: %s/"+bytesToString(summery.getTotal())+"  | %s/%s/"+totalFilesCount+" (%s)";
 
 			sourceTargetTa.setPrefRowCount(5);
@@ -255,7 +257,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 		runLater(() -> {
 			if(state == COMPLETED)
 				setCompleted();
-			
+
 			getChildren().remove(stateText);
 			if(state == QUEUED) {
 				stateText.setText("QUEUED");
@@ -264,53 +266,55 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 		});
 	}
 	private void setCompleted() {
-			getChildren().clear();
-			Pane p = new Pane();
-			p.setMaxWidth(Double.MAX_VALUE);
-			HBox.setHgrow(p, Priority.ALWAYS);
-			HBox top = new HBox(getHeaderText(), p, button("close", "Delete_10px.png", e -> ((Pane)getParent()).getChildren().remove(this)));
+		getChildren().clear();
+		Pane p = new Pane();
+		p.setMaxWidth(Double.MAX_VALUE);
+		HBox.setHgrow(p, Priority.ALWAYS);
+		HBox top = new HBox(getHeaderText(), p, button("close", "Delete_10px.png", e -> ((Pane)getParent()).getChildren().remove(this)));
 
-			Text  t = new Text("COMPLETED"+
-					"\nFiles: "+totalFilesCount+
-					"\nSize: "+bytesToString(summery.getTotal())+
-					"\nTime taken: "+millisToString(summery.getTimeTaken())+
-					(summery.getTimeTaken() < 3000 ? "" : "\nAverage Speed: "+bytesToString(summery.getAverageSpeed())+"/s")
-					);
+		Text  t = new Text("COMPLETED"+
+				"\nFiles: "+totalFilesCount+
+				"\nSize: "+bytesToString(summery.getTotal())+
+				"\nTime taken: "+millisToString(summery.getTimeTaken())+
+				(summery.getTimeTaken() < 3000 ? "" : "\nAverage Speed: "+bytesToString(summery.getAverageSpeed())+"/s")
+				);
 
-			top.setPadding(new Insets(5,0,5,2));
-			setClass(t, "completed-text");
-			getChildren().addAll(top, t);
-			
-			config.getFileTree().walk(new FileTreeWalker() {
-				@Override
-				public FileVisitResult file(FileTree ft, AboutFile source, AboutFile backup) {
-					return FileVisitResult.CONTINUE;
-				}
-				
-				@Override
-				public FileVisitResult dir(FileTree ft, AboutFile source, AboutFile backup) {
-					ft.setCopied();
-					return FileVisitResult.CONTINUE;
-				}
-			});
-			
-			startEndAction.onComplete(this);
-			
-			sourceTargetTa = null;
-			currentProgressT = null;
-			totalProgressT = null;
-			button = null;
-			currentProgressBar = null;
-			totalProgressBar = null;
-			totalProgressFormat = null;
-			filesMoved = null;
-			currentFileSize = null;
-			currentBytesRead = null;
-			currentProgressFormat = null;
-			state = null;
-			createdDirs = null;
-			startEndAction = null;
-			stateText = null;
+		top.setPadding(new Insets(5,0,5,2));
+		setClass(t, "completed-text");
+		getChildren().addAll(top, t);
+
+		config.getFileTree().walk(new FileTreeWalker() {
+			@Override
+			public FileVisitResult file(FileTree ft, AboutFile source, AboutFile backup) {
+				return FileVisitResult.CONTINUE;
+			}
+
+			@Override
+			public FileVisitResult dir(FileTree ft, AboutFile source, AboutFile backup) {
+				ft.setCopied();
+				return FileVisitResult.CONTINUE;
+			}
+		});
+		
+		MyUtils.beep(4); //TODO replace with a actual sound
+		runLater(() -> FxPopupShop.showHidePopup("transfer completed", 1500));
+		startEndAction.onComplete(this);
+
+		sourceTargetTa = null;
+		currentProgressT = null;
+		totalProgressT = null;
+		button = null;
+		currentProgressBar = null;
+		totalProgressBar = null;
+		totalProgressFormat = null;
+		filesMoved = null;
+		currentFileSize = null;
+		currentBytesRead = null;
+		currentProgressFormat = null;
+		state = null;
+		createdDirs = null;
+		startEndAction = null;
+		stateText = null;
 	}
 }
 

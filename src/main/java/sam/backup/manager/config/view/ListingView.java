@@ -1,9 +1,11 @@
 package sam.backup.manager.config.view;
 
 import static javafx.application.Platform.runLater;
+import static sam.fx.alert.FxAlert.showErrorDialog;
 import static sam.fx.helpers.FxHelpers.setClass;
 import static sam.fx.helpers.FxHelpers.text;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -11,10 +13,13 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.function.Consumer;
 
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import javafx.stage.FileChooser;
+import sam.backup.manager.Main;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
@@ -22,7 +27,8 @@ import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.fx.alert.FxAlert;
+import sam.fx.helpers.FxHelpers;
+import sam.fx.popup.FxPopupShop;
 
 public class ListingView extends VBox implements ICanceler, IStopStart, Consumer<ButtonType> {
 	private final Config config;
@@ -41,7 +47,8 @@ public class ListingView extends VBox implements ICanceler, IStopStart, Consumer
 
 		button = new CustomButton(ButtonType.WALK, this);
 
-		Text header = text(String.valueOf(config.getSource()), "header");
+		Hyperlink header = Utils.hyperlink(config.getSource());
+		FxHelpers.addClass(header, "header");
 		fileCountT = text("  Files: --", "count-text");
 		dirCountT = text("  Dirs: --", "count-text");
 
@@ -92,23 +99,35 @@ public class ListingView extends VBox implements ICanceler, IStopStart, Consumer
 		runLater(() -> {
 			getChildren().remove(button);
 			button.setType(ButtonType.OPEN);
-			getChildren().add(new HBox(3, button, listPath == null ? new Text() : new CustomButton(ButtonType.SAVE, this)));
+			getChildren().add(new HBox(3, button, new CustomButton(ButtonType.SAVE, this)));
 		});
 	}
 	public void save() {
 		if(treeText == null) {
-			runLater(() -> FxAlert.showErrorDialog(null, "FileTree not set", null));
+			runLater(() -> showErrorDialog(null, "FileTree not set", null));
 			return;
 		}
-		Path p = listPath.resolve(config.getSource().getFileName()+"-"+config.getSource().hashCode()+".txt");
+		runLater(() -> {
+			FileChooser fc = new FileChooser();
 
-		try {
-			Files.write(p, treeText.toString().getBytes(StandardCharsets.UTF_16), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-			runLater(() -> FxAlert.showMessageDialog("at: "+p+"for: "+config.getSource(), "List create"));
-			startEnd.onComplete(this);
-		} catch (IOException e) {
-			runLater(() -> FxAlert.showErrorDialog("target: "+p, "failed to save:" , e));
-		}
+			Path p = config.getTarget() != null ? config.getTarget()  :  (listPath == null ? config.getSource().getParent() : listPath).resolve(config.getSource().getFileName()+"-"+config.getSource().hashCode()+".txt");
+			
+			fc.setInitialDirectory(p.getParent().toFile());
+			fc.setInitialFileName(p.getFileName().toString());
+			fc.setTitle("save filetree");
+			File file = fc.showSaveDialog(Main.getStage());
+			
+			if(file == null)
+				return;
+			
+			try {
+				Files.write(file.toPath(), treeText.toString().getBytes(StandardCharsets.UTF_16), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+				FxPopupShop.showHidePopup("List created\nat: "+file+"\nfor: "+config.getSource(), 3000);
+				startEnd.onComplete(this);
+			} catch (IOException e) {
+				showErrorDialog("target: "+file, "failed to save" , e);
+			}
+		});
 	}
 
 	public void setFileCount(int n) {

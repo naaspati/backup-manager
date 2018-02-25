@@ -5,6 +5,7 @@ import static javafx.application.Platform.runLater;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -25,6 +26,7 @@ import com.google.gson.Gson;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Hyperlink;
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -32,6 +34,7 @@ import sam.backup.manager.Main;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTree;
+import sam.console.ansi.ANSI;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.fileutils.FilesUtils;
@@ -40,7 +43,7 @@ public class Utils {
 	public static Path APP_DATA = Paths.get("app_data");
 
 	private Utils() {}
-	
+
 	public static Hyperlink hyperlink(Path path) {
 		Hyperlink link = new Hyperlink(String.valueOf(path));
 		if(path != null) {
@@ -141,26 +144,27 @@ public class Utils {
 		}
 		return null;
 	}
-	public static FileTree readFiletree(Config config) throws ClassNotFoundException, IOException {
+	public static FileTree readFiletree(Config config) throws IOException {
 		Path p = APP_DATA.resolve("trees/"+config.getSource().hashCode()+".filetree");
 		Path p2 = APP_DATA.resolve("trees/"+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
-		
+
 		if(Files.exists(p))
 			Files.move(p, p2);
-		
+
 		p = p2;
 		if(Files.exists(p))
-			return FilesUtils.readObjectFromFile(p, FileTree.class);
+			return FileTree.read(p);
 
 		return null;
 	}
 
 	public static void saveFiletree(Config config) throws IOException {
 		Objects.requireNonNull(config.getFileTree(), "config does not have a filetree: "+config.getSource());
-		
+
 		Path p = APP_DATA.resolve("trees/"+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
 		Files.createDirectories(p.getParent());
-		FilesUtils.writeObjectToFile(config.getFileTree(), p);
+		FileTree.write(p, config.getFileTree());
+		System.out.println(ANSI.yellow("file-tree saved: ")+p.getFileName());
 	}
 	public static Path getBackupLastPerformedPathTimeMapPath() {
 		return APP_DATA.resolve("backup-last-performed.txt");
@@ -205,5 +209,29 @@ public class Utils {
 		runLater(stg::show);
 
 		return stg;
+	}
+	public static void showErrorDialog(Object text, String header, Exception error) {
+		runLater(() -> FxAlert.showErrorDialog(text, header, error));
+	}
+	public static boolean saveToFile(String text, Path expectedPath) {
+		FileChooser fc = new FileChooser();
+
+		if(expectedPath != null) {
+			fc.setInitialDirectory(expectedPath.getParent().toFile());
+			fc.setInitialFileName(expectedPath.getFileName().toString());
+		}
+		fc.setTitle("save filetree");
+		File file = fc.showSaveDialog(Main.getStage());
+
+		if(file == null)
+			return false;
+
+		try {
+			Files.write(file.toPath(), text.toString().getBytes(StandardCharsets.UTF_16), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+			return true;
+		} catch (IOException e) {
+			showErrorDialog("target: "+file, "failed to save" , e);
+		}
+		return false;
 	}
 }

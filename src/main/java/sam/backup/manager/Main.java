@@ -1,7 +1,7 @@
 
 package sam.backup.manager;
-
 import static javafx.application.Platform.runLater;
+import static sam.backup.manager.extra.Utils.showErrorDialog;
 
 import java.io.File;
 import java.io.IOException;
@@ -54,10 +54,10 @@ public class Main extends Application {
 		});
 		launch(args);
 	}
-	
+
 	private static Stage stage;
 	private static HostServices hs;
-	
+
 	public static Stage getStage() {
 		return stage;
 	}
@@ -78,7 +78,7 @@ public class Main extends Application {
 	public void start(Stage stage) throws Exception {
 		FxAlert.setParent(stage);
 		FxPopupShop.setParent(stage);
-		
+
 		Main.stage = stage;
 		Main.hs = getHostServices();
 
@@ -113,10 +113,10 @@ public class Main extends Application {
 			rootView = new RootView(this.root);
 			rootContainer.setTop(rootView);
 		});
-		
+
 		backupLastPerformed = Utils.readBackupLastPerformedPathTimeMap();  
 		stoppableTasks = new ArrayList<>();
-		
+
 		centerView = new CenterView();
 		runLater(() -> rootContainer.setCenter(centerView));
 
@@ -131,23 +131,29 @@ public class Main extends Application {
 
 		if(root.hasLists())
 			processLists();
-		
+
 		runLater(centerView::firstClick);
 	}
 
 	private void processLists() {
-		Path listPath = root.isNoDriveMode() ? null : root.getFullBackupRoot().resolve("lists");
-		
+		Path listPath = RootConfig.isNoDriveMode() ? null : root.getFullBackupRoot().resolve("lists");
+
 		ExecutorService ex = Executors.newSingleThreadExecutor();
 
 		IStartOnComplete<ListingView> action = new IStartOnComplete<ListingView>() {
 			@Override
 			public void start(ListingView e) {
 				Config c = e.getConfig();
-				c.setFileTree(new FileTree(c.getSource()));
-				
+
 				if(c.getDepth() <= 0) {
-					runLater(() -> FxAlert.showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getDepth(), null, true));
+					showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getDepth(), null);
+					return;
+				}
+				try {
+					FileTree f = Utils.readFiletree(c);
+					c.setFileTree(f != null ? f : new FileTree(c.getSource()));
+				} catch (IOException e1) {
+					showErrorDialog(null, "failed to read TreeFile: ", e1);
 					return;
 				}
 				ex.execute(new WalkTask(e));
@@ -156,13 +162,14 @@ public class Main extends Application {
 			public void onComplete(ListingView e) {
 				backupLastPerformed.put("list:"+e.getConfig().getSource(), System.currentTimeMillis());
 				backupLastPerformedModified = true;
+
 			}
 		};
 
 		List<ListingView> list = Stream.of(root.getLists())
-		.map(c -> new ListingView(c,listPath,backupLastPerformed.get("list:"+c.getSource()), action))
-		.collect(Collectors.toList());
-		
+				.map(c -> new ListingView(c,listPath,backupLastPerformed.get("list:"+c.getSource()), action))
+				.collect(Collectors.toList());
+
 		stoppableTasks.addAll(list);
 		runLater(() -> centerView.addAllListView(list));
 	}
@@ -185,7 +192,7 @@ public class Main extends Application {
 				try {
 					Utils.saveFiletree(view.getConfigView().getConfig());
 				} catch (IOException e) {
-					runLater(() -> FxAlert.showErrorDialog(null, "failed to save TreeFile: ", e));	
+					showErrorDialog(null, "failed to save TreeFile: ", e);	
 				}
 			}
 		};
@@ -195,39 +202,35 @@ public class Main extends Application {
 			public void start(ConfigView view) {
 				if(!view.getConfig().isDisabled()) {
 					view.setLoading(true);
-					try {
-						Config c = view.getConfig();
-						
-						if(c.getDepth() <= 0) {
-							runLater(() -> view.finish("Walk failed: \nbad value for depth: "+c.getDepth(), true));
+					Config c = view.getConfig();
+
+					if(c.getDepth() <= 0) {
+						runLater(() -> view.finish("Walk failed: \nbad value for depth: "+c.getDepth(), true));
+						return;
+					}
+					WalkType w;
+					if(c.getFileTree() == null) {
+						FileTree ft;
+						try {
+							ft = Utils.readFiletree(c);
+						} catch (IOException e) {
+							showErrorDialog(null, "failed to read TreeFile: ", e);
 							return;
 						}
-						WalkType w;
-						if(c.getFileTree() == null) {
-							FileTree ft;
-							try {
-								ft = Utils.readFiletree(c);
-							} catch (ClassNotFoundException | IOException e) {
-								runLater(() -> FxAlert.showErrorDialog(null, "failed to read TreeFile: ", e));
-								return;
-							}
-							if(ft == null) {
-								w = WalkType.NEW_SOURCE;
-								ft = new FileTree(c.getSource()); 
-								c.setFileTree(ft);	
-							}
-							else {
-								w = WalkType.SOURCE;
-								c.setFileTree(ft);
-							} 
-						} else {
-							w = WalkType.SOURCE;
+						if(ft == null) {
+							w = WalkType.NEW_SOURCE;
+							ft = new FileTree(c.getSource()); 
+							c.setFileTree(ft);	
 						}
-						
-						ex.execute(new WalkTask(view, w));
-					} finally {
-						
+						else {
+							w = WalkType.SOURCE;
+							c.setFileTree(ft);
+						} 
+					} else {
+						w = WalkType.SOURCE;
 					}
+
+					ex.execute(new WalkTask(view, w));
 				}
 			}
 			@Override

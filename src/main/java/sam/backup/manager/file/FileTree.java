@@ -6,15 +6,23 @@ import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
 import static java.nio.file.FileVisitResult.TERMINATE;
 import static sam.backup.manager.walk.WalkType.BACKUP;
 import static sam.backup.manager.walk.WalkType.NEW_SOURCE;
-import static sam.backup.manager.walk.WalkType.SOURCE;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.file.FileVisitResult;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Predicate;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.walk.WalkType;
@@ -23,18 +31,64 @@ public class FileTree implements Serializable {
 	private static final long serialVersionUID = -3216725012618093594L;
 
 	private final String pathString;
-	private List<FileTree> children;
+	private final List<FileTree> children;
 	private long modifiedTime = -1; 
 	private final boolean isDirectory;
 
 	private transient boolean copied;
-	private transient boolean backupNeeded;
+	private transient boolean backupNeeded, deleteBackup;
 	private transient String backupReason;
 	private transient Path path;
 	private transient Path fullPath;
 	private transient Path target;
 	private transient AboutFile sourceAF, backupAF;
 
+	public static FileTree read(Path path) throws IOException {
+		try(InputStream is = Files.newInputStream(path);
+				DataInputStream dis = new DataInputStream(is);) {
+			String versionString = "FileTree: version:1.0";
+			String s = dis.readUTF();
+
+			if(!Objects.equals(s, versionString))
+				throw new IOException("not a filetree file");
+
+			return new FileTree(dis); 
+		}
+	}
+	public static void write(Path path, FileTree tree) throws IOException {
+		try(OutputStream is = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+				DataOutputStream dos = new DataOutputStream(is);) {
+			String versionString = "FileTree: version:1.0";
+			dos.writeUTF(versionString);
+			tree.write(dos); 
+		}
+	}
+	private FileTree(DataInputStream dis) throws IOException {
+		pathString = dis.readUTF();
+		modifiedTime = dis.readLong();
+		isDirectory = dis.readBoolean();
+		if(isDirectory) {
+			int size = dis.readInt();
+			children = new ArrayList<>(size);
+			while(size-- > 0) 
+				children.add(new FileTree(dis));
+		} else 
+			children = null;
+	}
+	private void write(DataOutputStream dos) throws IOException {
+		dos.writeUTF(pathString);
+		dos.writeLong(modifiedTime);
+		dos.writeBoolean(isDirectory);
+		if(isDirectory) {
+			if(children == null) {
+				dos.writeInt(0);
+				return;
+			}
+
+			dos.writeInt(children.size());
+			for (FileTree f : children) f.write(dos);
+		}
+	}
 	public FileTree(Path fileName) {
 		this(fileName, true);
 	}
@@ -42,6 +96,7 @@ public class FileTree implements Serializable {
 		this.pathString = path.toString();
 		this.path = path;
 		this.isDirectory = isDirectory;
+		children = isDirectory ? new ArrayList<>() : null;
 	}
 	public List<FileTree> getChildren() {
 		return children;
@@ -54,7 +109,7 @@ public class FileTree implements Serializable {
 	}
 	public boolean isBackupNeeded() {
 		if(isDirectory)
-			return children != null && children.stream().anyMatch(FileTree::isBackupNeeded);
+			return children.stream().anyMatch(FileTree::isBackupNeeded);
 
 		return backupNeeded;
 	}
@@ -62,6 +117,14 @@ public class FileTree implements Serializable {
 	public void setBackupNeeded(boolean backupNeeded, String reason) {
 		this.backupNeeded = backupNeeded;
 		this.backupReason = reason;
+	}
+	public boolean isDeleteBackup() {
+		if(isDirectory)
+			return children.stream().anyMatch(FileTree::isDeleteBackup);
+		return deleteBackup;
+	}
+	public void setDeleteBackup(boolean deleteBackup) {
+		this.deleteBackup = deleteBackup;
 	}
 	public String getBackupReason() {
 		return backupReason;
@@ -91,7 +154,7 @@ public class FileTree implements Serializable {
 	}
 	private FileTree add(Path partialPath, Path fullpath, AboutFile aboutFile, WalkType walkType, boolean isDirectory) {
 		if(partialPath.getNameCount() == 1) {
-			if(children != null && (walkType == SOURCE || walkType == BACKUP)) {
+			if(children != null && walkType != NEW_SOURCE) {
 				for (FileTree ft : children) {
 					if(ft.getFileName().equals(partialPath)) {
 						ft.setAboutFile(aboutFile, walkType, fullpath);
@@ -115,23 +178,23 @@ public class FileTree implements Serializable {
 		throw new IllegalStateException("no parent found for name: "+partialPath+"  fullpath: "+fullpath);
 	}
 	private FileTree addChild(FileTree child){
-		if(children == null) children = new ArrayList<>();
 		children.add(child);
 		return child;
 	}
 	public void setAboutFile(AboutFile aboutFile, WalkType walkType, Path fullpath) {
-		if(walkType == SOURCE || walkType == NEW_SOURCE) {
+		if(walkType == BACKUP)
+			backupAF = aboutFile;
+		else {
 			sourceAF = aboutFile ;
 			this.fullPath = fullpath;
 		}
-		else if(walkType == BACKUP) {
-			backupAF = aboutFile;
-		}
 	}
-	private void append(final char[] separator, final StringBuilder sb) {
+	private void append(final char[] separator, final StringBuilder sb, Predicate<FileTree> filter) {
 		if(children == null || children.isEmpty()) return;
 
 		for (FileTree f : children) {
+			if(!filter.test(f))
+				continue;
 			sb.append(separator).append(f.pathString).append('\n');
 
 			if(f.isDirectory) {
@@ -145,13 +208,16 @@ public class FileTree implements Serializable {
 				sp2[sp2.length - 3] = '|';
 				sp2[sp2.length - 2] = '_';
 				sp2[sp2.length - 1] = '_';
-				f.append(sp2, sb);
+				f.append(sp2, sb, filter);
 			}
 		}
 	}
 	public String toTreeString() {
+		return toTreeString(p -> true);
+	}
+	public String toTreeString(Predicate<FileTree> filter) {
 		StringBuilder sb = new StringBuilder().append(pathString).append('\n');
-		append(new char[] {' ', '|'}, sb);
+		append(new char[] {' ', '|'}, sb, filter);
 		return sb.toString();	
 	}
 	@Override
@@ -204,6 +270,13 @@ public class FileTree implements Serializable {
 	}
 	public boolean isNew() {
 		return modifiedTime == -1;
+	}
+	public void setDirModifiedTime() {
+		setCopied();
+		if(children == null)
+			return;
+		for (FileTree f : children)
+			f.setDirModifiedTime();
 	}
 }
 

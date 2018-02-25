@@ -1,11 +1,22 @@
 package sam.backup.manager.config;
 
 import java.nio.file.Path;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import sam.backup.manager.walk.WalkSkip;
+
 public class RootConfig extends ConfigBase {
+	private static boolean noDriveMode;
+
+	public static boolean isNoDriveMode() {
+		return noDriveMode;
+	}
+
 	private String backupRoot;
 	private Config[] backups;
 	private Config[] lists;
@@ -16,14 +27,23 @@ public class RootConfig extends ConfigBase {
 	private transient Config[] _backups;
 	private transient Config[] _lists;
 
-	public void init(Path drive) {
-			fullBackupRoot = drive == null ? null : backupRoot == null ? drive : drive.resolve(backupRoot);
-	}
 	private transient Path fullBackupRoot;
+
+	public void init(Path drive) {
+		fullBackupRoot = drive == null ? null : backupRoot == null ? drive : drive.resolve(backupRoot);
+		noDriveMode = fullBackupRoot == null;
+	}
 	
 	@Override
-	public boolean isNoDriveMode() {
-		return fullBackupRoot == null;
+	public Set<WalkSkip> getWalkSkips() {
+		if(_walkSkips != null) return _walkSkips;
+
+		EnumSet<WalkSkip> temp = EnumSet.noneOf(WalkSkip.class);
+		fill(this, temp);
+		
+		_walkSkips = Collections.unmodifiableSet(temp);
+		
+		return _walkSkips;
 	}
 
 	@Override
@@ -39,11 +59,10 @@ public class RootConfig extends ConfigBase {
 	public boolean hasBackups() {
 		return  !backupsDisable && getBackups() != null && getBackups().length != 0;
 	}
-
 	public Config[] getLists() {
 		if(_lists != null)
 			return _lists;
-		
+
 		return _lists = filterConfig(lists); 
 	}
 	private Config[] filterConfig(Config[] configs) {
@@ -59,7 +78,7 @@ public class RootConfig extends ConfigBase {
 	public Config[] getBackups() {
 		if(_backups != null)
 			return _backups;
-		
+
 		return _backups = filterConfig(backups);
 	}
 	@Override
@@ -78,14 +97,6 @@ public class RootConfig extends ConfigBase {
 	}
 	@Override
 	protected RootConfig getRoot() {
-		throw new IllegalAccessError("Root does not have a Root");
-	}
-	@Override
-	public Boolean isDisabled() {
-		return disable == null ? false : disable;
-	}
-	@Override
-	public boolean isNoBackupWalk() {
-		return noBackupWalk == null ? false : noBackupWalk;
+		return this;
 	}
 }

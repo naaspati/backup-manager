@@ -11,7 +11,10 @@ public enum ButtonType {
 	LIST_VIEW,
 	TREE_VIEW, 
 	SET_MODIFIED,
-	LOADING;
+	LOADING, 
+	DELETE,
+	DELETE_ALL,
+	DELETE_SELECTED;
 
 	private ButtonType() {
 		this(null);
@@ -28,7 +31,6 @@ public enum ButtonType {
 					cs[i] = Character.toLowerCase(cs[i]);
 			}
 			this.text = new String(cs);
-
 		}
 		else 
 			this.text = text;

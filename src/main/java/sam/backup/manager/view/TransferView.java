@@ -19,7 +19,6 @@ import static sam.fx.helpers.FxHelpers.setClass;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -44,9 +43,7 @@ import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TransferSummery;
-import sam.backup.manager.file.AboutFile;
 import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeWalker;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.myutils.MyUtils;
 import sam.weakstore.WeakStore;
@@ -204,7 +201,6 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 			if(copy(ft, buffer)) {
 				ft.setCopied();
 				filesMoved.incrementAndGet();
-				view.update();
 			}
 		}
 		summery.stop();
@@ -283,18 +279,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 		setClass(t, "completed-text");
 		getChildren().addAll(top, t);
 
-		config.getFileTree().walk(new FileTreeWalker() {
-			@Override
-			public FileVisitResult file(FileTree ft, AboutFile source, AboutFile backup) {
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult dir(FileTree ft, AboutFile source, AboutFile backup) {
-				ft.setCopied();
-				return FileVisitResult.CONTINUE;
-			}
-		});
+		config.getFileTree().setDirModifiedTime();
 		
 		MyUtils.beep(4); //TODO replace with a actual sound
 		runLater(() -> FxPopupShop.showHidePopup("transfer completed", 1500));

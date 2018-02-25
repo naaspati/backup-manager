@@ -5,6 +5,7 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import sam.backup.manager.file.FileTree;
 
@@ -18,6 +19,7 @@ public class Config extends ConfigBase {
 	private transient FileTree fileTree;
 	private transient boolean sourceWalkComplete;
 	private transient List<FileTree> backupFilesList;
+	private transient List<FileTree> deleteBackupFilesList;
 
 	public Config(RootConfig root, Path source, Path target) {
 		this.root = root;
@@ -36,7 +38,7 @@ public class Config extends ConfigBase {
 		return Paths.get(source);
 	}
 	public Path getTarget() {
-		if(targetP == null && !root.isNoDriveMode()) {
+		if(targetP == null && !RootConfig.isNoDriveMode()) {
 			Path t = null;
 			if(target != null && (t = Paths.get(target)).getRoot() != null)
 				targetP = t;
@@ -91,5 +93,14 @@ public class Config extends ConfigBase {
 	}
 	public List<FileTree> getBackupFiles() {
 		return backupFilesList;
+	}
+	public List<FileTree> getDeleteBackupFilesList() {
+		return deleteBackupFilesList;
+	}
+	public void setDeleteBackupFilesList(List<FileTree> deleteBackupFilesList) {
+		this.deleteBackupFilesList = Collections.unmodifiableList(deleteBackupFilesList);
+	}
+	public boolean is1DepthWalk() {
+		return getDepth() == 1 && Stream.of(excludes, includes, targetExcludes, walkSkips).allMatch(t -> t == null || t.length == 0);
 	}
 }

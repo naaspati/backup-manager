@@ -195,3 +195,12 @@
 	-fx-font-size: 1.2em;
 }
 
+.files-view .expand-toggle {
+	-fx-font-size:0.9em;
+	-fx-border-color:lightgray;
+	-fx-border-width:1;
+	-fx-padding:2;
+	-fx-text-fill:#20B2AA;
+	-fx-font-width:bold;
+}
+

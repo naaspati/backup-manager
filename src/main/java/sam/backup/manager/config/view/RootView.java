@@ -23,7 +23,7 @@ public class RootView extends VBox {
 		setClass(this, "root-view");
 		this.root = root;
 
-		if(root.isNoDriveMode()) {
+		if(RootConfig.isNoDriveMode()) {
 			sizeText = null;
 			Text t = text("Drive Not Found", "full-path-text");
 			Text t2 = text("Drive must contain file ", "drive-warning-text-1");
@@ -44,7 +44,7 @@ public class RootView extends VBox {
 	}
 
 	public void refreshSize() {
-		if(root.isNoDriveMode())
+		if(RootConfig.isNoDriveMode())
 			return;
 		try {
 			FileStore fs = Files.getFileStore(root.getFullBackupRoot().getRoot());

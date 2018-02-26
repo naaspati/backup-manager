@@ -8,7 +8,6 @@ import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
 import static sam.backup.manager.extra.Utils.saveFiletree;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
-import static sam.backup.manager.extra.Utils.showStage;
 import static sam.fx.helpers.FxHelpers.addClass;
 import static sam.fx.helpers.FxHelpers.removeClass;
 
@@ -19,7 +18,6 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
 
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
@@ -37,11 +35,12 @@ import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.file.AboutFile;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeWalker;
+import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.fx.helpers.FxHelpers;
 
-public class ConfigView extends BorderPane implements IStopStart, Consumer<ButtonType>, ICanceler {
+public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler {
 	private final Config config;
 	private final GridPane container = new GridPane();
 	private final CustomButton button; 
@@ -124,13 +123,13 @@ public class ConfigView extends BorderPane implements IStopStart, Consumer<Butto
 		return FxHelpers.text(str, "text");
 	}
 	@Override
-	public void accept(ButtonType type) {
+	public void handle(ButtonType type) {
 		switch (type) {
 			case FILES:
-				showStage(new FilesView(config, FileViewMode.BACKUP));
+				new FilesView(config, FileViewMode.BACKUP).show();
 				break;
 			case DELETE:
-				showStage(new FilesView(config, FileViewMode.DELETE));
+				new FilesView(config, FileViewMode.DELETE).show();
 				break;
 			case WALK:
 				button.setType(ButtonType.LOADING);

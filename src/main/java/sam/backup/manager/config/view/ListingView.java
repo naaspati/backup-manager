@@ -11,7 +11,6 @@ import static sam.fx.helpers.FxHelpers.text;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -26,13 +25,14 @@ import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
+import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.console.ansi.ANSI;
 import sam.fx.helpers.FxHelpers;
 import sam.fx.popup.FxPopupShop;
 
-public class ListingView extends VBox implements ICanceler, IStopStart, Consumer<ButtonType> {
+public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAction {
 	private final Config config;
 	private final IStartOnComplete<ListingView> startEnd;
 	private volatile boolean cancel;
@@ -58,7 +58,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, Consumer
 	}
 
 	@Override
-	public void accept(ButtonType type) {
+	public void handle(ButtonType type) {
 		switch (type) {
 			case WALK:
 				if(config.is1DepthWalk())

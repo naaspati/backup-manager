@@ -3,9 +3,12 @@ package sam.backup.manager.config.view;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
 import static sam.backup.manager.extra.Utils.saveToFile;
+import static sam.console.ansi.ANSI.red;
+import static sam.console.ansi.ANSI.yellow;
 import static sam.fx.helpers.FxHelpers.addClass;
 import static sam.fx.helpers.FxHelpers.setClass;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -13,17 +16,19 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Cell;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -32,7 +37,6 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SelectionMode;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
@@ -44,7 +48,13 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import sam.backup.manager.Main;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.file.AboutFile;
 import sam.backup.manager.file.FileTree;
@@ -52,37 +62,33 @@ import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.console.ansi.ANSI;
-
-import static sam.console.ansi.ANSI.*;
 import sam.fx.helpers.FxHelpers;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.myutils.MyUtils;
 import sam.weakstore.WeakStore;
 
-public class FilesView extends BorderPane {
+public class FilesView extends Stage {
 	public enum FileViewMode {
 		DELETE, BACKUP
 	}
 	private static final Image img = new Image("Checkmark_16px.png");
 	private static final WeakStore<ImageView> imageViews = new WeakStore<>(() -> new ImageView(img), true);
+	private final BorderPane root = new BorderPane();
 
 	private TreeView<FileTree> treeView; 
 	private ListView<Object> listview;
-	private TextArea aboutFileTreeTA = new TextArea();
-	private SplitPane sp = new SplitPane();
 	private final Config config;
 	private ButtonType type;
 	private boolean isTreeView = true;
 	private final FileViewMode mode;
 	private final ToggleButton expandAll = new ToggleButton("Expand All");
-	private final Text countText = new Text(); 
 
 	public FilesView(Config config, FileViewMode mode) {
-		addClass(this, "files-view");
+		addClass(root, "files-view");
 		this.config = config;
 		this.type = null;
 		this.mode = mode;
-		
+
 		expandAll.setVisible(false);
 		setClass(expandAll, "expand-toggle");
 		expandAll.setOnAction(e -> {
@@ -90,23 +96,25 @@ public class FilesView extends BorderPane {
 			expandAll.setText(b ? "collapse all" : "expand all");
 			expand(b, treeView.getRoot().getChildren());
 		});
+		root.setCenter(getTreeView());
+		root.setTop(top());
+		root.setBottom(bottom());
+		Scene scene = new Scene(root);
+		scene.getStylesheets().add("style.css");
+		initModality(Modality.WINDOW_MODAL);
+		initOwner(Main.getStage());
+		initStyle(StageStyle.UTILITY);
+		setScene(scene);
+	}
+	private Node top() {
+		Label l = new Label(String.valueOf(config.getSource()));
+		l.setWrapText(true);
+		Text count = new Text("count: "+getFiles().size());
+		count.setFill(Color.YELLOWGREEN);
 
-		addClass(this, "files-view");
-		aboutFileTreeTA.setEditable(false);
-		aboutFileTreeTA.setPrefColumnCount(12);
-		
-		RadioMenuItem item = new RadioMenuItem("wrap text");
-		aboutFileTreeTA.wrapTextProperty().bind(item.selectedProperty());
-		ContextMenu menu = new ContextMenu(item);
-		
-		aboutFileTreeTA.setContextMenu(menu);
-
-		sp.setOrientation(Orientation.VERTICAL);
-		sp.setDividerPosition(1, 0.5);
-		sp.getItems().addAll(getTreeView(), aboutFileTreeTA);
-		setCenter(sp);
-		setTop(top());
-		setBottom(bottom());
+		VBox box = new VBox(2, l, new BorderPane(null, null, count, null, expandAll));
+		box.setPadding(new Insets(5));
+		return box;
 	}
 	private void expand(boolean expand, Collection<TreeItem<FileTree>> root) {
 		for (TreeItem<FileTree> item : root) {
@@ -115,8 +123,10 @@ public class FilesView extends BorderPane {
 		}
 	}
 	private Node bottom() {
+		CustomButton save = new CustomButton(ButtonType.SAVE, e -> saveToFile(config.getFileTree().toTreeString(getFilter()), Paths.get("D:\\Downloads").resolve(config.getSource().getFileName()+".txt")));
+
 		if(mode == FileViewMode.DELETE) {
-			HBox hb = new HBox(2, new CustomButton(ButtonType.DELETE_ALL, this::delete), new CustomButton(ButtonType.DELETE_SELECTED, this::delete));
+			HBox hb = new HBox(2, new CustomButton(ButtonType.DELETE_ALL, this::delete), new CustomButton(ButtonType.DELETE_SELECTED, this::delete), save);
 			hb.setPadding(new Insets(5));
 			return hb;
 		}
@@ -143,7 +153,6 @@ public class FilesView extends BorderPane {
 		VBox vbox = new VBox(2, new HBox(2,backFiles, allFiles), new HBox(2,treev, listv));
 		vbox.setStyle("-fx-font-size:0.7em;-fx-padding:5px;");
 
-		CustomButton save = new CustomButton(ButtonType.SAVE, e -> saveToFile(config.getFileTree().toTreeString(getFilter()), Paths.get("D:\\Downloads").resolve(config.getSource().getFileName()+".txt")));
 		BorderPane.setAlignment(save, Pos.CENTER);
 		BorderPane.setMargin(save, new Insets(5));
 
@@ -151,7 +160,7 @@ public class FilesView extends BorderPane {
 	}
 	private void delete(ButtonType type) {
 		List<FileTree> files = null;
-		
+
 		if(type == ButtonType.DELETE_SELECTED) {
 			List<TreeItem<FileTree>> temp = treeView.getSelectionModel().getSelectedItems();
 			if(temp.isEmpty()) {
@@ -168,49 +177,60 @@ public class FilesView extends BorderPane {
 		}
 		if(type == ButtonType.DELETE_ALL) 
 			files = config.getDeleteBackupFilesList();
-		
+
 		if(files == null)
 			return;
 		
-		System.out.println("deleted");
-		Map<Path, List<Path>> map = files.stream()
-				.map(FileTree::getTargetPath)
-				.collect(Collectors.groupingBy(Path::getParent));
-		
-		StringBuilder sb = new StringBuilder();
-		ANSI.NO_COLOR = type == ButtonType.DELETE_ALL;
-		map.forEach((s,t) -> {
-			yellow(sb, s).append('\n');
-			t.forEach(z -> {
-				sb.append("  ").append(z.getFileName());
-				try {
-					Files.delete(z);
-				} catch (IOException e) {
-					red(sb, "  failed").append(MyUtils.exceptionToString(e));
-				}
-				sb.append('\n');
+		List<FileTree> files2 = files;
+
+		Thread thrd = new Thread(() -> {
+			Map<Path, List<Path>> map = files2.stream()
+					.map(FileTree::getTargetPath)
+					.collect(Collectors.groupingBy(Path::getParent));
+
+			boolean b = type == ButtonType.DELETE_ALL;
+			ANSI.NO_COLOR = b;
+			StringBuilder sb = new StringBuilder(b ? ANSI.createUnColoredBanner("DELETED FILES") : ANSI.createBanner("DELETED FILES")).append('\n');
+			Runnable settext;
+			if(b) {
+				TextArea ta = new TextArea();
+				settext = () -> Platform.runLater(() -> ta.setText(sb.toString()));
+
+				Platform.runLater(() -> {
+					root.getChildren().clear();
+					root.setCenter(ta);
+				});
+			} else {
+				System.out.println(sb);
+				int index[] = {sb.length()}; 
+				settext = () -> {
+					System.out.print(sb.substring(index[0]));
+					index[0] = sb.length();
+				};
+			}
+			map.forEach((s,t) -> {
+				yellow(sb, s).append('\n');
+				t.forEach(z -> {
+					sb.append("  ").append(z.getFileName());
+					try {
+						Files.delete(z);
+					} catch (IOException e) {
+						red(sb, "  failed").append(MyUtils.exceptionToString(e));
+					}
+					sb.append('\n');
+				});
+				settext.run();
 			});
+			long count = map.keySet().stream().sorted(Comparator.comparing(Path::getNameCount).reversed()).map(Path::toFile).filter(File::delete).count();
+			sb.append("\n-----------\nDirs Deleted: "+count);
+			settext.run();
+			ANSI.NO_COLOR = false;
 		});
-		
-		ANSI.NO_COLOR = false;
-		
-		if(type == ButtonType.DELETE_ALL) {
-			getChildren().clear();
-			setCenter(new TextArea(sb.toString()));
-		} else 
-			System.out.println(sb);
+		thrd.start();
 	}
 
 	private void update() {
-		sp.getItems().set(0, isTreeView ? getTreeView() : getListView());
-	}
-	private Node top() {
-		Label l = new Label(String.valueOf(config.getSource()));
-		l.setWrapText(true);
-		
-		VBox box = new VBox(2, l, new BorderPane(null, null, expandAll, null, countText));
-		box.setPadding(new Insets(5));
-		return box;
+		root.setCenter(isTreeView ? getTreeView() : getListView());
 	}
 	private Node getListView() {
 		expandAll.setVisible(false);
@@ -218,7 +238,7 @@ public class FilesView extends BorderPane {
 			listview.refresh();
 			return listview;
 		}
-		int count = config.getSource().getNameCount();
+		int count = config.getTarget().getNameCount();
 
 		ObservableList<Object> list = FXCollections.observableArrayList();
 		getFiles().stream().collect(Collectors.groupingBy(f -> f.getTargetPath().getParent()))
@@ -226,7 +246,6 @@ public class FilesView extends BorderPane {
 			list.add(s.subpath(count, s.getNameCount()));
 			list.addAll(t);
 		});
-		countText.setText(String.valueOf(getFiles().size()));
 		listview = new ListView<>(list);
 
 		listview.getSelectionModel().selectedItemProperty()
@@ -318,13 +337,14 @@ public class FilesView extends BorderPane {
 			"\r\n" + 
 			"copied              %s\r\n" + 
 			"backup required     %s";
-	public void change(Object item) {
+	private void change(Object item) {
+		showDetailsDialog();
 		if(item == null || !(item instanceof FileTree)) {
 			aboutFileTreeTA.setText(null);
 			return;
 		}
 		FileTree n = (FileTree) item;
-		
+
 		if(mode == FileViewMode.DELETE) {
 			deleteInfo(n);
 			return;
@@ -364,17 +384,46 @@ public class FilesView extends BorderPane {
 		}
 	}
 
+	private TextArea aboutFileTreeTA;
+	private Stage stage;
+	private void showDetailsDialog() {
+		if(aboutFileTreeTA == null ) {
+			stage = new Stage(StageStyle.UNIFIED);
+			stage.initModality(Modality.NONE);
+			stage.initOwner(this);
+
+			aboutFileTreeTA = new TextArea();
+			aboutFileTreeTA.setEditable(false);
+			aboutFileTreeTA.setPrefColumnCount(12);
+			aboutFileTreeTA.setFont(Font.font("Consolas"));
+
+			RadioMenuItem item = new RadioMenuItem("wrap text");
+			aboutFileTreeTA.wrapTextProperty().bind(item.selectedProperty());
+			ContextMenu menu = new ContextMenu(item);
+
+			aboutFileTreeTA.setContextMenu(menu);
+
+			stage.setScene(new Scene(aboutFileTreeTA));
+			stage.setX(this.getX() + this.getWidth());
+			stage.setWidth(300);
+			stage.setHeight(300);
+			this.xProperty().addListener((p, o, n) -> stage.setX(n.doubleValue() + this.getWidth()));
+			this.yProperty().addListener((p, o, n) -> stage.setY(n.doubleValue()));
+		}
+		if(!stage.isShowing())
+			stage.show();
+	}
 	private void deleteInfo(FileTree item) {
 		if(item.isDirectory()) {
 			aboutFileTreeTA.setText("source: "+item.getSourcePath());
 			return;
 		}
-		
+
 		List<FileTree> list = new ArrayList<>();
 		Path name = item.getFileName();
-		
+
 		config.getFileTree().walk(new FileTreeWalker() {
-			
+
 			@Override
 			public FileVisitResult file(FileTree ft, AboutFile source, AboutFile backup) {
 				if(ft != item && name.equals(ft.getFileName()))

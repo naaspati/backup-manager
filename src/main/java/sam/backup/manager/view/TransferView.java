@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
 
 import javafx.geometry.Insets;
 import javafx.scene.Node;
@@ -48,7 +47,7 @@ import sam.fx.popup.FxPopupShop;
 import sam.myutils.myutils.MyUtils;
 import sam.weakstore.WeakStore;
 
-public class TransferView extends VBox implements Runnable, IStopStart, Consumer<ButtonType>, ICanceler {
+public class TransferView extends VBox implements Runnable, IStopStart, ButtonAction, ICanceler {
 	private static final WeakStore<ByteBuffer> buffers = new WeakStore<>(() -> ByteBuffer.allocateDirect(2*1024*1024), true);
 
 	private final ConfigView view;
@@ -105,7 +104,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, Consumer
 		return summery;
 	}
 	@Override
-	public void accept(ButtonType type) {
+	public void handle(ButtonType type) {
 		if(type == ButtonType.UPLOAD)
 			start();
 		else if(type == ButtonType.CANCEL)

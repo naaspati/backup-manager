@@ -49,9 +49,9 @@ public class Filter implements Predicate<Path> {
 
 	private Predicate<Path> predicate(Predicate<Path> existing, PathMatcher pm) {
 		if(existing == null)
-			return p -> pm.matches(p);
+			return pm::matches;
 
-			return existing.or(p -> pm.matches(p));
+			return existing.or(pm::matches);
 	}
 	private Set<Path> add(Set<Path> list, Path s) {
 		if(list == null) list = new HashSet<>();

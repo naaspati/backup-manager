@@ -4,6 +4,12 @@ apply plugin: 'application'
 repositories {
     jcenter()
 }
+task toast {
+ doLast {
+   // installDist.properties.each{println it.key}
+   println ()
+     }
+}
 
 dependencies {
    compile 'com.google.code.gson:gson:2.8.2'
@@ -27,10 +33,16 @@ run {
  main 'MainTest'
 }
 
+installDist.destinationDir = file("$rootDir/compiled/app") 
+
+/*
 task copy(type: Copy, dependsOn:'installDist') {
   from(fileTree("$buildDir/install/${distributions.main.baseName}"))
   into("$rootDir/compiled")
 }
+*/
+
+
 jar {
   manifest {
         attributes('Manifest-Version': '1.0',

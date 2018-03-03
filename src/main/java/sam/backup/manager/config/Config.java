@@ -1,5 +1,6 @@
 package sam.backup.manager.config;
 
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
@@ -9,7 +10,9 @@ import java.util.stream.Stream;
 
 import sam.backup.manager.file.FileTree;
 
-public class Config extends ConfigBase {
+public class Config extends ConfigBase implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	private String source;
 	private String target;
 

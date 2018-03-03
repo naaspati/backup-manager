@@ -1,5 +1,6 @@
 package sam.backup.manager.config;
 
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -10,7 +11,9 @@ import sam.backup.manager.file.Filter;
 import sam.backup.manager.walk.WalkSkip;
 import sam.console.ansi.ANSI;
 
-public abstract class ConfigBase {
+public abstract class ConfigBase implements Serializable {
+	private static final long serialVersionUID = 1L;
+	
 	protected String[] excludes;
 	protected String[] includes;
 	protected String[] targetExcludes;

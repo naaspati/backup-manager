@@ -35,7 +35,7 @@ public class CustomButton extends Button {
 		else if(this.type == ButtonType.LOADING)
 			setDisable(false);
 		
-		if(type != null) removeClass(this, type.cssClass);
+		if(this.type != null) removeClass(this, this.type.cssClass);
 		addClass(this, type.cssClass);
 		setText(type.text);
 		this.type = type;

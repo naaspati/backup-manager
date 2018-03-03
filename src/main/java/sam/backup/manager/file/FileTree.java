@@ -12,7 +12,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,36 +19,35 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Predicate;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.walk.WalkType;
 
-public class FileTree implements Serializable {
-	private static final long serialVersionUID = -3216725012618093594L;
-
+public class FileTree  {
 	private final String pathString;
 	private final List<FileTree> children;
 	private long modifiedTime = -1; 
 	private final boolean isDirectory;
 
-	private transient boolean copied;
-	private transient boolean backupNeeded, deleteBackup;
-	private transient String backupReason;
-	private transient Path path;
-	private transient Path fullPath;
-	private transient Path target;
-	private transient AboutFile sourceAF, backupAF;
+	private boolean copied;
+	private boolean backupNeeded, deleteBackup;
+	private String backupReason;
+	private Path path;
+	private Path fullPath;
+	private Path target;
+	private AboutFile sourceAF, backupAF;
 
+	
+	private static final String VERSION_STRING = "FileTree: version:1.0"; 
 	public static FileTree read(Path path) throws IOException {
 		try(InputStream is = Files.newInputStream(path);
 				DataInputStream dis = new DataInputStream(is);) {
-			String versionString = "FileTree: version:1.0";
 			String s = dis.readUTF();
 
-			if(!Objects.equals(s, versionString))
+			if(!VERSION_STRING.equals(s))
 				throw new IOException("not a filetree file");
 
 			return new FileTree(dis); 
@@ -58,9 +56,22 @@ public class FileTree implements Serializable {
 	public static void write(Path path, FileTree tree) throws IOException {
 		try(OutputStream is = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 				DataOutputStream dos = new DataOutputStream(is);) {
-			String versionString = "FileTree: version:1.0";
-			dos.writeUTF(versionString);
+			tree.cleanup();
+			dos.writeUTF(VERSION_STRING);
 			tree.write(dos); 
+		}
+	}
+	private void cleanup() {
+		Iterator<FileTree> ft = children.iterator();
+		
+		while(ft.hasNext()) {
+			FileTree f = ft.next();
+			if(f.sourceAF == null) {
+				ft.remove(); 
+				System.out.println("removeed from filetree: "+f.getSourcePath()); //TODO remove 
+			}
+			else if(f.isDirectory)
+				f.cleanup();
 		}
 	}
 	private FileTree(DataInputStream dis) throws IOException {
@@ -153,19 +164,8 @@ public class FileTree implements Serializable {
 		return add(partialPath, fullpath, aboutFile, walkType, true);
 	}
 	private FileTree add(Path partialPath, Path fullpath, AboutFile aboutFile, WalkType walkType, boolean isDirectory) {
-		if(partialPath.getNameCount() == 1) {
-			if(children != null && walkType != NEW_SOURCE) {
-				for (FileTree ft : children) {
-					if(ft.getFileName().equals(partialPath)) {
-						ft.setAboutFile(aboutFile, walkType, fullpath);
-						return ft;
-					}
-				}
-			}
-			FileTree ft = addChild(new FileTree(partialPath, isDirectory));
-			ft.setAboutFile(aboutFile, walkType, fullpath);
-			return ft;
-		}
+		if(partialPath.getNameCount() == 1) 
+			return searchAndAddChild(partialPath, fullpath, aboutFile, walkType, isDirectory);
 		else {
 			Path p2 = partialPath.getName(0);
 			for (FileTree ft : children) {
@@ -176,6 +176,19 @@ public class FileTree implements Serializable {
 			}
 		}
 		throw new IllegalStateException("no parent found for name: "+partialPath+"  fullpath: "+fullpath);
+	}
+	private FileTree searchAndAddChild(Path partialPath, Path fullpath, AboutFile aboutFile, WalkType walkType, boolean isDirectory) {
+		if(children != null && walkType != NEW_SOURCE) {
+			for (FileTree ft : children) {
+				if(ft.getFileName().equals(partialPath)) {
+					ft.setAboutFile(aboutFile, walkType, fullpath);
+					return ft;
+				}
+			}
+		}
+		FileTree ft = addChild(new FileTree(partialPath, isDirectory));
+		ft.setAboutFile(aboutFile, walkType, fullpath);
+		return ft;
 	}
 	private FileTree addChild(FileTree child){
 		children.add(child);

@@ -41,9 +41,8 @@ import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.fileutils.FilesUtils;
 
-// FIXME worst choice object serializing FileTree 
 public class Main extends Application {
-	public static void main(String[] args) throws IOException, ClassNotFoundException {
+	public static void main(String[] args) {
 		if(args.length == 1 && args[0].equals("open")) {
 			FilesUtils.openFileNoError(new File("."));
 			System.exit(0);

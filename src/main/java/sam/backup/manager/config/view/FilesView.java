@@ -191,41 +191,37 @@ public class FilesView extends Stage {
 			boolean b = type == ButtonType.DELETE_ALL;
 			ANSI.NO_COLOR = b;
 			StringBuilder sb = new StringBuilder(b ? ANSI.createUnColoredBanner("DELETED FILES") : ANSI.createBanner("DELETED FILES")).append('\n');
-			Runnable settext;
+			TextArea ta = b ? new TextArea("Please wait") : null;
 			if(b) {
-				TextArea ta = new TextArea();
-				settext = () -> Platform.runLater(() -> ta.setText(sb.toString()));
-
 				Platform.runLater(() -> {
 					root.getChildren().clear();
 					root.setCenter(ta);
 				});
-			} else {
-				System.out.println(sb);
-				int index[] = {sb.length()}; 
-				settext = () -> {
-					System.out.print(sb.substring(index[0]));
-					index[0] = sb.length();
-				};
 			}
+			
 			map.forEach((s,t) -> {
 				yellow(sb, s).append('\n');
 				t.forEach(z -> {
 					sb.append("  ").append(z.getFileName());
 					try {
-						Files.delete(z);
+						Files.deleteIfExists(z);
 					} catch (IOException e) {
 						red(sb, "  failed").append(MyUtils.exceptionToString(e));
 					}
 					sb.append('\n');
 				});
-				settext.run();
 			});
 			long count = map.keySet().stream().sorted(Comparator.comparing(Path::getNameCount).reversed()).map(Path::toFile).filter(File::delete).count();
 			sb.append("\n-----------\nDirs Deleted: "+count);
-			settext.run();
+			
+			if(b) 
+				Platform.runLater(() -> ta.setText(sb.toString()));
+			else 
+				System.out.println(sb);
+			
 			ANSI.NO_COLOR = false;
 		});
+		thrd.setDaemon(true);
 		thrd.start();
 	}
 
@@ -345,43 +341,46 @@ public class FilesView extends Stage {
 		}
 		FileTree n = (FileTree) item;
 
-		if(mode == FileViewMode.DELETE) {
+		if(mode == FileViewMode.DELETE)
 			deleteInfo(n);
-			return;
-		}
-		if(n.isDirectory()) {
-			aboutFileTreeTA.setText(String.format("source: %s\r\n" + 
-					"target: %s\r\n" +
-					"old lastmodied: %s\r\n" +
-					"\r\n" + 
-					"About Source:\r\n" + 
-					"   new last-modifed     %s (%s)\r\n",
-					n.getSourcePath(),
-					(n.getTargetPath() == null ? "--" : n.getTargetPath()),
-					millsToTimeString(n.getModifiedTime()),
-					millsToTimeString(n.getSourceAboutFile().modifiedTime), n.getSourceAboutFile().modifiedTime
-					));
-		}
-		else {
-			long bs = 0 ;
-			long bl = 0 ;
-			if(n.getBackupAboutFile() != null) {
-				bs = n.getBackupAboutFile().size;
-				bl = n.getBackupAboutFile().modifiedTime;
-			}
+		else if(n.isDirectory())
+			setDirDetails(n);
+		else
+			setFileDetails(n);
+	}
 
-			aboutFileTreeTA.setText(String.format(format,
-					n.getSourcePath(),
-					(n.getTargetPath() == null ? "--" : n.getTargetPath()),
-					millsToTimeString(n.getModifiedTime()),
-					bytesToString(n.getSourceSize()),
-					millsToTimeString(n.getSourceAboutFile().modifiedTime), n.getSourceAboutFile().modifiedTime,
-					(bs == 0 ? "--" : bytesToString(bs)),
-					(bl == 0 ? "--" : millsToTimeString(bl)), bl == 0 ? "--" : bl,
-							(n.isCopied() ? "Yes" : "No"),
-							(n.isBackupNeeded() ? "Yes ("+n.getBackupReason()+")" : "No")
-					));
+	private void setFileDetails(FileTree n) {
+		long bs = 0 ;
+		long bl = 0 ;
+		if(n.getBackupAboutFile() != null) {
+			bs = n.getBackupAboutFile().size;
+			bl = n.getBackupAboutFile().modifiedTime;
 		}
+
+		aboutFileTreeTA.setText(String.format(format,
+				n.getSourcePath(),
+				(n.getTargetPath() == null ? "--" : n.getTargetPath()),
+				millsToTimeString(n.getModifiedTime()),
+				bytesToString(n.getSourceSize()),
+				millsToTimeString(n.getSourceAboutFile().modifiedTime), n.getSourceAboutFile().modifiedTime,
+				(bs == 0 ? "--" : bytesToString(bs)),
+				(bl == 0 ? "--" : millsToTimeString(bl)), bl == 0 ? "--" : bl,
+						(n.isCopied() ? "Yes" : "No"),
+						(n.isBackupNeeded() ? "Yes ("+n.getBackupReason()+")" : "No")
+				));
+	}
+	private void setDirDetails(FileTree n) {
+		aboutFileTreeTA.setText(String.format("source: %s\r\n" + 
+				"target: %s\r\n" +
+				"old lastmodied: %s\r\n" +
+				"\r\n" + 
+				"About Source:\r\n" + 
+				"   new last-modifed     %s (%s)\r\n",
+				n.getSourcePath(),
+				(n.getTargetPath() == null ? "--" : n.getTargetPath()),
+				millsToTimeString(n.getModifiedTime()),
+				millsToTimeString(n.getSourceAboutFile().modifiedTime), n.getSourceAboutFile().modifiedTime
+				));
 	}
 
 	private TextArea aboutFileTreeTA;

@@ -63,7 +63,7 @@ public class StatusView extends HBox {
 		speed.addAndGet(ts.getSpeed()*-1);
 	}
 	public void updateTotal(long value) {
-		totalString = "/"+ bytesToString(total.addAndGet(value));;
+		totalString = "/"+ bytesToString(total.addAndGet(value));
 	}
 	public void update(OldNewLong bytesReadOnl, OldNewLong speedOnl) {
 		runLater(() -> {

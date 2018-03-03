@@ -81,17 +81,18 @@ public class CenterView extends BorderPane implements EventHandler<ActionEvent> 
 		((VBox)sp.getContent()).getChildren().add(c);
 	}
 
+	private static final String ACTIVE_CLASS = "active";
 	@Override
 	public void handle(ActionEvent e) {
 		Button b = (Button)e.getSource(); 
-		if(b.getStyleClass().contains("active"))
+		if(b.getStyleClass().contains(ACTIVE_CLASS))
 			return;
 
-		if(backupBtn != null) removeClass(backupBtn, "active");
-		if(transferBtn != null) removeClass(transferBtn, "active");
-		if(listingBtn != null) removeClass(listingBtn, "active");
+		if(backupBtn != null) removeClass(backupBtn, ACTIVE_CLASS);
+		if(transferBtn != null) removeClass(transferBtn, ACTIVE_CLASS);
+		if(listingBtn != null) removeClass(listingBtn, ACTIVE_CLASS);
 
-		addClass(b, "active");
+		addClass(b, ACTIVE_CLASS);
 		setCenter(b, backupBtn, disableBackupView, backupView);
 		setCenter(b, transferBtn,disableTransferView, transferView);
 		setCenter(b, listingBtn,disableListingView,listView);
@@ -123,18 +124,19 @@ public class CenterView extends BorderPane implements EventHandler<ActionEvent> 
 			((Button)buttonBox.getChildren().get(0)).fire();
 	}
 
+	private static final String DISABLE_TEXT_CLASS = "disable-txt";
 	public void disable(ViewType type) {
 		initView(type);
 
 		switch (type) {
 			case BACKUP:
-				disableBackupView = text("No Backup Tasks Found", "disable-txt");
+				disableBackupView = text("No Backup Tasks Found", DISABLE_TEXT_CLASS);
 				break;
 			case TRANSFER:
-				disableTransferView = text("Nothing To Transfer", "disable-txt");
+				disableTransferView = text("Nothing To Transfer", DISABLE_TEXT_CLASS);
 				break;
 			case LIST:
-				disableListingView = text("No Listing tasks Found", "disable-txt");
+				disableListingView = text("No Listing tasks Found", DISABLE_TEXT_CLASS);
 				break;
 		}
 	}

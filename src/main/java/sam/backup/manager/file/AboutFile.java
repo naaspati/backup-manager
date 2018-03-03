@@ -5,12 +5,12 @@ import java.nio.file.attribute.BasicFileAttributes;
 public class AboutFile {
 	public final long modifiedTime;
 	public final long size;
-	
+
 	public AboutFile(BasicFileAttributes attrs) {
 		modifiedTime = attrs.lastModifiedTime().toMillis();
 		size = attrs.size();
 	}
-	
+
 	public AboutFile(long modifiedTime, long size) {
 		this.modifiedTime = modifiedTime;
 		this.size = size;
@@ -33,6 +33,15 @@ public class AboutFile {
 	}
 
 	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (int) (modifiedTime ^ (modifiedTime >>> 32));
+		result = prime * result + (int) (size ^ (size >>> 32));
+		return result;
+	}
+
+	@Override
 	public boolean equals(Object obj) {
 		if (this == obj)
 			return true;
@@ -41,11 +50,7 @@ public class AboutFile {
 		if (getClass() != obj.getClass())
 			return false;
 		AboutFile other = (AboutFile) obj;
-		if (modifiedTime != other.modifiedTime)
-			return false;
-		if (size != other.size)
-			return false;
-		return true;
+		return modifiedTime == other.modifiedTime && size == other.size; 
 	}
-	
+
 }

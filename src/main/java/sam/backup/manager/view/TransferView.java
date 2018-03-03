@@ -21,7 +21,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -62,7 +64,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 	private ProgressBar currentProgressBar ;
 	private ProgressBar totalProgressBar ;
 
-	private final TransferSummery summery = new TransferSummery();;
+	private final TransferSummery summery = new TransferSummery();
 	private String totalProgressFormat;
 
 	private final int totalFilesCount;
@@ -222,9 +224,11 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 
 		if(isCancelled()) return false;
 		buffer.clear();
+		
+ 		Path temp = Optional.of(ft.getTargetPath()).map(p -> p.resolveSibling(p.getFileName()+".tmp")).get();
 
 		try(FileChannel in = FileChannel.open(ft.getSourcePath(), READ);
-				FileChannel out = FileChannel.open(ft.getTargetPath(), CREATE, TRUNCATE_EXISTING, WRITE)) {
+				FileChannel out = FileChannel.open(temp, CREATE, TRUNCATE_EXISTING, WRITE)) {
 
 			int n = 0;
 			while((n = in.read(buffer)) > 0) {
@@ -236,12 +240,19 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 				addBytesRead(n);
 			}
 		} catch (IOException e) {
-			System.out.println("src: "+ft.getSourcePath()+"\ntarget: "+ft.getTargetPath()+"\n Error:"+e+"\n");
-			e.printStackTrace();
+			System.out.println("Failed:copy -> src: "+ft.getSourcePath()+"\ntarget: "+temp+"\n Error:"+e+"\n");
 			return false;
 		}
+		try {
+			Files.move(temp, ft.getTargetPath(), StandardCopyOption.REPLACE_EXISTING);
+		} catch (IOException e) {
+			System.out.println("Failed:renaming ->src: "+temp+"\ntarget: "+ft.getTargetPath()+"\n Error:"+e+"\n");
+			return false;
+		}
+		
 		return true;
 	}
+	
 
 	private void setState(State state) {
 		if(this.state == COMPLETED)

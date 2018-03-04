@@ -25,8 +25,10 @@ import sam.backup.manager.config.view.ListingView;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.AboutFile;
-import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.DirEntity;
+import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTreeWalker;
+import sam.backup.manager.file.FileTree;
 import sam.myutils.fileutils.FilesUtils;
 
 public 	class WalkTask implements Runnable, FileVisitor<Path> {
@@ -87,7 +89,7 @@ public 	class WalkTask implements Runnable, FileVisitor<Path> {
 			if(!config.isSourceWalkCompleted())
 				walk(root, config.getSourceExcluder(), config.getSourceIncluder(), walkType);
 			if(listWalk) {
-				listView.updateFileTree();
+				listView.updateRootFileTree();
 				return;
 			}
 			config.setSourceWalkCompleted(true);
@@ -101,9 +103,7 @@ public 	class WalkTask implements Runnable, FileVisitor<Path> {
 			return;
 		}
 
-		if(!RootConfig.isNoDriveMode())
-			rootTree.calculateTargetPath(config);
-
+		rootTree.walkCompleted(config);
 		saveExcludeFilesList();
 		updateBackups();
 	}
@@ -133,15 +133,15 @@ public 	class WalkTask implements Runnable, FileVisitor<Path> {
 		}
 	}
 	private void updateBackups() {
-		boolean backupWalked = !(config.isNoBackupWalk() || RootConfig.isNoDriveMode());
+		boolean backupWalked = !(config.isNoBackupWalk() || !RootConfig.backupDriveFound());
 		boolean deleteBackupIfSourceNotExists = backupWalked && config.istDeleteBackupIfSourceNotExists(); 
 
-		List<FileTree> backupList = new ArrayList<>();
-		List<FileTree> delete = new ArrayList<>();
+		List<FileEntity> backupList = new ArrayList<>();
+		List<FileEntity> delete = new ArrayList<>();
 
 		rootTree.walk(new FileTreeWalker() {
 			@Override
-			public FileVisitResult file(FileTree ft, AboutFile source, AboutFile backup) {
+			public FileVisitResult file(FileEntity ft, AboutFile source, AboutFile backup) {
 				boolean backupNeeded = false;
 
 				String reason = null;
@@ -172,7 +172,7 @@ public 	class WalkTask implements Runnable, FileVisitor<Path> {
 			}
 
 			@Override
-			public FileVisitResult dir(FileTree ft, AboutFile sourceAF, AboutFile backupAF) {
+			public FileVisitResult dir(DirEntity ft, AboutFile sourceAF, AboutFile backupAF) {
 				return FileVisitResult.CONTINUE;
 			}
 		});
@@ -191,7 +191,7 @@ public 	class WalkTask implements Runnable, FileVisitor<Path> {
 			.setTargetDirCount(targetDirCount);
 		}
 		if(!config.isDisabled())
-			configView.updateFileTree();
+			configView.updateRootFileTree();
 	}
 
 	private void walk(Path start, Predicate<Path> excluder,Predicate<Path> includer, WalkType walkType) throws IOException {
@@ -254,7 +254,7 @@ public 	class WalkTask implements Runnable, FileVisitor<Path> {
 
 		if(end != nameCount && include(dir)) {
 			dirUpdate();
-			FileTree ft = rootTree.addDirectory(dir.subpath(nameCount, end), dir, new AboutFile(attrs.lastModifiedTime().toMillis(), 0L), walkType);
+			DirEntity ft = rootTree.addDirectory(dir.subpath(nameCount, dir.getNameCount()), dir, attrs.lastModifiedTime().toMillis(), walkType);
 
 			if(skipDirNotModified && ft.getModifiedTime() == ft.getSourceAboutFile().modifiedTime)
 				return FileVisitResult.SKIP_SUBTREE;
@@ -275,9 +275,9 @@ public 	class WalkTask implements Runnable, FileVisitor<Path> {
 			return FileVisitResult.CONTINUE;
 		
 		if(include(file)) {
-			AboutFile af = listWalk ? null : new AboutFile(attrs);
-			fileUpdate(listWalk ? 0 : af.getSize());
-			rootTree.addFile(file.subpath(nameCount, file.getNameCount()), file, af, walkType);
+			AboutFile af = new AboutFile(attrs);
+			fileUpdate(af.getSize());
+			rootTree.addFile(file.subpath(nameCount, file.getNameCount()),file, af, walkType);
 		}
 		else 
 			excludeFilesList.add(file);

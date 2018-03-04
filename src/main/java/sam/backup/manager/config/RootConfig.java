@@ -11,10 +11,12 @@ import java.util.stream.Stream;
 import sam.backup.manager.walk.WalkSkip;
 
 public class RootConfig extends ConfigBase {
-	private static boolean noDriveMode;
+	private static final long serialVersionUID = 1L;
+	
+	private static boolean backupDriveExists;
 
-	public static boolean isNoDriveMode() {
-		return noDriveMode;
+	public static boolean backupDriveFound() {
+		return backupDriveExists;
 	}
 
 	private String backupRoot;
@@ -31,7 +33,7 @@ public class RootConfig extends ConfigBase {
 
 	public void init(Path drive) {
 		fullBackupRoot = drive == null ? null : backupRoot == null ? drive : drive.resolve(backupRoot);
-		noDriveMode = fullBackupRoot == null;
+		backupDriveExists = fullBackupRoot != null;
 	}
 	
 	@Override

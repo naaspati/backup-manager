@@ -40,7 +40,7 @@ import sam.fx.popup.FxPopupShop;
 import sam.myutils.fileutils.FilesUtils;
 
 public class Utils {
-	public static Path APP_DATA = Paths.get("app_data");
+	public static final Path APP_DATA = Paths.get("app_data");
 
 	private Utils() {}
 
@@ -144,26 +144,23 @@ public class Utils {
 		}
 		return null;
 	}
+	private static Path getTreePath(Config config) {
+		return APP_DATA.resolve("trees/"+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
+	}
 	public static FileTree readFiletree(Config config) throws IOException {
-		Path p = APP_DATA.resolve("trees/"+config.getSource().hashCode()+".filetree");
-		Path p2 = APP_DATA.resolve("trees/"+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
+		Path p = getTreePath(config); 
 
-		if(Files.exists(p))
-			Files.move(p, p2);
-
-		p = p2;
 		if(Files.exists(p))
 			return FileTree.read(p);
 
 		return null;
 	}
-
 	public static void saveFiletree(Config config) throws IOException {
 		Objects.requireNonNull(config.getFileTree(), "config does not have a filetree: "+config.getSource());
 
-		Path p = APP_DATA.resolve("trees/"+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
+		Path p = getTreePath(config);
 		Files.createDirectories(p.getParent());
-		FileTree.write(p, config.getFileTree());
+		config.getFileTree().write(p);
 		System.out.println(ANSI.yellow("file-tree saved: ")+p.getFileName());
 	}
 	public static Path getBackupLastPerformedPathTimeMapPath() {
@@ -213,19 +210,31 @@ public class Utils {
 	public static void showErrorDialog(Object text, String header, Exception error) {
 		runLater(() -> FxAlert.showErrorDialog(text, header, error));
 	}
-	public static boolean saveToFile(String text, Path expectedPath) {
+	
+	public static File selectFile(File expectedFile, String title) {
 		FileChooser fc = new FileChooser();
 
-		if(expectedPath != null) {
-			fc.setInitialDirectory(expectedPath.getParent().toFile());
-			fc.setInitialFileName(expectedPath.getFileName().toString());
+		if(expectedFile != null) {
+			File parent = expectedFile.getParentFile();
+			boolean b = parent.exists();
+			if(!b) {
+				b = parent.mkdirs();
+				if(!b)
+					FxPopupShop.showHidePopup("failed to create\n"+parent, 1500);	
+			}
+			fc.setInitialDirectory(b ? parent : new File(System.getProperty("user.home")));
+			fc.setInitialFileName(expectedFile.getName());
 		}
-		fc.setTitle("save filetree");
-		File file = fc.showSaveDialog(Main.getStage());
 
+		fc.setTitle(title);
+		return fc.showSaveDialog(Main.getStage());
+	}
+	
+	public static boolean saveToFile(String text, Path expectedPath) {
+		File file = selectFile(expectedPath.toFile(), "save filetree");
+		
 		if(file == null)
 			return false;
-
 		try {
 			Files.write(file.toPath(), text.toString().getBytes(StandardCharsets.UTF_16), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 			return true;

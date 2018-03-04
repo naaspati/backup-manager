@@ -2,12 +2,16 @@
 package sam.backup.manager;
 import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
+import static sam.fx.helpers.FxHelpers.menuitem;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -18,9 +22,13 @@ import java.util.stream.Stream;
 
 import javafx.application.Application;
 import javafx.application.HostServices;
+import javafx.scene.Node;
 import javafx.scene.Scene;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
@@ -30,6 +38,7 @@ import sam.backup.manager.config.view.RootView;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
+import sam.backup.manager.file.AboutFile;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.view.CenterView;
 import sam.backup.manager.view.StatusView;
@@ -110,7 +119,7 @@ public class Main extends Application {
 		root.init(drive);
 		runLater(() -> {
 			rootView = new RootView(this.root);
-			rootContainer.setTop(rootView);
+			rootContainer.setTop(new BorderPane(rootView, getMenubar(), null, null, null));
 		});
 
 		backupLastPerformed = Utils.readBackupLastPerformedPathTimeMap();  
@@ -134,8 +143,58 @@ public class Main extends Application {
 		runLater(centerView::firstClick);
 	}
 
+	private Node getMenubar() {
+		Menu  file = new Menu("_File",
+				null,
+				menuitem("open app dir", e -> FilesUtils.openFileNoError(Utils.APP_DATA.toFile())),
+				menuitem("create FileTree", this::createFileTree)
+				);
+
+
+		return new MenuBar(file);
+	}
+
+	private void createFileTree(Object ignore) {
+		DirectoryChooser dc = new DirectoryChooser();
+		dc.setTitle("Select dir to make FileTree");
+		File file = dc.showDialog(stage);
+
+		if(file == null)
+			return;
+
+		Path root = file.toPath();
+		int count = root.getNameCount();
+		FileTree ft = new FileTree(root);
+
+		try {
+			Files.walkFileTree(root, new SimpleFileVisitor<Path> () {
+				@Override
+				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+					ft.addFile(file.subpath(count, file.getNameCount()), file, new AboutFile(attrs), WalkType.NEW_SOURCE);
+					return FileVisitResult.CONTINUE;
+
+				}
+				@Override
+				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+					if(dir.getNameCount() != count)
+						ft.addDirectory(dir.subpath(count, dir.getNameCount()), dir, attrs.lastModifiedTime().toMillis(), WalkType.NEW_SOURCE);
+					return FileVisitResult.CONTINUE;
+				}
+			});
+			ft.walkCompleted(null);
+			Path p = root.resolveSibling(root.getFileName()+".txt");
+			Utils.saveToFile(ft.toTreeString(), p);
+			FxPopupShop.showHidePopup(p.getFileName()+" saved", 1500);
+			System.out.println("saved: "+p);
+		} catch (IOException e) {
+			Utils.showErrorDialog(root, "failed to walk", e);
+		}
+
+
+	}
+
 	private void processLists() {
-		Path listPath = RootConfig.isNoDriveMode() ? null : root.getFullBackupRoot().resolve("lists");
+		Path listPath = RootConfig.backupDriveFound() ? root.getFullBackupRoot().resolve("lists") : null ;
 
 		ExecutorService ex = Executors.newSingleThreadExecutor();
 

@@ -44,7 +44,7 @@ import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TransferSummery;
-import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.FileEntity;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.myutils.MyUtils;
 import sam.weakstore.WeakStore;
@@ -87,7 +87,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		this.config = view.getConfig();
 
 		totalFilesCount = config.getBackupFiles().size();
-		summery.setTotal(config.getBackupFiles().stream().mapToLong(FileTree::getSourceSize).sum());
+		summery.setTotal(config.getBackupFiles().stream().mapToLong(FileEntity::getSourceSize).sum());
 
 		button = new CustomButton(ButtonType.UPLOAD, this);
 		getChildren().addAll(getHeaderText(), new Text("Files: "+totalFilesCount+"\nSize: "+bytesToString(summery.getTotal())), button);
@@ -186,7 +186,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		filesMoved.set(0);
 		ByteBuffer buffer = buffers.get();
 
-		for (FileTree ft : config.getBackupFiles()) {
+		for (FileEntity ft : config.getBackupFiles()) {
 			if(isCancelled())
 				return CANCELLED;
 
@@ -209,23 +209,23 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		buffers.add(buffer);
 		return COMPLETED;
 	}
-	private boolean copy(FileTree ft, ByteBuffer buffer) {
+	private boolean copy(FileEntity ft, ByteBuffer buffer) {
 		if(isCancelled()) return false;
 
 		if(!createdDirs.contains(ft.getTargetPath().getParent())) {
 			try {
-				Files.createDirectories(ft.getTargetPath().getParent());
-				createdDirs.add(ft.getTargetPath().getParent());
+				Path p = ft.getTargetPath().getParent();
+				Files.createDirectories(p);
+				createdDirs.add(p);
 			} catch (Exception e) {
 				System.out.println("src: "+ft.getSourcePath()+"\ntarget: "+ft.getTargetPath()+"\n Error:"+e+"\n");
 				return false;
 			}	
 		}
-
 		if(isCancelled()) return false;
 		buffer.clear();
 		
- 		Path temp = Optional.of(ft.getTargetPath()).map(p -> p.resolveSibling(p.getFileName()+".tmp")).get();
+ 		final Path temp = Optional.of(ft.getTargetPath()).map(p -> p.resolveSibling(p.getFileName()+".tmp")).get();
 
 		try(FileChannel in = FileChannel.open(ft.getSourcePath(), READ);
 				FileChannel out = FileChannel.open(temp, CREATE, TRUNCATE_EXISTING, WRITE)) {
@@ -249,7 +249,6 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 			System.out.println("Failed:renaming ->src: "+temp+"\ntarget: "+ft.getTargetPath()+"\n Error:"+e+"\n");
 			return false;
 		}
-		
 		return true;
 	}
 	
@@ -289,7 +288,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		setClass(t, "completed-text");
 		getChildren().addAll(top, t);
 
-		config.getFileTree().setDirModifiedTime();
+		config.getFileTree().setDirsModified();
 		
 		MyUtils.beep(4); //TODO replace with a actual sound
 		runLater(() -> FxPopupShop.showHidePopup("transfer completed", 1500));

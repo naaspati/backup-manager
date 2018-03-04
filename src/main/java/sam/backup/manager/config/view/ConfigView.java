@@ -6,15 +6,11 @@ import static javafx.scene.layout.GridPane.REMAINING;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
-import static sam.backup.manager.extra.Utils.saveFiletree;
-import static sam.backup.manager.extra.Utils.showErrorDialog;
 import static sam.fx.helpers.FxHelpers.addClass;
 import static sam.fx.helpers.FxHelpers.removeClass;
 
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,9 +28,7 @@ import sam.backup.manager.config.view.FilesView.FileViewMode;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
-import sam.backup.manager.file.AboutFile;
-import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeWalker;
+import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
@@ -137,14 +131,16 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 				button.setType(ButtonType.CANCEL);	
 				break;
 			case SET_MODIFIED:
-				config.getFileTree().walk(new FileTreeWalker() {
+				throw new IllegalStateException("not yet implemented");
+				/*
+				 config.getFileTree().walk(new FileTreeWalker() {
 					@Override
-					public FileVisitResult file(FileTree ft, AboutFile source, AboutFile backup) {
+					public FileVisitResult file(FileEntity ft, AboutFile source, AboutFile backup) {
 						ft.setCopied();
 						return FileVisitResult.CONTINUE;
 					}
 					@Override
-					public FileVisitResult dir(FileTree ft, AboutFile source, AboutFile backup) {
+					public FileVisitResult dir(DirEntity ft, AboutFile source, AboutFile backup) {
 						ft.setCopied();
 						return FileVisitResult.CONTINUE;
 					}
@@ -155,6 +151,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 					showErrorDialog(config.getSource(), "Failed to save filetree", e);
 				}
 				break;
+				 */
 			default:
 				throw new IllegalArgumentException("unknown action: "+type);
 
@@ -214,9 +211,9 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		this.targetDirCount.setText(valueOf(targetDirCount));
 		return this;
 	}
-	public void updateFileTree() {
-		List<FileTree> backup = config.getBackupFiles();
-		List<FileTree> delete = config.getDeleteBackupFilesList();
+	public void updateRootFileTree() {
+		List<FileEntity> backup = config.getBackupFiles();
+		List<FileEntity> delete = config.getDeleteBackupFilesList();
 
 		if(backup.isEmpty() && delete.isEmpty()) {
 			finish("Nothing to backup/delete", false);
@@ -233,7 +230,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		} else 
 			button.setType(backup.isEmpty() ? ButtonType.DELETE : ButtonType.FILES);
 			
-		backupSize.setText(bytesToString(backup.stream().mapToLong(FileTree::getSourceSize).sum()));
+		backupSize.setText(bytesToString(backup.stream().mapToLong(FileEntity::getSourceSize).sum()));
 		backupFileCount.setText(valueOf(backup.size()));
 		backupFileCountNumber = backup.size();
 

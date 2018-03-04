@@ -98,7 +98,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 			dirCountT.setText(null);
 			fileCountT.setText("All count: "+s.length);
 		});
-		updateFileTree();
+		updateRootFileTree();
 	}
 
 	@Override
@@ -117,11 +117,11 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	public Config getConfig() {
 		return config;
 	}
-	public void updateFileTree() {
+	public void updateRootFileTree() {
 		if(treeText == null) {
 			treeText = config.getFileTree().toTreeString();
 			try {
-				config.getFileTree().setDirModifiedTime();
+				config.getFileTree().setDirsModified();
 				saveFiletree(config);
 			} catch (IOException e) {
 				showErrorDialog(config.getSource(), "failed to save filetree", e);
@@ -136,7 +136,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	}
 	public void save() {
 		if(treeText == null) {
-			showErrorDialog(null, "FileTree not set", null);
+			showErrorDialog(null, "FileTreeEntity not set", null);
 			return;
 		}
 		Platform.runLater(() -> {

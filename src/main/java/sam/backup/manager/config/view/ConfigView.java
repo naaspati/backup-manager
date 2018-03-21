@@ -15,14 +15,20 @@ import java.nio.file.Files;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javafx.application.Platform;
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.text.Text;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+import javafx.stage.StageStyle;
+import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.view.FilesView.FileViewMode;
 import sam.backup.manager.extra.ICanceler;
@@ -32,9 +38,12 @@ import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
+import sam.backup.manager.walk.Update;
+import sam.backup.manager.walk.WalkListener;
+import sam.backup.manager.walk.WalkResult;
 import sam.fx.helpers.FxHelpers;
 
-public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler {
+public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler, WalkListener {
 	private final Config config;
 	private final GridPane container = new GridPane();
 	private final CustomButton button; 
@@ -46,6 +55,10 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	private final Text bottomText;
 	private final IStartOnComplete<ConfigView> startEndAction;
 	private final AtomicBoolean cancel = new AtomicBoolean();
+
+	private volatile WalkResult walkResult;
+	private volatile ObservableWalkResult observablewalkResult;
+	
 
 	public ConfigView(Config config, IStartOnComplete<ConfigView> startEndAction, Long lastUpdated) {
 		this.config = config;
@@ -120,10 +133,10 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	public void handle(ButtonType type) {
 		switch (type) {
 			case FILES:
-				new FilesView(config, FileViewMode.BACKUP).show();
+				filesVies(FileViewMode.BACKUP);
 				break;
 			case DELETE:
-				new FilesView(config, FileViewMode.DELETE).show();
+				filesVies(FileViewMode.DELETE);
 				break;
 			case WALK:
 				button.setType(ButtonType.LOADING);
@@ -132,32 +145,28 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 				break;
 			case SET_MODIFIED:
 				throw new IllegalStateException("not yet implemented");
-				/*
-				 config.getFileTree().walk(new FileTreeWalker() {
-					@Override
-					public FileVisitResult file(FileEntity ft, AboutFile source, AboutFile backup) {
-						ft.setCopied();
-						return FileVisitResult.CONTINUE;
-					}
-					@Override
-					public FileVisitResult dir(DirEntity ft, AboutFile source, AboutFile backup) {
-						ft.setCopied();
-						return FileVisitResult.CONTINUE;
-					}
-				});
-				try {
-					saveFiletree(config);
-				} catch (IOException e) {
-					showErrorDialog(config.getSource(), "Failed to save filetree", e);
-				}
-				break;
-				 */
 			default:
 				throw new IllegalArgumentException("unknown action: "+type);
 
 		}
 	}
 
+	private FilesView fv;
+	private void filesVies(FileViewMode mode) {
+		if(fv == null)
+			fv = new FilesView(config, observablewalkResult);
+		fv.setMode(mode);
+
+		Stage stage = new Stage();
+		Scene scene = new Scene(fv);
+		scene.getStylesheets().add("styles.css");
+		stage.initModality(Modality.WINDOW_MODAL);
+		stage.initOwner(App.getStage());
+		stage.initStyle(StageStyle.UTILITY);
+		stage.setScene(scene);
+		stage.setWidth(600);
+		stage.show();
+	}
 	@Override
 	public boolean isCancelled() {
 		return cancel.get();
@@ -193,27 +202,34 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		else 
 			finish(msg, true);
 	}
-	public ConfigView setSourceSizeFileCount(long sourceSize, int sourceFileCount) {
-		this.sourceSize.setText(bytesToString(sourceSize));
-		this.sourceFileCount.setText(valueOf(sourceFileCount));
-		return this;
+	@Override
+	public void walkFailed(String reason, Throwable e) {
+		finish(reason, true);
+		if(e != null)
+			e.printStackTrace();
 	}
-	public ConfigView setTargetSizeFileCount(long targetSize, int targetFileCount) {
-		this.targetSize.setText(bytesToString(targetSize));
-		this.targetFileCount.setText(valueOf(targetFileCount));
-		return this;
+	@Override
+	public void update(Update source, Update target) {
+		Platform.runLater(() -> {
+			if(source != null) {
+				sourceSize.setText(bytesToString(source.size));
+				sourceFileCount.setText(valueOf(source.fileCount));
+				sourceDirCount.setText(valueOf(source.dirCount));
+			}
+			if(target != null) {
+				targetSize.setText(bytesToString(target.size));
+				targetFileCount.setText(valueOf(target.fileCount));
+				targetDirCount.setText(valueOf(target.dirCount));
+			}
+		});
 	}
-	public ConfigView setSourceDirCount(int sourceDirCount) {
-		this.sourceDirCount.setText(valueOf(sourceDirCount));
-		return this;
-	}
-	public ConfigView setTargetDirCount(int targetDirCount) {
-		this.targetDirCount.setText(valueOf(targetDirCount));
-		return this;
-	}
-	public void updateRootFileTree() {
-		List<FileEntity> backup = config.getBackupFiles();
-		List<FileEntity> delete = config.getDeleteBackupFilesList();
+	@Override
+	public void walkCompleted(WalkResult result) {
+		this.walkResult = walkResult;
+		this.observablewalkResult = new ObservableWalkResult(walkResult);
+		
+		List<FileEntity> backup = result.getBackups();
+		List<FileEntity> delete = result.getDeletes();
 
 		if(backup.isEmpty() && delete.isEmpty()) {
 			finish("Nothing to backup/delete", false);
@@ -229,14 +245,16 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 			container.add(hb, c, r, GridPane.REMAINING, GridPane.REMAINING);	
 		} else 
 			button.setType(backup.isEmpty() ? ButtonType.DELETE : ButtonType.FILES);
-			
-		backupSize.setText(bytesToString(backup.stream().mapToLong(FileEntity::getSourceSize).sum()));
+
+		backupSize.setText(bytesToString(backup.stream().mapToLong(b -> b.getSourceAttrs().getSize()).sum()));
 		backupFileCount.setText(valueOf(backup.size()));
 		backupFileCountNumber = backup.size();
 
 		startEndAction.onComplete(this);
 	}
-
+	public ObservableWalkResult getObservablewalkResult() {
+		return observablewalkResult;
+	}
 	public void finish(String msg, boolean failed) {
 		if(failed) {
 			config.isDisabled();
@@ -252,8 +270,5 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	}
 	public boolean hashBackups() {
 		return backupFileCountNumber != 0;
-	}
-	public void setLoading(boolean b) {
-		// TODO Auto-generated method stub
 	}
 }

@@ -1,0 +1,21 @@
+.root {
+	-fx-font-family: 'Consolas';
+	-fx-background-color: white;
+}
+
+.scroll-pane .viewport, .accordion {
+-fx-background-color: white;	
+}
+
+.root-view,.menu-bar,.menu-bar * {
+	-fx-background-color: derive(black, 20%);
+}
+.root-view {
+	-fx-padding:10px 2px 10px 10px;
+}
+.menu-bar .menu .label {
+	-fx-text-fill:white;
+	-fx-padding:0;
+	
+}
+

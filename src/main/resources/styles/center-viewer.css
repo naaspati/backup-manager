@@ -1,0 +1,37 @@
+
+.center-viewer, .center-viewer .top {
+	-fx-background-color: white;
+}
+.center-viewer, .accordion {
+	-fx-background-color: white;
+	-fx-border-width: 0;
+}
+.center-viewer, .accordion {
+	-fx-background-color: white;
+	-fx-border-width: 0;
+}
+.center-viewer .scroll-bar {
+	-fx-background-color: white;
+	-fx-border-width: 0;
+	-fx-padding: 2;
+}
+.center-viewer .scroll-bar .increment-arrow, .center-viewer .scroll-bar .decrement-arrow {
+	-fx-background-color: transparent;
+}
+.center-viewer .scroll-bar .thumb {
+	-fx-background-color: white;
+	-fx-border-width: 1;
+	-fx-border-radius: 50%;
+	-fx-border-color: black;
+}
+.center-viewer .btn {
+	-fx-font-size: 1.5em;
+	-fx-padding: 3px;
+	-fx-alignment: center;
+	-fx-border-width: 0 0.5 0 0;
+	-fx-border-color: black;
+}
+.center-viewer .btn.active {
+	-fx-border-width: 0 0 2 0;
+	-fx-border-color: linear-gradient(to left, springgreen, derive(springgreen, 80%), springgreen);
+}

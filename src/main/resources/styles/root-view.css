@@ -1,0 +1,20 @@
+.root-view * {
+	-fx-font-family: 'Arial Rounded MT';
+	-fx-fill: white;
+}
+.root-view .full-path-text {
+	-fx-font-size: 3em;
+}
+.root-view .size-text {
+	-fx-font-size: 0.85em;
+	-fx-font-family: 'Consolas';
+}
+.root-view .drive-warning-text-2 {
+-fx-font-size: 0.95em;
+-fx-fill:yellow;
+}
+#task-text {
+	-fx-padding:5;
+	-fx-font-size: 2em;
+	-fx-background-color: white;
+}

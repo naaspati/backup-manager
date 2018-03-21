@@ -15,17 +15,20 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import sam.backup.manager.file.FileTreeReader.Values;
+import sam.backup.manager.walk.WalkMode;
 import sam.myutils.myutils.MyUtils;
+import se.sawano.java.text.AlphanumericComparator;
 
-public class DirEntity extends FileTreeEntity {
+public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntity>  {
 	private final List<FileTreeEntity> children;
+	private boolean walked;
 
-	DirEntity(Path path) {
-		super(path);
+	DirEntity(Path path, DirEntity parent) {
+		super(path, parent);
 		children = new ArrayList<>();
 	}
-	DirEntity(FileTreeReader reader, Values values) throws IOException {
-		super(values);
+	DirEntity(FileTreeReader reader, Values values, DirEntity parent) throws IOException {
+		super(values, parent);
 
 		if(!values.isDirectory())
 			throw new IllegalArgumentException("not a dir: "+values);
@@ -40,32 +43,23 @@ public class DirEntity extends FileTreeEntity {
 			Values v = reader.next();
 			FileTreeEntity f;
 			if(v.isDirectory())
-				f = new DirEntity(reader, v);
+				f = new DirEntity(reader, v, this);
 			else
-				f = new FileEntity(v);
+				f = new FileEntity(v, this);
 
 			children.add(f);
 		} 
-	}
-	public List<FileTreeEntity> getChildren() {
-		return children;
-	}
-	public boolean isDeleteBackup() {
-		return children.stream().anyMatch(FileTreeEntity::isDeleteBackup);
-	}
-	@Override
-	public boolean isCopied() {
-		return children.stream().allMatch(FileTreeEntity::isCopied);
-	}
-	@Override
-	public boolean isBackupNeeded() {
-		return children.stream().anyMatch(FileTreeEntity::isBackupNeeded);
 	}
 	@Override
 	public boolean isDirectory() {
 		return true;
 	}
-
+	public void setWalked(boolean walked) {
+		this.walked = walked;
+	}
+	public boolean isWalked() {
+		return walked;
+	}
 	FileTreeEntity addChild(Path fileName, boolean isDir) throws IOException {
 		if(fileName.getNameCount() != 1)
 			throw new IOException("bad filename expected length: 1; found length: "+fileName.getNameCount()+"  path: "+fileName);
@@ -77,12 +71,13 @@ public class DirEntity extends FileTreeEntity {
 				return f;
 		}
 
-		FileTreeEntity f = isDir ? new DirEntity(fileName) : new FileEntity(fileName);
+		FileTreeEntity f = isDir ? new DirEntity(fileName, this) : new FileEntity(fileName, this);
 		children.add(f);
 		return f;
 	}
 
-	@Override
+	/**
+	 * @Override
 	void update(Path parent) {
 		super.update(parent);
 
@@ -93,18 +88,31 @@ public class DirEntity extends FileTreeEntity {
 
 		long size = 0;
 		Path t = getTargetPath();
-		for (FileTreeEntity f : children) {
-			f.update(t);
-			size += f.getSize();
+		Iterator<FileTreeEntity> itr = children.iterator();
+
+		while (itr.hasNext()) {
+			FileTreeEntity f = itr.next();
+			if(walked && f.getSourceAttrs() == null && f.getBackupAttrs() == null) {
+				itr.remove();
+				System.out.println("removed from filetree: "+getfileNameString()+" -> "+f.getfileNameString());
+			}
+			else {
+				f.update(t);
+				size += f.getSize();
+			}
 		}
 		setSize(size);
 	}
+	 * @param walker
+	 * @return
+	 */
+
 	FileVisitResult _walk(FileTreeWalker walker) {
 		for (FileTreeEntity f : children) {
-			if(f.isDirectory() && (((DirEntity)f).getChildren().isEmpty()))
+			if(f.isDirectory() && (((DirEntity)f).children.isEmpty()))
 				continue;
 
-			FileVisitResult result = f.isDirectory() ? walker.dir(f.castDir(), f.getSourceAboutFile(), f.getBackupAboutFile()) : walker.file(f.castFile(), f.getSourceAboutFile(), f.getBackupAboutFile());
+			FileVisitResult result = f.isDirectory() ? walker.dir(f.castDir(), f.getSourceAttrs(), f.getBackupAttrs()) : walker.file(f.castFile(), f.getSourceAttrs(), f.getBackupAttrs());
 
 			if(result == TERMINATE)
 				return TERMINATE;
@@ -118,37 +126,36 @@ public class DirEntity extends FileTreeEntity {
 		return CONTINUE;
 	}
 
-	int cleanup() {
-		Iterator<FileTreeEntity> ft = children.iterator();
-		int sum = 0;
-		while(ft.hasNext()) {
-			FileTreeEntity f = ft.next();
-			if(f.getSourceAboutFile() == null) {
-				ft.remove();
-				sum++;
-			}
-			else if(f.isDirectory())
-				sum += f.castDir().cleanup();
-		}
-		return sum;
-	}
-
-	void updateDirModifiedTime() {
-		if(getSourceAboutFile() != null)
-			setModifiedTime(getSourceAboutFile().modifiedTime);
+	/**
+	 * 	void updateDirModifiedTime() {
+		if(getSourceAttrs() != null)
+			setModifiedTime(getSourceAttrs().modifiedTime);
 
 		for (FileTreeEntity f : getChildren()) {
 			if(f.isDirectory())
 				f.castDir().updateDirModifiedTime();
 		}
 	}
+	 */
+
+	private static final AlphanumericComparator ALPHANUMERIC_COMPARATOR = new AlphanumericComparator();
+
 	void append(final char[] separator, final StringBuilder sb, Predicate<FileTreeEntity> filter) {
 		if(children.isEmpty()) return;
 
-		for (FileTreeEntity f : children) {
-			if(!filter.test(f))
-				continue;
+		children.sort((f1, f2) -> {
+			boolean b1 = f1.isDirectory();
+			boolean b2 = f2.isDirectory();
 
+			if(b1 == b2)
+				return ALPHANUMERIC_COMPARATOR.compare(f1.getfileNameString(), f2.getfileNameString());
+
+			return b2 ? -1 : 1;
+		});
+
+		children.stream()
+		.filter(filter)
+		.forEach(f -> {
 			appendDetails(sb, f, separator);
 
 			if(f.isDirectory()) {
@@ -165,26 +172,94 @@ public class DirEntity extends FileTreeEntity {
 
 				f.castDir().append(sp2, sb, filter);
 			}
-		}
+		});
 	}
 	static void appendDetails(StringBuilder sb, FileTreeEntity f, char[] separator) {
 		sb.append(separator)
-		.append(f.getPathString());
-		
-		if(f.getSize() <= 0 && f.isDirectory() && f.castDir().getChildren().isEmpty()) {
+		.append(f.getfileNameString());
+
+		long size = f.getSourceAttrs().getSize();
+
+		if(!f.isDirectory() ? size <= 0 : ( f.isDirectory() && f.castDir().children.isEmpty())) 
 			sb.append('\n');
+		else {
+			sb.append('\t')
+			.append('(');
+
+			if(size > 0)
+				MyUtils.bytesToHumanReadableUnits(size, false, sb);
+
+			if(f.isDirectory() && !f.castDir().children.isEmpty())
+				sb.append(' ').append(f.castDir().children.size()).append(" files");
+
+			sb.append(")\n");	
+		}
+	}
+	public void computeSize(WalkMode w) {
+		if(!walked)
+			throw new IllegalStateException("dir not walked: "+this);
+
+		if(children.isEmpty()) {
+			atrk(w, this).setCurrentSize(0);
 			return;
 		}
-		
-		sb.append('\t')
-		.append('(');
-		
-		if(f.getSize() > 0)
-			MyUtils.bytesToHumanReadableUnits(f.getSize(), false, sb);
+		long size = children.stream()
+				.mapToLong(f -> atrk(w, f).getCurrent().size)
+				.sum();
 
-		if(f.isDirectory() && !f.castDir().getChildren().isEmpty())
-			sb.append(' ').append(f.castDir().getChildren().size()).append(" files");
-		
-		sb.append(")\n");
+		atrk(w, this).setCurrentSize(size);
+	}
+	private static AttrsKeeper atrk(WalkMode w, FileTreeEntity f) {
+		return w == WalkMode.BACKUP ? f.getBackupAttrs() : f.getSourceAttrs();
+	}
+
+	private List<FileTreeEntity> backups;
+	void backupNeeded(FileTreeEntity ft, boolean needed) {
+		if(needed) {
+			if(backups == null)
+				backups = new ArrayList<>();
+			if(backups.contains(ft))
+				return;
+
+			backups.add(ft);
+			getParent().backupNeeded(this, needed);
+		} else if(backups != null && backups.remove(ft) && backups.isEmpty()) {
+			getParent().backupNeeded(this, false);
+		}
+	}
+	@Override
+	public boolean isBackupNeeded() {
+		return backups != null && !backups.isEmpty();
+	}
+	@Override
+	public boolean isDeleteFromBackup() {
+		return children.stream().allMatch(FileTreeEntity::isDeleteFromBackup);
+	}
+	private boolean copied;
+	void copied(FileTreeEntity ft) {
+		copied = children.stream().filter(FileTreeEntity::isBackupNeeded).allMatch(FileTreeEntity::isCopied);
+
+		if(children.isEmpty()) {
+			getParent().copied(this);
+			super.setUpdated();
+		}
+	}
+	@Override
+	public boolean isCopied() {
+		return copied;
+	}
+	void deleted(FileTreeEntity ft) {
+		children.remove(ft);
+
+		if(children.isEmpty())
+			getParent().deleted(this);
+	}
+
+	@Override
+	public Iterator<FileTreeEntity> iterator() {
+		return children.iterator();
+	}
+	public int childCount() {
+		return children.size();
 	}
 }

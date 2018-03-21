@@ -28,6 +28,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import javafx.beans.InvalidationListener;
+import javafx.collections.ObservableSet;
 import javafx.geometry.Insets;
 import javafx.scene.Node;
 import javafx.scene.control.ProgressBar;
@@ -37,7 +39,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.config.Config;
 import sam.backup.manager.config.view.ConfigView;
 import sam.backup.manager.enums.State;
 import sam.backup.manager.extra.ICanceler;
@@ -53,7 +54,6 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 	private static final WeakStore<ByteBuffer> buffers = new WeakStore<>(() -> ByteBuffer.allocateDirect(2*1024*1024), true);
 
 	private final ConfigView view;
-	private final Config config;
 
 	private TextArea sourceTargetTa ;
 	private Text currentProgressT ;
@@ -67,7 +67,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 	private final TransferSummery summery = new TransferSummery();
 	private String totalProgressFormat;
 
-	private final int totalFilesCount;
+	private int totalFilesCount;
 	private AtomicInteger filesMoved ;
 
 	private AtomicLong currentFileSize ;
@@ -78,19 +78,31 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 
 	private Set<Path> createdDirs ;
 	private IStartOnComplete<TransferView> startEndAction;
+	private final ObservableSet<FileEntity> files;
+	private final ConfigView config;
 
 	public TransferView(ConfigView view, StatusView statusView, IStartOnComplete<TransferView> startCompleteAction) {
 		super(3);
-		addClass(this, "copying-view");
+		addClass(this, "transfer-view");
 		this.view = view;
 		this.startEndAction = startCompleteAction;
-		this.config = view.getConfig();
+		this.config = view;
 
-		totalFilesCount = config.getBackupFiles().size();
-		summery.setTotal(config.getBackupFiles().stream().mapToLong(FileEntity::getSourceSize).sum());
-
+		this.files = view.getObservablewalkResult().getBackups();
 		button = new CustomButton(ButtonType.UPLOAD, this);
-		getChildren().addAll(getHeaderText(), new Text("Files: "+totalFilesCount+"\nSize: "+bytesToString(summery.getTotal())), button);
+		Text text = new Text();
+		
+		InvalidationListener listener = e -> {
+			totalFilesCount = files.size();
+			summery.setTotal(files.stream().mapToLong(f -> f.getSourceAttrs().getSize()).sum());
+			button.setDisable(files.isEmpty());
+			text.setText("Files: "+totalFilesCount+"\nSize: "+bytesToString(summery.getTotal()));
+		};
+		
+		listener.invalidated(null);
+		files.addListener(listener);
+		
+		getChildren().addAll(getHeaderText(), text, button);
 	}
 
 	private Node getHeaderText() {
@@ -98,7 +110,9 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		setClass(header, "header");
 		return header;
 	}
-
+	public void update() {
+		
+	}
 	public ConfigView getConfigView() {
 		return view;
 	}
@@ -120,6 +134,8 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 
 	@Override 
 	public void start() {
+		config.setDisable(true);
+		
 		if(sourceTargetTa == null) {
 			sourceTargetTa = new TextArea();
 			currentProgressT = new Text();
@@ -186,11 +202,11 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		filesMoved.set(0);
 		ByteBuffer buffer = buffers.get();
 
-		for (FileEntity ft : config.getBackupFiles()) {
+		for (FileEntity ft : files) {
 			if(isCancelled())
 				return CANCELLED;
 
-			currentFileSize.set(ft.getSourceSize());
+			currentFileSize.set(ft.getSourceAttrs().getCurrent().getSize());
 			currentProgressFormat = "%s/"+bytesToString(currentFileSize.get());
 			currentBytesRead.set(0);
 			runLater(() -> {
@@ -251,7 +267,6 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		}
 		return true;
 	}
-	
 
 	private void setState(State state) {
 		if(this.state == COMPLETED)
@@ -277,20 +292,20 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		HBox.setHgrow(p, Priority.ALWAYS);
 		HBox top = new HBox(getHeaderText(), p, button("close", "Delete_10px.png", e -> ((Pane)getParent()).getChildren().remove(this)));
 
-		Text  t = new Text("COMPLETED"+
-				"\nFiles: "+totalFilesCount+
-				"\nSize: "+bytesToString(summery.getTotal())+
-				"\nTime taken: "+millisToString(summery.getTimeTaken())+
-				(summery.getTimeTaken() < 3000 ? "" : "\nAverage Speed: "+bytesToString(summery.getAverageSpeed())+"/s")
-				);
+		
+		Text  t = new Text(
+				new StringBuilder("COMPLETED")
+				.append("\nFiles: ").append(totalFilesCount)
+				.append("\nSize: ").append(bytesToString(summery.getTotal()))
+				.append("\nTime taken: ").append(millisToString(summery.getTimeTaken()))
+				.append(summery.getTimeTaken() < 3000 ? "" : "\nAverage Speed: "+bytesToString(summery.getAverageSpeed())+"/s")
+				.toString());
 
 		top.setPadding(new Insets(5,0,5,2));
 		setClass(t, "completed-text");
 		getChildren().addAll(top, t);
-
-		config.getFileTree().setDirsModified();
 		
-		MyUtils.beep(4); //TODO replace with a actual sound
+		MyUtils.beep(4);
 		runLater(() -> FxPopupShop.showHidePopup("transfer completed", 1500));
 		startEndAction.onComplete(this);
 
@@ -309,6 +324,8 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		createdDirs = null;
 		startEndAction = null;
 		stateText = null;
+		
+		runLater(() -> config.setDisable(false));
 	}
 }
 

@@ -1,0 +1,30 @@
+.status-view {
+	-fx-padding: 10, 5, 10, 5;
+	-fx-background-color: derive(white, -3%);
+}
+.status-view .speed {
+	-fx-font-family: 'Franklin Gothic';
+	-fx-font-size: 2em;
+	-fx-padding: 0 15 0 0;
+}
+.status-view .text{
+	-fx-font-size: 0.8em;
+}
+
+#start-btn, #cancel-btn {
+	-fx-padding:8 20 8 20;
+	-fx-background-color: #3AE2CE;
+	-fx-text-fill:white;
+	-fx-font-weight: bold;
+	-fx-font-size: 1.2em;
+}
+#start-btn:armed {
+	-fx-background-color: #00FFFF;
+}
+#cancel-btn {
+	-fx-background-color: crimson;
+}
+.copying-view {
+	-fx-background-color:white;
+	-fx-padding: 10 5 10 5;
+}

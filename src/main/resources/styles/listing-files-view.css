@@ -1,0 +1,19 @@
+.listing-view {
+	-fx-background-color: white;
+	-fx-spacing:5;
+	-fx-padding:5;
+	-fx-border-width: 0 0 1 0;
+	-fx-border-color: black;
+}
+.listing-view .header {
+	-fx-font-size: 1.2em;
+}
+
+.files-view .expand-toggle {
+	-fx-font-size:0.9em;
+	-fx-border-color:lightgray;
+	-fx-border-width:1;
+	-fx-padding:2;
+	-fx-text-fill:#20B2AA;
+	-fx-font-width:bold;
+}

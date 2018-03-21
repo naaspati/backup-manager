@@ -2,7 +2,6 @@ package sam.backup.manager.file;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.List;
 
 public class FileTreeWriter implements AutoCloseable {
 	private final DataOutputStream dos;
@@ -12,21 +11,26 @@ public class FileTreeWriter implements AutoCloseable {
 	}
 	public void write(FileTreeEntity tree) throws IOException {
 		dos.writeBoolean(tree.isDirectory());
-		dos.writeUTF(tree.getPathString());
-		dos.writeLong(tree.getModifiedTime());
-		dos.writeLong(tree.getSize());
+		dos.writeUTF(tree.getfileNameString());
+		
+		Attrs a = tree.getSourceAttrs().getOld();
+		dos.writeLong(a.modifiedTime);
+		dos.writeLong(a.size);
+		
+		a = tree.getBackupAttrs().getOld();
+		dos.writeLong(a.modifiedTime);
+		dos.writeLong(a.size);
 		
 		if(tree.isDirectory()) {
-			List<FileTreeEntity> children = tree.castDir().getChildren();
-			dos.writeInt(children.size());
+			int c = tree.castDir().childCount();
+			dos.writeInt(c);
 			
-			if(!children.isEmpty()) {
-				for (FileTreeEntity f : children)
+			if(c != 0) {
+				for (FileTreeEntity f : tree.castDir())
 					write(f);
 			}
 		}
 	}
-	
 	@Override
 	public void close() throws IOException {
 		dos.close();

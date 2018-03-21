@@ -28,11 +28,14 @@ import sam.backup.manager.extra.Utils;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
+import sam.backup.manager.walk.Update;
+import sam.backup.manager.walk.WalkListener;
+import sam.backup.manager.walk.WalkResult;
 import sam.console.ansi.ANSI;
 import sam.fx.helpers.FxHelpers;
 import sam.fx.popup.FxPopupShop;
 
-public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAction {
+public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAction, WalkListener {
 	private final Config config;
 	private final IStartOnComplete<ListingView> startEnd;
 	private volatile boolean cancel;
@@ -98,7 +101,8 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 			dirCountT.setText(null);
 			fileCountT.setText("All count: "+s.length);
 		});
-		updateRootFileTree();
+		
+		walkCompleted(null);
 	}
 
 	@Override
@@ -117,11 +121,25 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	public Config getConfig() {
 		return config;
 	}
-	public void updateRootFileTree() {
+	
+	@Override
+	public void walkFailed(String reason, Throwable e) {
+		System.out.println(ANSI.red(reason));
+		e.printStackTrace();
+	}
+	
+	@Override
+	public void update(Update source, Update target) {
+		if(source != null) {
+			fileCountT.setText("  Files: "+source.fileCount);
+			dirCountT.setText("  Dirs: "+source.dirCount);	
+		}
+	}
+	@Override
+	public void walkCompleted(WalkResult result) {
 		if(treeText == null) {
 			treeText = config.getFileTree().toTreeString();
 			try {
-				config.getFileTree().setDirsModified();
 				saveFiletree(config);
 			} catch (IOException e) {
 				showErrorDialog(config.getSource(), "failed to save filetree", e);
@@ -140,17 +158,16 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 			return;
 		}
 		Platform.runLater(() -> {
-			Path p = config.getTarget() != null ? config.getTarget()  :  (listPath == null ? config.getSource().getParent() : listPath).resolve(config.getSource().getFileName()+"-"+config.getSource().hashCode()+".txt");
+			Path p = config.getTargetString() != null ? config.getTarget() : null;
+			if(p == null) {
+				String name = config.getSource().getFileName()+"-"+config.getSource().hashCode()+".txt";
+				p = listPath == null ? config.getSource().resolveSibling(name) : listPath.resolve(name);
+			}
+			System.out.println(p);
 			if(Utils.saveToFile(treeText, p)) {
 				FxPopupShop.showHidePopup("List created\nfor: "+config.getSource(), 3000);
 				startEnd.onComplete(this);
 			}
 		});
-	}
-	public void setFileCount(int n) {
-		fileCountT.setText("  Files: "+n);
-	}
-	public void setDirCount(int n) {
-		dirCountT.setText("  Dirs: "+n);
 	}
 }

@@ -7,14 +7,11 @@ public enum ButtonType {
 	OPEN,
 	SAVE, 
 	FILES, 
-	ALL_FILES, 
 	LIST_VIEW,
 	TREE_VIEW, 
 	SET_MODIFIED,
 	LOADING, 
-	DELETE,
-	DELETE_ALL,
-	DELETE_SELECTED;
+	DELETE;
 
 	private ButtonType() {
 		this(null);

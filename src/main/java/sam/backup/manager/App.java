@@ -15,10 +15,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.slf4j.LoggerFactory;
 
 import javafx.application.Application;
 import javafx.application.HostServices;
@@ -38,31 +38,20 @@ import sam.backup.manager.config.view.RootView;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.AboutFile;
+import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.FileTree;
-import sam.backup.manager.view.CenterView;
 import sam.backup.manager.view.StatusView;
 import sam.backup.manager.view.TransferView;
 import sam.backup.manager.view.ViewType;
+import sam.backup.manager.viewers.TransferViewer;
+import sam.backup.manager.viewers.ViewSwitcher;
 import sam.backup.manager.walk.WalkTask;
-import sam.backup.manager.walk.WalkType;
+import sam.backup.manager.walk.WalkMode;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.fileutils.FilesUtils;
 
-public class Main extends Application {
-	public static void main(String[] args) {
-		if(args.length == 1 && args[0].equals("open")) {
-			FilesUtils.openFileNoError(new File("."));
-			System.exit(0);
-		}
-		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> {
-			System.out.println("thread: "+thread.getName());
-			exception.printStackTrace();
-		});
-		launch(args);
-	}
-
+public class App extends Application {
 	private static Stage stage;
 	private static HostServices hs;
 
@@ -77,7 +66,7 @@ public class Main extends Application {
 	private StatusView statusView;
 	private final BorderPane rootContainer = new BorderPane();
 
-	private CenterView centerView;
+	private ViewSwitcher centerView;
 	private List<IStopStart> stoppableTasks ;
 	private volatile boolean backupLastPerformedModified;
 	private Map<String, Long> backupLastPerformed ;
@@ -87,15 +76,15 @@ public class Main extends Application {
 		FxAlert.setParent(stage);
 		FxPopupShop.setParent(stage);
 
-		Main.stage = stage;
-		Main.hs = getHostServices();
+		App.stage = stage;
+		App.hs = getHostServices();
 
 		ProgressIndicator pi = new ProgressIndicator();
 		pi.setMaxWidth(40);
 		rootContainer.setCenter(pi);
 
 		Scene scene = new Scene(rootContainer);
-		scene.getStylesheets().add("style.css");
+		scene.getStylesheets().add("styles.css");
 
 		stage.setScene(scene);
 		stage.setWidth(500);
@@ -125,17 +114,16 @@ public class Main extends Application {
 		backupLastPerformed = Utils.readBackupLastPerformedPathTimeMap();  
 		stoppableTasks = new ArrayList<>();
 
-		centerView = new CenterView();
+		centerView = new ViewSwitcher();
 		runLater(() -> rootContainer.setCenter(centerView));
 
 		if(root.hasBackups()) {
 			statusView = new StatusView();
-			runLater(() -> rootContainer.setBottom(statusView));
+			runLater(() -> TransferViewer.getInstance().setStatusView(statusView));
 			processConfigs();
 		}
-		else {
-			centerView.disable(ViewType.BACKUP);
-		}
+		else 
+			centerView.setStatus(ViewType.BACKUP, true);
 
 		if(root.hasLists())
 			processLists();
@@ -149,8 +137,6 @@ public class Main extends Application {
 				menuitem("open app dir", e -> FilesUtils.openFileNoError(Utils.APP_DATA.toFile())),
 				menuitem("create FileTree", this::createFileTree)
 				);
-
-
 		return new MenuBar(file);
 	}
 
@@ -163,40 +149,37 @@ public class Main extends Application {
 			return;
 
 		Path root = file.toPath();
-		int count = root.getNameCount();
 		FileTree ft = new FileTree(root);
 
 		try {
+			ft.walkStarted(root);
 			Files.walkFileTree(root, new SimpleFileVisitor<Path> () {
 				@Override
 				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					ft.addFile(file.subpath(count, file.getNameCount()), file, new AboutFile(attrs), WalkType.NEW_SOURCE);
+					ft.addFile(file, new Attrs(attrs.lastModifiedTime().toMillis(), attrs.size()), WalkMode.SOURCE);
 					return FileVisitResult.CONTINUE;
-
 				}
 				@Override
 				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-					if(dir.getNameCount() != count)
-						ft.addDirectory(dir.subpath(count, dir.getNameCount()), dir, attrs.lastModifiedTime().toMillis(), WalkType.NEW_SOURCE);
+					if(!ft.isRootPath(dir))
+						ft.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), WalkMode.SOURCE);
 					return FileVisitResult.CONTINUE;
 				}
 			});
-			ft.walkCompleted(null);
+			
+			ft.walkCompleted((Path)null);
 			Path p = root.resolveSibling(root.getFileName()+".txt");
 			Utils.saveToFile(ft.toTreeString(), p);
 			FxPopupShop.showHidePopup(p.getFileName()+" saved", 1500);
-			System.out.println("saved: "+p);
+			LoggerFactory.getLogger(getClass()).info("saved: "+p);
 		} catch (IOException e) {
+			LoggerFactory.getLogger(getClass()).error("failed to walk"+root, e);
 			Utils.showErrorDialog(root, "failed to walk", e);
 		}
-
-
 	}
 
 	private void processLists() {
 		Path listPath = RootConfig.backupDriveFound() ? root.getFullBackupRoot().resolve("lists") : null ;
-
-		ExecutorService ex = Executors.newSingleThreadExecutor();
 
 		IStartOnComplete<ListingView> action = new IStartOnComplete<ListingView>() {
 			@Override
@@ -214,7 +197,7 @@ public class Main extends Application {
 					showErrorDialog(null, "failed to read TreeFile: ", e1);
 					return;
 				}
-				ex.execute(new WalkTask(e));
+				Utils.run(new WalkTask(c, WalkMode.SOURCE, e, e));
 			}
 			@Override
 			public void onComplete(ListingView e) {
@@ -233,12 +216,10 @@ public class Main extends Application {
 	}
 
 	private void processConfigs() {
-		ExecutorService ex = Executors.newSingleThreadExecutor();
-
 		IStartOnComplete<TransferView> transferAction = new IStartOnComplete<TransferView>() {
 			@Override
 			public void start(TransferView view) {
-				ex.execute(view);
+				Utils.run(view);
 				statusView.addSummery(view.getSummery());
 			}
 			@Override
@@ -259,14 +240,12 @@ public class Main extends Application {
 			@Override
 			public void start(ConfigView view) {
 				if(!view.getConfig().isDisabled()) {
-					view.setLoading(true);
 					Config c = view.getConfig();
 
 					if(c.getDepth() <= 0) {
 						runLater(() -> view.finish("Walk failed: \nbad value for depth: "+c.getDepth(), true));
 						return;
 					}
-					WalkType w;
 					if(c.getFileTree() == null) {
 						FileTree ft;
 						try {
@@ -276,19 +255,13 @@ public class Main extends Application {
 							return;
 						}
 						if(ft == null) {
-							w = WalkType.NEW_SOURCE;
 							ft = new FileTree(c.getSource()); 
 							c.setFileTree(ft);	
-						}
-						else {
-							w = WalkType.SOURCE;
+						} else {
 							c.setFileTree(ft);
 						} 
-					} else {
-						w = WalkType.SOURCE;
 					}
-
-					ex.execute(new WalkTask(view, w));
+					Utils.run(new WalkTask(c, WalkMode.BOTH, view, view));
 				}
 			}
 			@Override

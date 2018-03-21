@@ -14,16 +14,17 @@ class FileTreeReader implements AutoCloseable {
 	}
 	public final class Values {
 		private final boolean directory;
-		private final String pathString;
-		private final long lastModified;
-		private final long size;
+		private final String filename;
+		private final Attrs src;
+		private final Attrs backup;
 		private final int childCount;
 
 		private Values() throws IOException {
 			this.directory = dis.readBoolean();
-			this.pathString = dis.readUTF();
-			this.lastModified = dis.readLong();
-			this.size = dis.readLong();
+			this.filename = dis.readUTF();
+			this.src = new Attrs(dis.readLong(), dis.readLong());
+			//TODO this.backup = new Attrs(dis.readLong(), dis.readLong());
+			this.backup = new Attrs(0, 0);
 			this.childCount = directory ? dis.readInt() : -1;
 		}
 		public int getChildCount() {
@@ -32,29 +33,16 @@ class FileTreeReader implements AutoCloseable {
 		boolean isDirectory() {
 			return directory;
 		}
-		String getPathString() {
-			return pathString;
+		String getFileNameString() {
+			return filename;
 		}
-		long getLastModified() {
-			return lastModified;
+		public Attrs sourceAttrs() {
+			return src;
 		}
-		long getSize() {
-			return size;
-		}
-		@Override
-		public String toString() {
-			return new StringBuilder()
-			.append("Values [directory=").append(directory)
-			.append(", pathString=").append(pathString)
-			.append(", lastModified=").append(lastModified) 
-			.append(", size=").append(size)
-			.append(", childCount=").append(childCount)
-			.append("]")
-			.toString();
+		public Attrs backupAttrs() {
+			return backup;
 		}
 	}
-
-
 	@Override
 	public void close() throws IOException {
 		dis.close();

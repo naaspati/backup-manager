@@ -1,21 +1,17 @@
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+
 apply plugin: 'java'
 apply plugin: 'application'
 
 repositories {
     jcenter()
 }
-task toast {
- doLast {
-   // installDist.properties.each{println it.key}
-   println ()
-     }
-}
-
 dependencies {
+   compile 'org.slf4j:slf4j-jdk14:1.8.0-beta1'
    compile 'com.google.code.gson:gson:2.8.2'
-    compile files('myutils.jar')
-   
-   // compile files(/C:\Users\Sameer\Documents\MEGA\eclipse_workplace\java\MyUtils\myutils.jar/)
+   compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
+  // compile files('myutils.jar')
   
    // testCompile 'junit:junit:4.12'
    // testCompile group: 'org.loadui', name: 'testFx', version: '3.1.2'
@@ -23,25 +19,71 @@ dependencies {
    // testCompile 'org.testfx:testfx-junit:4.0.11-alpha'   
 }
  
-version = 0.05
+version = 1.055
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
-mainClassName = 'sam.backup.manager.Main'
+mainClassName = 'Main'
+
+task toast {
+ doLast {
+ installDist.properties.each{println it.key}
+     }
+}
+	
+task combineCss {
+  def rsrc = sourceSets.main.resources.srcDirs[0].toString() 
+  ext.rsrcDir = file(rsrc + '/styles')
+  ext.outputFile = file(rsrc+'/styles.css')
+   
+  inputs.dir rsrcDir
+  outputs.file outputFile
+  
+  doLast {
+      file(outputFile).text = file(rsrcDir)
+		.listFiles()
+		.collect{f -> "/** ${f.name} */ \n"+f.text+'\n\n'}
+		.join()
+  }
+}
+
+jar.excludes << '/styles'
+// ensure combineCss run
+jar.dependsOn << combineCss
+// ensure jar runs after combineCss 
+jar.mustRunAfter combineCss
+
+run.dependsOn << combineCss
+run.mustRunAfter combineCss
 
 run {
  main 'MainTest'
+ workingDir "$rootDir/compiled"
 }
 
-installDist.destinationDir = file("$rootDir/compiled/app") 
+installDist.destinationDir = file("$rootDir/compiled/app")
 
+task loggingCopy {
+  def name = 'logging.properties'
+  ext.src = file(name)
+  ext.target = file(new File(installDist.destinationDir, name))
+  
+  inputs.file  src
+  outputs.file target
+  
+  doLast {
+     Files.copy(src.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+  }
+}
+
+installDist.finalizedBy loggingCopy
+ 
 /*
 task copy(type: Copy, dependsOn:'installDist') {
   from(fileTree("$buildDir/install/${distributions.main.baseName}"))
   into("$rootDir/compiled")
 }
 */
-
 
 jar {
   manifest {

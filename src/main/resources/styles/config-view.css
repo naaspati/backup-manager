@@ -1,0 +1,52 @@
+.config-view  .container{
+	-fx-hgap: 10;
+	-fx-vgap: 5;
+	-fx-padding: 10;
+}
+
+.config-view .title {
+	-fx-text-fill:white;
+	-fx-background-color: black  ;
+    -fx-border-width: 0.2 0 0 0;
+	-fx-border-color: white;
+	-fx-font-size: 1.2em;
+	-fx-padding: 7 5 7 10;
+	-fx-wrap-text: true;
+}
+
+.config-view .summery {
+	-fx-padding: 10 0 0 0;
+	-fx-border-width: 0 0 1 0;
+	-fx-border-color: black;
+	-fx-halignment: center;
+}
+.config-view .header {
+	-fx-border-width: 0 0 0.3 0;
+	-fx-border-color: black;
+}
+.config-view.disable .title {
+	-fx-background-color: maroon;
+	-fx-text-fill:white;
+}
+.config-view.disable .disable-text {
+	-fx-font-size: 1.2em;
+	-fx-font-weight: bold;
+	-fx-fill:crimson;
+
+}
+.config-view.completed .title {
+	-fx-background-color: teal;
+	-fx-text-fill:white;
+}
+
+.config-view.completed .completed-text {
+	-fx-font-size: 1.2em;
+	-fx-font-weight: bold;
+	-fx-fill:green;
+
+}
+.config-view .tree-view {
+	-fx-border-width: 0 0 0 1;
+	-fx-border-color: black;
+	-fx-background-color: null;	
+}

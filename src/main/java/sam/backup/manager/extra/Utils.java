@@ -19,7 +19,10 @@ import java.time.format.FormatStyle;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Logger;
 
 import com.google.gson.Gson;
 
@@ -30,7 +33,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import sam.backup.manager.Main;
+import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTree;
@@ -41,8 +44,16 @@ import sam.myutils.fileutils.FilesUtils;
 
 public class Utils {
 	public static final Path APP_DATA = Paths.get("app_data");
+	public static final ExecutorService threadPool = Executors.newSingleThreadExecutor();
 
 	private Utils() {}
+	
+	public static void run(Runnable r) {
+		threadPool.execute(r);
+	}
+	public static void shutdown() {
+		threadPool.shutdownNow();
+	}
 
 	public static Hyperlink hyperlink(Path path) {
 		Hyperlink link = new Hyperlink(String.valueOf(path));
@@ -198,9 +209,9 @@ public class Utils {
 		Stage stg = new Stage();
 		stg.initModality(Modality.WINDOW_MODAL);
 		stg.initStyle(StageStyle.UTILITY);
-		stg.initOwner(Main.getStage());
+		stg.initOwner(App.getStage());
 		stg.setScene(new Scene(ta));
-		stg.getScene().getStylesheets().setAll(Main.getStage().getScene().getStylesheets());
+		stg.getScene().getStylesheets().setAll(App.getStage().getScene().getStylesheets());
 		stg.setWidth(300);
 		stg.setHeight(400);
 		runLater(stg::show);
@@ -227,7 +238,7 @@ public class Utils {
 		}
 
 		fc.setTitle(title);
-		return fc.showSaveDialog(Main.getStage());
+		return fc.showSaveDialog(App.getStage());
 	}
 	
 	public static boolean saveToFile(String text, Path expectedPath) {
@@ -236,11 +247,14 @@ public class Utils {
 		if(file == null)
 			return false;
 		try {
-			Files.write(file.toPath(), text.toString().getBytes(StandardCharsets.UTF_16), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+			Files.write(file.toPath(), text.getBytes(StandardCharsets.UTF_16), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 			return true;
 		} catch (IOException e) {
 			showErrorDialog("target: "+file, "failed to save" , e);
 		}
 		return false;
 	}
+	public static Logger getLogger(Class<?> cls) {
+		return Logger.getLogger(cls.getSimpleName());
+	} 
 }

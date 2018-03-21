@@ -3,12 +3,9 @@ package sam.backup.manager.config;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
-import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTree;
 
 public class Config extends ConfigBase implements Serializable {
@@ -21,9 +18,6 @@ public class Config extends ConfigBase implements Serializable {
 	private transient Path sourceP;
 	private transient Path targetP;
 	private transient FileTree fileTree;
-	private transient boolean sourceWalkComplete;
-	private transient List<FileEntity> backupFilesList;
-	private transient List<FileEntity> deleteBackupFilesList;
 
 	public Config(RootConfig root, Path source, Path target) {
 		this.root = root;
@@ -40,6 +34,9 @@ public class Config extends ConfigBase implements Serializable {
 			return Paths.get((root.getFullBackupRoot() == null ? "G:/Sameer" : root.getFullBackupRoot().toString()) + source.substring(6)); 
 		
 		return Paths.get(source);
+	}
+	public String getTargetString() {
+		return target;
 	}
 	public Path getTarget() {
 		if(targetP == null && RootConfig.backupDriveFound()) {
@@ -84,25 +81,6 @@ public class Config extends ConfigBase implements Serializable {
 	}
 	public void setFileTree(FileTree filetree) {
 		this.fileTree = filetree;
-	}
-	public boolean isSourceWalkCompleted() {
-		return sourceWalkComplete;
-	}
-
-	public void setSourceWalkCompleted(boolean sourceWalkComplete) {
-		this.sourceWalkComplete = sourceWalkComplete;
-	}
-	public void setBackupFiles(List<FileEntity> list) {
-		backupFilesList = Collections.unmodifiableList(list);
-	}
-	public List<FileEntity> getBackupFiles() {
-		return backupFilesList;
-	}
-	public List<FileEntity> getDeleteBackupFilesList() {
-		return deleteBackupFilesList;
-	}
-	public void setDeleteBackupFilesList(List<FileEntity> deleteBackupFilesList) {
-		this.deleteBackupFilesList = Collections.unmodifiableList(deleteBackupFilesList);
 	}
 	public boolean is1DepthWalk() {
 		return getDepth() == 1 && Stream.of(excludes, includes, targetExcludes, walkSkips).allMatch(t -> t == null || t.length == 0);

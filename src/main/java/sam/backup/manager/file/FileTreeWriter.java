@@ -13,16 +13,11 @@ public class FileTreeWriter implements AutoCloseable {
 		dos.writeBoolean(tree.isDirectory());
 		dos.writeUTF(tree.getfileNameString());
 		
-		Attrs a = tree.getSourceAttrs().getOld();
-		dos.writeLong(a.modifiedTime);
-		dos.writeLong(a.size);
-		
-		a = tree.getBackupAttrs().getOld();
-		dos.writeLong(a.modifiedTime);
-		dos.writeLong(a.size);
+		writeAttrs(tree.getSourceAttrs());
+		writeAttrs(tree.getBackupAttrs());
 		
 		if(tree.isDirectory()) {
-			int c = tree.castDir().childCount();
+			int c = tree.castDir().size();
 			dos.writeInt(c);
 			
 			if(c != 0) {
@@ -30,6 +25,12 @@ public class FileTreeWriter implements AutoCloseable {
 					write(f);
 			}
 		}
+	}
+	private void writeAttrs(AttrsKeeper ak) throws IOException {
+		Attrs a = ak.getOld();
+		dos.writeLong(a.modifiedTime);
+		dos.writeLong(a.size);
+		
 	}
 	@Override
 	public void close() throws IOException {

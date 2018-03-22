@@ -15,21 +15,15 @@ import java.util.function.Predicate;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTreeReader.Values;
 import sam.backup.manager.walk.WalkMode;
 
 public class FileTree extends DirEntity {
-	private static final String VERSION_STRING = "FileTreeEntity: version:1.1";
-
 	public FileTree(Path path) {
 		super(path, null);
 	}
-	@Override
-	public Path getSourcePath() {
-		return super.getFileName();
-	}
-	public FileTree(FileTreeReader reader, Values next) throws IOException {
+	
+	private FileTree(FileTreeReader reader, Values next) throws IOException {
 		super(reader, next, null);
 	}
 	public static FileTree read(Path path) throws IOException {
@@ -37,11 +31,6 @@ public class FileTree extends DirEntity {
 				GZIPInputStream gis = new GZIPInputStream(is);
 				DataInputStream dis = new DataInputStream(gis);
 				FileTreeReader reader = new FileTreeReader(dis)) {
-
-			String version = dis.readUTF();
-			if(!VERSION_STRING.equals(version))
-				throw new IOException("not a filetree file");
-
 			return new FileTree(reader, reader.next()); 
 		}
 	}
@@ -50,7 +39,6 @@ public class FileTree extends DirEntity {
 				GZIPOutputStream gos = new GZIPOutputStream(os);
 				DataOutputStream dos = new DataOutputStream(gos);
 				FileTreeWriter writer = new FileTreeWriter(dos)){
-			dos.writeUTF(VERSION_STRING);
 			writer.write(this);
 		}
 	}
@@ -164,30 +152,13 @@ public class FileTree extends DirEntity {
 	private Path subpath(Path file) {
 		return file.subpath(nameCount, file.getNameCount());
 	}
-
-	/**
-	 * as Filetree does not have a filename of length 1, it has to handle source and target differently 
-	 */
-	private Path temptarget;
-	@Override
-	public Path getTargetPath() {
-		return temptarget == null ? super.getTargetPath() : temptarget;
-	}
-	public void walkCompleted(Path targetPath) {
+	
+	public void walkCompleted() {
 		walkStarted = false;
 		nameCount = -100;
 		rootPath = null;
 		locator = null;
 		currentParent = null;
 		currentLocator = null;
-		
-		if(targetPath == null)
-			return;
-
-		temptarget = targetPath; 
-		computeTargetPath(targetPath);
-
-		if(RootConfig.backupDriveFound()) 
-			setTarget(targetPath);
 	}
 }

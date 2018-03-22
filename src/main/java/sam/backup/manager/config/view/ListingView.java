@@ -1,5 +1,6 @@
 package sam.backup.manager.config.view;
 
+import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
 import static sam.backup.manager.extra.Utils.saveFiletree;
@@ -14,7 +15,6 @@ import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javafx.application.Platform;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
@@ -25,11 +25,13 @@ import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
+import sam.backup.manager.file.DirEntity;
+import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.backup.manager.walk.Update;
 import sam.backup.manager.walk.WalkListener;
+import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkResult;
 import sam.console.ansi.ANSI;
 import sam.fx.helpers.FxHelpers;
@@ -97,7 +99,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 		String[] s = root.toFile().list();
 		treeText = Stream.of(s).collect(Collectors.joining("\n |", config.getSource()+"\n |", ""));
 		
-		Platform.runLater(() ->{
+		runLater(() ->{
 			dirCountT.setText(null);
 			fileCountT.setText("All count: "+s.length);
 		});
@@ -128,12 +130,15 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 		e.printStackTrace();
 	}
 	
+	private volatile int fileCount, dirCount;
+	
 	@Override
-	public void update(Update source, Update target) {
-		if(source != null) {
-			fileCountT.setText("  Files: "+source.fileCount);
-			dirCountT.setText("  Dirs: "+source.dirCount);	
-		}
+	public void onFileFound(FileEntity ft, long size, WalkMode mode) {
+		runLater(() -> fileCountT.setText("  Files: "+(++fileCount)));
+	}
+	@Override
+	public void onDirFound(DirEntity ft, WalkMode mode) {
+		runLater(() -> dirCountT.setText("  Dirs: "+(++dirCount)));
 	}
 	@Override
 	public void walkCompleted(WalkResult result) {
@@ -146,7 +151,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 			}
 		}
 
-		Platform.runLater(() -> {
+		runLater(() -> {
 			getChildren().remove(button);
 			button.setType(ButtonType.OPEN);
 			getChildren().add(new HBox(3, button, new CustomButton(ButtonType.SAVE, this)));
@@ -157,7 +162,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 			showErrorDialog(null, "FileTreeEntity not set", null);
 			return;
 		}
-		Platform.runLater(() -> {
+		runLater(() -> {
 			Path p = config.getTargetString() != null ? config.getTarget() : null;
 			if(p == null) {
 				String name = config.getSource().getFileName()+"-"+config.getSource().hashCode()+".txt";

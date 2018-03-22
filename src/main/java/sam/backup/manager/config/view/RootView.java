@@ -15,6 +15,7 @@ import javafx.scene.text.TextFlow;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.Utils;
 import sam.myutils.myutils.MyUtils;
+
 public class RootView extends VBox {
 	private final Text sizeText;
 	private RootConfig root;

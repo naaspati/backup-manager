@@ -22,7 +22,9 @@ import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Logger;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.google.gson.Gson;
 
@@ -45,9 +47,10 @@ import sam.myutils.fileutils.FilesUtils;
 public class Utils {
 	public static final Path APP_DATA = Paths.get("app_data");
 	public static final ExecutorService threadPool = Executors.newSingleThreadExecutor();
+	private static final Logger LOGGER =  LogManager.getLogger(Utils.class);
 
 	private Utils() {}
-	
+
 	public static void run(Runnable r) {
 		threadPool.execute(r);
 	}
@@ -56,18 +59,20 @@ public class Utils {
 	}
 
 	public static Hyperlink hyperlink(Path path) {
-		Hyperlink link = new Hyperlink(String.valueOf(path));
-		if(path != null) {
-			File f = path.toFile();
-			if(!f.exists())
-				link.setOnAction(e -> FxPopupShop.showHidePopup("file not found: \n"+f, 2000));
-			else {
-				if(f.isDirectory())
-					link.setOnAction(e -> FilesUtils.openFileNoError(f));
-				else
-					link.setOnAction(e -> FilesUtils.openFileLocationInExplorerNoError(f));
-			}
-		} 
+		Hyperlink link = new Hyperlink(path == null ? "--" : path.toString());
+		if(path == null) {
+			link.setDisable(true);
+			return link;
+		}
+		File f = path.toFile();
+		if(!f.exists())
+			link.setOnAction(e -> FxPopupShop.showHidePopup("file not found: \n"+f, 2000));
+		else {
+			if(f.isDirectory())
+				link.setOnAction(e -> FilesUtils.openFileNoError(f));
+			else
+				link.setOnAction(e -> FilesUtils.openFileLocationInExplorerNoError(f));
+		}
 		link.setMinWidth(400);
 		return link;
 	}
@@ -93,7 +98,7 @@ public class Utils {
 		if(millis <= 0) return "N/A";
 		return durationToString(Duration.ofMillis(millis));
 	}
-	private final static StringBuilder sb = new StringBuilder();
+	private static final StringBuilder sb = new StringBuilder();
 	public static String durationToString(Duration d) {
 		synchronized (sb) {
 			sb.setLength(0);
@@ -172,7 +177,7 @@ public class Utils {
 		Path p = getTreePath(config);
 		Files.createDirectories(p.getParent());
 		config.getFileTree().write(p);
-		System.out.println(ANSI.yellow("file-tree saved: ")+p.getFileName());
+		LOGGER.info("file-tree saved: {}", p.getFileName());
 	}
 	public static Path getBackupLastPerformedPathTimeMapPath() {
 		return APP_DATA.resolve("backup-last-performed.txt");
@@ -183,14 +188,14 @@ public class Utils {
 			map.forEach((s,t) -> sb.append(s).append('\t').append(t).append('\n'));
 			Files.write(getBackupLastPerformedPathTimeMapPath(), sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 		} catch (IOException e) {
-			e.printStackTrace();
+			LOGGER.warn("failed to save: {}", getBackupLastPerformedPathTimeMapPath(), e);
 		}
 	}
 
 	public static Map<String, Long> readBackupLastPerformedPathTimeMap() {
 		HashMap<String, Long> map = new HashMap<>();
+		Path p = getBackupLastPerformedPathTimeMapPath();
 		try {
-			Path p = getBackupLastPerformedPathTimeMapPath();
 			if(Files.exists(p)) {
 				Files.lines(p)
 				.map(s -> s.split("\t"))
@@ -198,10 +203,14 @@ public class Utils {
 				.forEach(s -> {
 					try {
 						map.put(s[0], Long.parseLong(s[1]));
-					} catch (NumberFormatException e) {}
+					} catch (NumberFormatException e) {
+						LOGGER.warn("bad number: {} in {}", s[1], p, e);
+					}
 				});
 			}
-		} catch (IOException e) {}
+		} catch (IOException e) {
+			LOGGER.warn("failed to read: {}", p, e);
+		}
 		return map;
 	}
 
@@ -221,7 +230,7 @@ public class Utils {
 	public static void showErrorDialog(Object text, String header, Exception error) {
 		runLater(() -> FxAlert.showErrorDialog(text, header, error));
 	}
-	
+
 	public static File selectFile(File expectedFile, String title) {
 		FileChooser fc = new FileChooser();
 
@@ -240,10 +249,10 @@ public class Utils {
 		fc.setTitle(title);
 		return fc.showSaveDialog(App.getStage());
 	}
-	
+
 	public static boolean saveToFile(String text, Path expectedPath) {
 		File file = selectFile(expectedPath.toFile(), "save filetree");
-		
+
 		if(file == null)
 			return false;
 		try {
@@ -254,7 +263,4 @@ public class Utils {
 		}
 		return false;
 	}
-	public static Logger getLogger(Class<?> cls) {
-		return Logger.getLogger(cls.getSimpleName());
-	} 
 }

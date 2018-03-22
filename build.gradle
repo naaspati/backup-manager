@@ -8,10 +8,12 @@ repositories {
     jcenter()
 }
 dependencies {
-   compile 'org.slf4j:slf4j-jdk14:1.8.0-beta1'
+  // compile 'org.slf4j:slf4j-jdk14:1.8.0-beta1'
    compile 'com.google.code.gson:gson:2.8.2'
    compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
    compile files('myutils.jar')
+   compile 'org.apache.logging.log4j:log4j-api:2.11.0'
+   compile 'org.apache.logging.log4j:log4j-core:2.11.0'
   
    // testCompile 'junit:junit:4.12'
    // testCompile group: 'org.loadui', name: 'testFx', version: '3.1.2'
@@ -76,7 +78,7 @@ task loggingCopy {
   }
 }
 
-installDist.finalizedBy loggingCopy
+// TODO installDist.finalizedBy loggingCopy
  
 /*
 task copy(type: Copy, dependsOn:'installDist') {

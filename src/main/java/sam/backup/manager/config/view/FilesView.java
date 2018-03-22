@@ -1,5 +1,6 @@
 package sam.backup.manager.config.view;
 
+import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
 import static sam.backup.manager.extra.Utils.saveToFile;
@@ -14,6 +15,8 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -24,7 +27,8 @@ import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import javafx.application.Platform;
+import org.apache.logging.log4j.LogManager;
+
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ObservableSet;
@@ -47,17 +51,18 @@ import javafx.scene.layout.HBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import sam.backup.manager.App;
-import sam.backup.manager.config.Config;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.AttrsKeeper;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
+import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeEntity;
 import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.console.ansi.ANSI;
 import sam.myutils.myutils.MyUtils;
+import sam.string.stringutils.StringUtils;
 
 public class FilesView extends BorderPane {
 	public enum FileViewMode {
@@ -67,21 +72,21 @@ public class FilesView extends BorderPane {
 	private final TreeView<String> treeView;
 	private Unit currentRootItem;	
 	private final TextArea aboutTA;
-	private final Config config;
 	private final ToggleButton expandAll = new ToggleButton("Expand All");
 	private final SimpleIntegerProperty selectedCount = new SimpleIntegerProperty();
 	private final SimpleIntegerProperty totalCount = new SimpleIntegerProperty();
 	private FileViewMode mode;
-	private final ObservableWalkResult result;
 	private final Path sourceRoot, targetRoot;
 
-	public FilesView(Config config, ObservableWalkResult result) {
-		Objects.requireNonNull(result);
+	private final ConfigView configView;
+	private final FileTree fileTree;
+
+	public FilesView(ConfigView view) {
+		configView = Objects.requireNonNull(view);
 		addClass(this, "files-view");
-		this.config = config;
-		this.result = result;
-		sourceRoot = config.getSource();
-		targetRoot = config.getTarget();
+		sourceRoot = view.getConfig().getSource();
+		targetRoot = view.getConfig().getTarget();
+		this.fileTree = view.getConfig().getFileTree();
 
 		treeView = new TreeView<>();
 		treeView.getSelectionModel()
@@ -115,20 +120,20 @@ public class FilesView extends BorderPane {
 	}
 	private Node top() {
 		GridPane grid = new GridPane();
-		
+
 		grid.setHgap(5);
 		grid.setVgap(5);
-		
+
 		grid.addRow(0, new Text("%source% = "), link(sourceRoot));
 		grid.addRow(1, new Text("%target% = "), link(targetRoot));
-		
+
 		Text count = new Text();
 		count.setId("files-view-count");
 		count.textProperty().bind(Bindings.concat("selected/total: ", selectedCount, "/", totalCount));
-		
+
 		grid.addRow(3, expandAll, count);
 		grid.setPadding(new Insets(5));
-		
+
 		return grid;
 	}
 	private Node link(Path p) {
@@ -146,8 +151,8 @@ public class FilesView extends BorderPane {
 		}
 	}
 	private void setBottom() {
-		CustomButton save = new CustomButton(ButtonType.SAVE, e -> saveToFile(config.getFileTree().toTreeString(getFilter(false)), Paths.get("D:\\Downloads").resolve(config.getSource().getFileName()+".txt")));
-		save.disableProperty().bind(Bindings.isEmpty(currentFiles));
+		CustomButton save = new CustomButton(ButtonType.SAVE, e -> saveToFile(fileTree.toTreeString(getFilter(false)), Paths.get("D:\\Downloads").resolve(sourceRoot.getFileName()+".txt")));
+		save.disableProperty().bind(mode == FileViewMode.DELETE ? Bindings.isEmpty(deletes) : Bindings.isEmpty(backups));
 
 		if(mode == FileViewMode.DELETE) {
 			CustomButton d = new CustomButton(ButtonType.DELETE, this::delete);
@@ -165,28 +170,31 @@ public class FilesView extends BorderPane {
 	}
 	private void delete(ButtonType type) {
 		MyUtils.runOnDeamonThread(() -> {
-			Map<Path, List<Path>> map = currentFiles.stream()
-					.map(FileTreeEntity::getTargetPath)
+			Map<Path, List<Path>> map = backups.stream()
+					.map(FileTreeEntity::getBackupAttrs)
+					.map(AttrsKeeper::getPath)
 					.collect(Collectors.groupingBy(Path::getParent));
 
 
-			boolean b = mode == FileViewMode.DELETE;
-			ANSI.NO_COLOR = b;
-			StringBuilder sb = new StringBuilder(b ? ANSI.createUnColoredBanner("DELETED FILES") : ANSI.createBanner("DELETED FILES")).append('\n');
-			TextArea ta = b ? new TextArea("Please wait") : null;
-			if(b) {
-				Platform.runLater(() -> {
-					getChildren().clear();
-					setCenter(ta);
-				});
-			}
-
+			ANSI.disable(true);
+			StringBuilder sb = new StringBuilder(ANSI.createBanner("DELETED FILES")).append('\n');
+			TextArea ta = new TextArea("Please wait");
+			runLater(() -> {
+				getChildren().clear();
+				setCenter(ta);
+			});
 			map.forEach((s,t) -> {
 				yellow(sb, s).append('\n');
-				t.forEach(z -> {
-					sb.append("  ").append(z.getFileName());
+				t.forEach(path -> {
 					try {
-						Files.deleteIfExists(z);
+						if(Files.notExists(path))
+							return;
+						if(Files.isDirectory(path)) 
+							deleteDir(path, sb);
+						else {
+							Files.delete(path);
+							sb.append("  ").append(path.getFileName());
+						}
 					} catch (IOException e) {
 						red(sb, "  failed").append(MyUtils.exceptionToString(e));
 					}
@@ -196,25 +204,49 @@ public class FilesView extends BorderPane {
 			long count = map.keySet().stream().sorted(Comparator.comparing(Path::getNameCount).reversed()).map(Path::toFile).filter(File::delete).count();
 			sb.append("\n-----------\nDirs Deleted: "+count);
 
-			if(b) 
-				Platform.runLater(() -> ta.setText(sb.toString()));
-			else 
-				System.out.println(sb);
-
-			ANSI.NO_COLOR = false;
+			runLater(() -> ta.setText(sb.toString()));
+			LogManager.getLogger(getClass()).debug(sb.toString());
+			ANSI.disable(false);
 		});
 	}
-	private ObservableSet<FileEntity> currentFiles;
+	private void deleteDir(Path path, StringBuilder sb) throws IOException {
+		int count = path.getNameCount();
+		Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+				StringUtils.repeat("  ", dir.getNameCount() - count, sb).append(dir.getFileName()).append('\n');
+				return FileVisitResult.CONTINUE;
+			}
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
+					throws IOException {
+				StringUtils.repeat("  ", file.getNameCount() - count, sb).append(file.getFileName()).append('\n');
+				Files.delete(file);
+				return FileVisitResult.CONTINUE;
+			}
+			@Override
+			public FileVisitResult postVisitDirectory(Path dir, IOException exc)
+					throws IOException {
+				Files.delete(dir);
+				return FileVisitResult.CONTINUE;
+			}
+		});
+	}
+	private ObservableSet<FileEntity> backups;
+	private ObservableSet<FileTreeEntity> deletes;
 
 	public void setMode(FileViewMode mode) {
 		this.mode = mode;
-		this.currentFiles = mode == FileViewMode.DELETE ? result.getDeletes() : result.getBackups();
+		if(mode == FileViewMode.DELETE)
+			deletes = configView.getDeletes();
+		else if(mode == FileViewMode.BACKUP)
+			backups = configView.getBackups();
 
 		setBottom();
 		changeRoot();
 
 		totalCount.set(currentRootItem.getTotalCount());
-		selectedCount.bind(Bindings.size(currentFiles));
+		selectedCount.bind(Bindings.size(backups));
 	}
 	private final EnumMap<FileViewMode, Unit> itemsMap = new EnumMap<>(FileViewMode.class);
 
@@ -224,10 +256,10 @@ public class FilesView extends BorderPane {
 		currentRootItem = itemsMap.get(mode);
 
 		if(currentRootItem == null) {
-			currentRootItem = new Unit(config.getFileTree());
-			walk(currentRootItem, config.getFileTree(), getFilter(true));
+			currentRootItem = new Unit(fileTree);
+			walk(currentRootItem, fileTree, getFilter(true));
 			itemsMap.put(mode, currentRootItem);
-			Platform.runLater(() -> currentRootItem.setSelected(true));
+			runLater(() -> currentRootItem.setSelected(true));
 		}
 		treeView.setRoot(currentRootItem);
 	}
@@ -240,10 +272,19 @@ public class FilesView extends BorderPane {
 			if(!f.isDirectory()) {
 				selectedProperty().addListener((p, o, n) -> {
 					if(n == null) return;
-					if(n) currentFiles.add((FileEntity)file);
-					else currentFiles.remove(file);
+					if(n) add(file);
+					else remove(file);
 				});
 			}
+		}
+
+		public void add(FileTreeEntity ent) {
+			if(mode == FileViewMode.DELETE) deletes.add(ent);
+			else backups.add((FileEntity) ent);
+		}
+		public void remove(FileTreeEntity ent) {
+			if(mode == FileViewMode.DELETE) deletes.remove(ent);
+			else backups.remove(ent);
 		}
 
 		public int getTotalCount() {
@@ -272,8 +313,8 @@ public class FilesView extends BorderPane {
 			if(mode == FileViewMode.DELETE) return FileTreeEntity::isDeleteFromBackup; 
 			else return FileTreeEntity::isBackupNeeded;
 		} else {
-			if(mode == FileViewMode.DELETE) return ft -> ft.isDeleteFromBackup() && (ft.isDirectory() || currentFiles.contains(ft)); 
-			else return ft -> ft.isBackupNeeded() && (ft.isDirectory() || currentFiles.contains(ft));
+			if(mode == FileViewMode.DELETE) return ft -> ft.isDeleteFromBackup() && (ft.isDirectory() || backups.contains(ft)); 
+			else return ft -> ft.isBackupNeeded() && (ft.isDirectory() || backups.contains(ft));
 		}
 	}
 	private void change(FileTreeEntity fw) {
@@ -287,8 +328,8 @@ public class FilesView extends BorderPane {
 	private void setFileDetails(FileTreeEntity file) {
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("source: ").append(subpath(file.getSourcePath(), true)).append('\n')
-		.append("target: ").append(subpath(file.getTargetPath(), false)).append('\n');
+		sb.append("source: ").append(subpath(file.getSourceAttrs().getPath(), true)).append('\n')
+		.append("target: ").append(subpath(file.getBackupAttrs().getPath(), false)).append('\n');
 
 		append("About Source: \n", file.getSourceAttrs(), sb);
 		append("\nAbout Backup: \n", file.getBackupAttrs(), sb);
@@ -315,7 +356,7 @@ public class FilesView extends BorderPane {
 	private Object subpath(Path p, boolean isSource) {
 		String prefix = isSource ? "%source%\\" : "%target%\\";   
 		Path start = isSource ? sourceRoot : targetRoot;
-		
+
 		if(p == null)
 			return "--";
 		if(start == null || start.getNameCount() == p.getNameCount() ||  !p.startsWith(start))
@@ -340,7 +381,7 @@ public class FilesView extends BorderPane {
 		List<FileTreeEntity> list = new ArrayList<>();
 		Path name = file.getFileName();
 
-		config.getFileTree().walk(new FileTreeWalker() {
+		fileTree.walk(new FileTreeWalker() {
 
 			@Override
 			public FileVisitResult file(FileEntity ft, AttrsKeeper source, AttrsKeeper backup) {
@@ -358,7 +399,7 @@ public class FilesView extends BorderPane {
 		else {
 			sb.append("Possibly moved to: \n");
 			for (FileTreeEntity f : list) 
-				sb.append(separator).append(subpath(f.getTargetPath(), false)).append('\n');
+				sb.append(separator).append(subpath(f.getBackupAttrs().getPath(), false)).append('\n');
 		}
 	}
 }

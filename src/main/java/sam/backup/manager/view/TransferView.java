@@ -23,10 +23,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javafx.beans.InvalidationListener;
 import javafx.collections.ObservableSet;
@@ -45,13 +47,16 @@ import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TransferSummery;
+import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.FileEntity;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.myutils.MyUtils;
 import sam.weakstore.WeakStore;
 
+
 public class TransferView extends VBox implements Runnable, IStopStart, ButtonAction, ICanceler {
 	private static final WeakStore<ByteBuffer> buffers = new WeakStore<>(() -> ByteBuffer.allocateDirect(2*1024*1024), true);
+	private static final Logger LOGGER =  LogManager.getLogger(Utils.class);
 
 	private final ConfigView view;
 
@@ -88,7 +93,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		this.startEndAction = startCompleteAction;
 		this.config = view;
 
-		this.files = view.getObservablewalkResult().getBackups();
+		this.files = view.getBackups();
 		button = new CustomButton(ButtonType.UPLOAD, this);
 		Text text = new Text();
 		
@@ -109,9 +114,6 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		Text header = new Text(view.getConfig().getSourceText());
 		setClass(header, "header");
 		return header;
-	}
-	public void update() {
-		
 	}
 	public ConfigView getConfigView() {
 		return view;
@@ -209,13 +211,17 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 			currentFileSize.set(ft.getSourceAttrs().getCurrent().getSize());
 			currentProgressFormat = "%s/"+bytesToString(currentFileSize.get());
 			currentBytesRead.set(0);
+			
+			Path src = ft.getSourceAttrs().getPath();
+			Path target = ft.getBackupAttrs().getPath();
+			
 			runLater(() -> {
-				sourceTargetTa.appendText("src: "+ft.getSourcePath()+"\ntarget: "+ft.getTargetPath()+"\n");
+				sourceTargetTa.appendText("src: "+src+"\ntarget: "+target+"\n");
 				currentProgressBar.setProgress(0);
 			});
 
 			addBytesRead(0);
-			if(copy(ft, buffer)) {
+			if(copy(src, target, buffer)) {
 				ft.setCopied();
 				filesMoved.incrementAndGet();
 			}
@@ -225,25 +231,26 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		buffers.add(buffer);
 		return COMPLETED;
 	}
-	private boolean copy(FileEntity ft, ByteBuffer buffer) {
+	private boolean copy(final Path src, final Path target, final ByteBuffer buffer) {
 		if(isCancelled()) return false;
 
-		if(!createdDirs.contains(ft.getTargetPath().getParent())) {
+		if(!createdDirs.contains(target.getParent())) {
+			Path p = target.getParent();
+			
 			try {
-				Path p = ft.getTargetPath().getParent();
 				Files.createDirectories(p);
 				createdDirs.add(p);
 			} catch (Exception e) {
-				System.out.println("src: "+ft.getSourcePath()+"\ntarget: "+ft.getTargetPath()+"\n Error:"+e+"\n");
+				LOGGER.error("failed to create dir: ", p, e);
 				return false;
 			}	
 		}
 		if(isCancelled()) return false;
 		buffer.clear();
 		
- 		final Path temp = Optional.of(ft.getTargetPath()).map(p -> p.resolveSibling(p.getFileName()+".tmp")).get();
+ 		final Path temp = target.resolveSibling(target.getFileName()+".tmp");
 
-		try(FileChannel in = FileChannel.open(ft.getSourcePath(), READ);
+		try(FileChannel in = FileChannel.open(src, READ);
 				FileChannel out = FileChannel.open(temp, CREATE, TRUNCATE_EXISTING, WRITE)) {
 
 			int n = 0;
@@ -255,14 +262,16 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 				buffer.clear();
 				addBytesRead(n);
 			}
+			LOGGER.debug("file copied {} -> {}", src, temp);
 		} catch (IOException e) {
-			System.out.println("Failed:copy -> src: "+ft.getSourcePath()+"\ntarget: "+temp+"\n Error:"+e+"\n");
+			LOGGER.error("file copy failed {} -> {}", src, temp, e);
 			return false;
 		}
 		try {
-			Files.move(temp, ft.getTargetPath(), StandardCopyOption.REPLACE_EXISTING);
+			Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+			LOGGER.debug("file renamed {} -> {}", temp, target);
 		} catch (IOException e) {
-			System.out.println("Failed:renaming ->src: "+temp+"\ntarget: "+ft.getTargetPath()+"\n Error:"+e+"\n");
+			LOGGER.error("file renaming failed {} -> {}", temp, target, e);
 			return false;
 		}
 		return true;
@@ -291,7 +300,6 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		p.setMaxWidth(Double.MAX_VALUE);
 		HBox.setHgrow(p, Priority.ALWAYS);
 		HBox top = new HBox(getHeaderText(), p, button("close", "Delete_10px.png", e -> ((Pane)getParent()).getChildren().remove(this)));
-
 		
 		Text  t = new Text(
 				new StringBuilder("COMPLETED")

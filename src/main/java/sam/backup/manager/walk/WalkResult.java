@@ -1,17 +1,19 @@
 package sam.backup.manager.walk;
 
+import java.util.Collections;
 import java.util.List;
 
 import sam.backup.manager.file.FileEntity;
+import sam.backup.manager.file.FileTreeEntity;
 
 public class WalkResult {
 	private List<FileEntity> backupList;
-	private List<FileEntity> delete;
+	private List<FileTreeEntity> delete;
 	private final String failed;
 	
-	WalkResult(List<FileEntity> backupList, List<FileEntity> delete) {
-		this.backupList = backupList;
-		this.delete = delete;
+	WalkResult(List<FileEntity> backupList, List<FileTreeEntity> delete) {
+		this.backupList = Collections.unmodifiableList(backupList);
+		this.delete = Collections.unmodifiableList(delete);
 		this.failed = null;
 	}
 	public WalkResult(String failedReason) {
@@ -26,5 +28,5 @@ public class WalkResult {
 		return failed != null;
 	}
 	public List<FileEntity> getBackups() { return backupList; }
-	public List<FileEntity> getDeletes() { return delete; }
+	public List<FileTreeEntity> getDeletes() { return delete; }
 }

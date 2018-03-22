@@ -33,7 +33,7 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 		if(!values.isDirectory())
 			throw new IllegalArgumentException("not a dir: "+values);
 
-		int size = values.getChildCount();
+		int size = values.size();
 		children = new ArrayList<>(size);
 
 		if(size <= 0)
@@ -203,11 +203,21 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 			atrk(w, this).setCurrentSize(0);
 			return;
 		}
-		long size = children.stream()
-				.mapToLong(f -> atrk(w, f).getCurrent().size)
-				.sum();
+		long size = 0;
+		for (FileTreeEntity f : this) 
+			size += size(w, f);			
 
 		atrk(w, this).setCurrentSize(size);
+	}
+	private long size(WalkMode w, FileTreeEntity f) {
+		Attrs atrs = atrk(w,f).getCurrent();
+		
+		if(atrs == null) {
+			System.out.println(f+"  "+w+"  atrs null");
+			return 0;
+		}
+		
+		return atrs.size;
 	}
 	private static AttrsKeeper atrk(WalkMode w, FileTreeEntity f) {
 		return w == WalkMode.BACKUP ? f.getBackupAttrs() : f.getSourceAttrs();
@@ -262,7 +272,7 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 	public Iterator<FileTreeEntity> iterator() {
 		return children.iterator();
 	}
-	public int childCount() {
+	public int size() {
 		return children.size();
 	}
 }

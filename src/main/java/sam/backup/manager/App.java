@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
 
 import javafx.application.Application;
 import javafx.application.HostServices;
@@ -45,13 +45,14 @@ import sam.backup.manager.view.TransferView;
 import sam.backup.manager.view.ViewType;
 import sam.backup.manager.viewers.TransferViewer;
 import sam.backup.manager.viewers.ViewSwitcher;
-import sam.backup.manager.walk.WalkTask;
 import sam.backup.manager.walk.WalkMode;
+import sam.backup.manager.walk.WalkTask;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.fileutils.FilesUtils;
 
 public class App extends Application {
+	
 	private static Stage stage;
 	private static HostServices hs;
 
@@ -167,13 +168,13 @@ public class App extends Application {
 				}
 			});
 			
-			ft.walkCompleted((Path)null);
+			ft.walkCompleted();
 			Path p = root.resolveSibling(root.getFileName()+".txt");
 			Utils.saveToFile(ft.toTreeString(), p);
 			FxPopupShop.showHidePopup(p.getFileName()+" saved", 1500);
-			LoggerFactory.getLogger(getClass()).info("saved: "+p);
+			LogManager.getLogger(getClass()).info("saved: {}", p);
 		} catch (IOException e) {
-			LoggerFactory.getLogger(getClass()).error("failed to walk"+root, e);
+			LogManager.getLogger(getClass()).error("failed to walk: {}", root, e);
 			Utils.showErrorDialog(root, "failed to walk", e);
 		}
 	}
@@ -203,7 +204,6 @@ public class App extends Application {
 			public void onComplete(ListingView e) {
 				backupLastPerformed.put("list:"+e.getConfig().getSource(), System.currentTimeMillis());
 				backupLastPerformedModified = true;
-
 			}
 		};
 

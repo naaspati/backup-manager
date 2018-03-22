@@ -1,8 +1,12 @@
 package sam.backup.manager.walk;
 
+import sam.backup.manager.file.DirEntity;
+import sam.backup.manager.file.FileEntity;
+
 public interface WalkListener {
 
 	public void walkCompleted(WalkResult result);
 	public void walkFailed(String reason, Throwable e);
-	public void update(Update source, Update target);
+	public void onFileFound(FileEntity ft, long size, WalkMode mode);
+	public void onDirFound(DirEntity ft, WalkMode mode);
 }

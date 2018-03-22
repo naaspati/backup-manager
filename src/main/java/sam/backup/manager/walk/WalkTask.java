@@ -23,7 +23,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
@@ -40,9 +41,11 @@ import sam.fx.popup.FxPopupShop;
 import sam.myutils.fileutils.FilesUtils;
 
 public class WalkTask implements Runnable, FileVisitor<Path> {
+	public static final Logger logger = LogManager.getLogger(WalkTask.class); 
+	
 	private final Config config;
-	private volatile  long sourceSize, targetSize;
-	private volatile int sourceFileCount, sourceDirCount, targetFileCount, targetDirCount;
+	// private volatile  long sourceSize, targetSize;
+	// private volatile int sourceFileCount, sourceDirCount, targetFileCount, targetDirCount;
 	private final ICanceler canceler;
 	private final List<Path> excludeFilesList = new ArrayList<>();
 	private final FileTree rootTree;
@@ -50,8 +53,8 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 	private boolean skipModifiedCheck;
 	private boolean skipFiles;
 
-	private final WalkMode fixedWalkMode;
-	private WalkMode currentWalkMode;
+	private final WalkMode initialWalkMode;
+	private WalkMode walkMode;
 	private final WalkListener listener;
 
 	private Predicate<Path> excluder, includer;
@@ -59,7 +62,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 	public WalkTask(Config config, WalkMode walkMode, ICanceler canceler, WalkListener listener) {
 		this.config = config;
 		this.rootTree = config.getFileTree();
-		this.fixedWalkMode = walkMode;
+		this.initialWalkMode = walkMode;
 		this.listener = listener;
 
 		Set<WalkSkip> skips = config.getWalkSkips();
@@ -89,11 +92,13 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		boolean sourceWalkFailed = true;
 
 		try {
-			if(fixedWalkMode.isSource()) {
+			if(initialWalkMode.isSource()) {
 				if(!sourceWalkCompleted.containsKey(rootTree)) {
 					walk(root, config.getSourceExcluder(), config.getSourceIncluder(), WalkMode.SOURCE);
 					sourceWalkCompleted.put(rootTree, null);
-				}
+				} else 
+					logger.debug("source walk skipped: {}", root);
+				
 				sourceWalked = true;
 			}
 
@@ -101,20 +106,23 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 
 			boolean walk = !(config.isNoBackupWalk() || !RootConfig.backupDriveFound());
 
-			if(walk && fixedWalkMode.isBackup()){
+			if(walk && initialWalkMode.isBackup()){
 				if(!backupWalkCompleted.containsKey(rootTree)) {
 					walk(config.getTarget(), config.getTargetExcluder(), p -> false, WalkMode.BACKUP);
 					backupWalkCompleted.put(rootTree, null);
-				}
+				} else 
+					logger.debug("backup walk skipped: {}", config.getTarget());
+				
 				backupWalked = true;
 			}
 		} catch (IOException e) {
 			String s = sourceWalkFailed ? "Source walk failed: "+config.getSource() : "Target walk failed: "+config.getTarget();
 			listener.walkFailed(s, e);
+			logger.error(s, e);
 			return;
 		}
 
-		rootTree.walkCompleted(config.getTarget());
+		rootTree.walkCompleted();
 		saveExcludeFilesList();
 
 		listener.walkCompleted(createResult());
@@ -136,12 +144,12 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		}
 		sb.append("\n\n-------------------------------------------------\n\n");
 
-		Path p = Utils.APP_DATA.resolve("excluded-files/"+(fixedWalkMode+"/")+config.getSource().hashCode()+".txt");
+		Path p = Utils.APP_DATA.resolve("excluded-files/"+(initialWalkMode+"/")+config.getSource().hashCode()+".txt");
 		try {
 			Files.createDirectories(p.getParent());
 			FilesUtils.appendFileAtTop(sb.toString().getBytes(), p);
 		} catch (IOException e) {
-			LoggerFactory.getLogger(getClass()).error("error occured while saving: "+p, e);
+			LogManager.getLogger(getClass()).error("error occured while saving: "+p, e);
 			FxPopupShop.showHidePopup("error occured", 1500);
 		}
 	}
@@ -149,7 +157,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		boolean deleteBackupIfSourceNotExists = backupWalked && config.istDeleteBackupIfSourceNotExists(); 
 
 		List<FileEntity> backupList = new ArrayList<>();
-		List<FileEntity> delete = new ArrayList<>();
+		List<FileTreeEntity> delete = new ArrayList<>();
 
 		BackupNeeded backupNeeded = new BackupNeeded();
 
@@ -160,6 +168,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 				Attrs backup = backupK.getCurrent();
 
 				if(deleteBackupIfSourceNotExists && source == null && backup != null) {
+					logger.debug("file delete from backup: {}", backupK.getPath());
 					delete.add(ft);
 					return CONTINUE;
 				}
@@ -181,55 +190,26 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 			}
 			@Override
 			public FileVisitResult dir(DirEntity ft, AttrsKeeper s, AttrsKeeper b) {
+				if(deleteBackupIfSourceNotExists && s.getCurrent() == null && b.getCurrent() != null) {
+					logger.debug("dir delete from backup: {}", b.getPath());
+					delete.add(ft);
+				} 
 				return CONTINUE;
 			}
 		});
-		
-		listener.update(new Update(sourceSize, sourceFileCount, sourceDirCount), !backupWalked ? null : new Update(targetSize, targetFileCount, targetDirCount));
 		return new WalkResult(backupList, delete);
 	}
 
 	private void walk(Path start, Predicate<Path> excluder,Predicate<Path> includer, WalkMode mode) throws IOException {
 		this.excluder = excluder;
 		this.includer = includer;
-		this.currentWalkMode = mode;
+		this.walkMode = mode;
 
 		rootTree.walkStarted(start);
 		dirs.clear();
 		Files.walkFileTree(start, EnumSet.noneOf(FileVisitOption.class), config.getDepth(), this);
 	}
 
-	private void dirUpdate() {
-		update(0, false);
-	}
-	private void fileUpdate(long size) {
-		update(size, true);
-	}
-	private void update(long size, boolean fileUpdate) {
-		Update src = null, target = null; 
-
-		if(currentWalkMode == WalkMode.SOURCE) {
-			if(fileUpdate) {
-				sourceSize += size;
-				sourceFileCount++;	
-			} else {
-				sourceDirCount++;
-			}
-
-			src = new Update(sourceSize, sourceFileCount, sourceDirCount);
-		} else if(currentWalkMode == WalkMode.BACKUP) {
-			if(fileUpdate) {
-				targetSize += size;
-				targetFileCount++;
-			} else {
-				targetDirCount++;
-			}
-			target = new Update(targetSize, targetFileCount, targetDirCount);
-		} else 
-			throw new IllegalArgumentException("bad walkmode: "+currentWalkMode);
-
-		listener.update(src, target);
-	}
 	private final HashMap<Path, DirEntity> dirs = new HashMap<>();
 
 	@Override
@@ -240,11 +220,18 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		boolean notRoot = !rootTree.isRootPath(dir); 
 
 		if(notRoot && include(dir)) {
-			dirUpdate();
-			DirEntity ft = rootTree.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), currentWalkMode);
-
-			if(skipDirNotModified && !atrs(ft).isModified())
+			DirEntity ft = rootTree.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode);
+			listener.onDirFound(ft, walkMode);
+			
+			if(walkMode == WalkMode.BACKUP && !ft.isWalked()) {
+				logger.debug("backup walk skipped: {}", ft.getBackupAttrs().getPath());
 				return SKIP_SUBTREE;
+			}
+				
+			if(skipDirNotModified && !atrs(ft).isModified()) {
+				logger.debug("source walk skipped: {}", ft.getSourceAttrs().getPath());
+				return SKIP_SUBTREE;
+			}
 			ft.setWalked(true);
 			dirs.put(dir, ft);
 		} else if(notRoot) {
@@ -254,12 +241,12 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		return CONTINUE;
 	}
 	private AttrsKeeper atrs(FileTreeEntity ft) {
-		return currentWalkMode == WalkMode.BACKUP ? ft.getBackupAttrs() : ft.getSourceAttrs();
+		return walkMode == WalkMode.BACKUP ? ft.getBackupAttrs() : ft.getSourceAttrs();
 	}
 	@Override
 	public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
 		if(!rootTree.isRootPath(dir))
-			dirs.get(dir).computeSize(currentWalkMode);
+			dirs.get(dir).computeSize(walkMode);
 		return CONTINUE;
 	}
 
@@ -272,8 +259,8 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 
 		if(include(file)) {
 			Attrs af = new Attrs(attrs.lastModifiedTime().toMillis(), attrs.size());
-			fileUpdate(af.getSize());
-			rootTree.addFile(file, af, currentWalkMode);
+			FileEntity ft  = rootTree.addFile(file, af, walkMode);
+			listener.onFileFound(ft, af.getSize(), walkMode);
 		} else 
 			excludeFilesList.add(file);
 
@@ -288,5 +275,3 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		return CONTINUE;
 	}
 }
-
-

@@ -5,7 +5,6 @@ import static sam.backup.manager.walk.WalkMode.BACKUP;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTreeReader.Values;
 import sam.backup.manager.walk.WalkMode;
 
@@ -13,8 +12,6 @@ public abstract class FileTreeEntity {
 	private String fileNameString;
 
 	private Path fileName; // lazy initiated  
-	private Path fullPath;
-	private Path target;
 	private final DirEntity parent;
 
 	private final AttrsKeeper sourceAttrs;
@@ -27,12 +24,12 @@ public abstract class FileTreeEntity {
 		this.parent = parent;
 	}
 	FileTreeEntity(Values values, DirEntity parent) {
-		this.fileNameString = values.getFileNameString();
-		this.sourceAttrs = new AttrsKeeper(values.sourceAttrs());
-		this.backupAttrs = new AttrsKeeper(values.backupAttrs());
+		this.fileNameString = values.getFilenameString();
+		this.sourceAttrs = new AttrsKeeper(values.getSrcAttrs());
+		this.backupAttrs = new AttrsKeeper(values.getBackupAttrs());
 		this.parent = parent;
 	}
-	
+
 	public abstract boolean isDirectory();
 	public abstract boolean isCopied() ;
 	public abstract boolean isBackupNeeded() ;
@@ -47,12 +44,6 @@ public abstract class FileTreeEntity {
 	FileEntity castFile() {
 		return (FileEntity)this;
 	}
-	void setTarget(Path target) {
-		this.target = target;
-	}
-	public Path getTargetPath() {
-		return target;
-	}
 	public Path getFileName() {
 		if(fileName != null)
 			return fileName;
@@ -64,9 +55,6 @@ public abstract class FileTreeEntity {
 
 		return fileNameString;
 	}
-	public Path getSourcePath() {
-		return fullPath;
-	}
 	public AttrsKeeper getBackupAttrs() {
 		return backupAttrs;
 	}
@@ -74,16 +62,7 @@ public abstract class FileTreeEntity {
 		return sourceAttrs;
 	}
 	void setAttrs(Attrs attr, WalkMode walkType, Path fullpath) {
-		if(walkType == BACKUP)
-			backupAttrs.setCurrent(attr);
-		else {
-			sourceAttrs.setCurrent(attr);
-			this.fullPath = fullpath;
-		}
-	}
-	void computeTargetPath(final Path parent) {
-		if(RootConfig.backupDriveFound())
-			setTarget(parent.resolve(getFileName()));
+		(walkType == BACKUP ? backupAttrs : sourceAttrs).set(attr, fullpath);
 	}
 
 	@Override

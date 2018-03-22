@@ -1,8 +1,11 @@
 package sam.backup.manager.file;
 
+import java.nio.file.Path;
+
 public class AttrsKeeper {
 	private Attrs old;
 	private Attrs current;
+	private Path path;
 	
 	AttrsKeeper() {}
 	AttrsKeeper(Attrs old) {
@@ -23,6 +26,12 @@ public class AttrsKeeper {
 	void setCurrentSize(long size) {
 		current = new Attrs(current.modifiedTime, size);
 	}
+	void setPath(Path path) {
+		this.path = path;
+	}
+	public Path getPath() {
+		return path;
+	}
 	public boolean isNew() {
 		return old == null;
 	}
@@ -31,5 +40,9 @@ public class AttrsKeeper {
 	}
 	public Attrs getOld() {
 		return old;
+	}
+	void set(Attrs current, Path fullpath) {
+		this.current = current;
+		this.path = fullpath;
 	}
 }

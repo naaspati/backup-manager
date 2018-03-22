@@ -225,30 +225,33 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	}
 	@Override
 	public void walkCompleted(WalkResult result) {
-		this.walkResult = walkResult;
-		this.observablewalkResult = new ObservableWalkResult(walkResult);
+		this.walkResult = result;
+		this.observablewalkResult = new ObservableWalkResult(result);
 		
 		List<FileEntity> backup = result.getBackups();
 		List<FileEntity> delete = result.getDeletes();
 
-		if(backup.isEmpty() && delete.isEmpty()) {
-			finish("Nothing to backup/delete", false);
-			startEndAction.onComplete(this);
-			return;
-		}
-		if(!backup.isEmpty() && !delete.isEmpty()) {
-			button.setType(ButtonType.FILES);
-			int c = GridPane.getColumnIndex(button);
-			int r = GridPane.getRowIndex(button);
-			container.getChildren().remove(button);
-			HBox hb = new HBox(2, button, new CustomButton(ButtonType.DELETE, this));
-			container.add(hb, c, r, GridPane.REMAINING, GridPane.REMAINING);	
-		} else 
-			button.setType(backup.isEmpty() ? ButtonType.DELETE : ButtonType.FILES);
+		Platform.runLater(() -> {
+			if(backup.isEmpty() && delete.isEmpty()) {
+				finish("Nothing to backup/delete", false);
+				startEndAction.onComplete(this);
+				return;
+			}
+			if(!backup.isEmpty() && !delete.isEmpty()) {
+				button.setType(ButtonType.FILES);
+				int c = GridPane.getColumnIndex(button);
+				int r = GridPane.getRowIndex(button);
+				container.getChildren().remove(button);
+				HBox hb = new HBox(2, button, new CustomButton(ButtonType.DELETE, this));
+				container.add(hb, c, r, GridPane.REMAINING, GridPane.REMAINING);	
+			} else 
+				button.setType(backup.isEmpty() ? ButtonType.DELETE : ButtonType.FILES);
 
-		backupSize.setText(bytesToString(backup.stream().mapToLong(b -> b.getSourceAttrs().getSize()).sum()));
-		backupFileCount.setText(valueOf(backup.size()));
-		backupFileCountNumber = backup.size();
+			backupSize.setText(bytesToString(backup.stream().mapToLong(b -> b.getSourceAttrs().getSize()).sum()));
+			backupFileCount.setText(valueOf(backup.size()));
+			backupFileCountNumber = backup.size();
+		});
+
 
 		startEndAction.onComplete(this);
 	}

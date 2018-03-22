@@ -33,7 +33,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.CheckBoxTreeItem;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.RadioMenuItem;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TextArea;
@@ -42,11 +42,11 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.control.cell.CheckBoxTreeCell;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.AttrsKeeper;
@@ -73,13 +73,15 @@ public class FilesView extends BorderPane {
 	private final SimpleIntegerProperty totalCount = new SimpleIntegerProperty();
 	private FileViewMode mode;
 	private final ObservableWalkResult result;
+	private final Path sourceRoot, targetRoot;
 
 	public FilesView(Config config, ObservableWalkResult result) {
 		Objects.requireNonNull(result);
 		addClass(this, "files-view");
 		this.config = config;
 		this.result = result;
-
+		sourceRoot = config.getSource();
+		targetRoot = config.getTarget();
 
 		treeView = new TreeView<>();
 		treeView.getSelectionModel()
@@ -112,15 +114,30 @@ public class FilesView extends BorderPane {
 		setTop(top());
 	}
 	private Node top() {
-		Label l = new Label(String.valueOf(config.getSource()));
-		l.setWrapText(true);
+		GridPane grid = new GridPane();
+		
+		grid.setHgap(5);
+		grid.setVgap(5);
+		
+		grid.addRow(0, new Text("%source% = "), link(sourceRoot));
+		grid.addRow(1, new Text("%target% = "), link(targetRoot));
+		
 		Text count = new Text();
+		count.setId("files-view-count");
 		count.textProperty().bind(Bindings.concat("selected/total: ", selectedCount, "/", totalCount));
-		count.setFill(Color.YELLOWGREEN);
-
-		VBox box = new VBox(2, l, new BorderPane(null, null, count, null, expandAll));
-		box.setPadding(new Insets(5));
-		return box;
+		
+		grid.addRow(3, expandAll, count);
+		grid.setPadding(new Insets(5));
+		
+		return grid;
+	}
+	private Node link(Path p) {
+		if(p == null)
+			return new Text("--");
+		Hyperlink link = new Hyperlink(p.toString());
+		link.setOnAction(e -> App.getHostService().showDocument(p.toUri().toString()));
+		link.setWrapText(true);
+		return link;
 	}
 	private void expand(boolean expand, Collection<TreeItem<String>> root) {
 		for (TreeItem<String> item : root) {
@@ -141,7 +158,7 @@ public class FilesView extends BorderPane {
 			return;
 		}
 
-		BorderPane.setAlignment(save, Pos.CENTER);
+		BorderPane.setAlignment(save, Pos.CENTER_RIGHT);
 		BorderPane.setMargin(save, new Insets(5));
 
 		setBottom(save);
@@ -210,6 +227,7 @@ public class FilesView extends BorderPane {
 			currentRootItem = new Unit(config.getFileTree());
 			walk(currentRootItem, config.getFileTree(), getFilter(true));
 			itemsMap.put(mode, currentRootItem);
+			Platform.runLater(() -> currentRootItem.setSelected(true));
 		}
 		treeView.setRoot(currentRootItem);
 	}
@@ -269,8 +287,8 @@ public class FilesView extends BorderPane {
 	private void setFileDetails(FileTreeEntity file) {
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("source: ").append(file.getSourcePath()).append('\n')
-		.append("target: ").append(file.getTargetPath() == null ? "--" : file.getTargetPath()).append('\n');
+		sb.append("source: ").append(subpath(file.getSourcePath(), true)).append('\n')
+		.append("target: ").append(subpath(file.getTargetPath(), false)).append('\n');
 
 		append("About Source: \n", file.getSourceAttrs(), sb);
 		append("\nAbout Backup: \n", file.getBackupAttrs(), sb);
@@ -281,17 +299,29 @@ public class FilesView extends BorderPane {
 		}
 
 		if(file.isBackupNeeded()) {
-			sb.append('\n')
-			.append("WILL NE ADDED TO BACKUP \n")
-			.append(separator).append("reason: ").append(((FileEntity)file).getReason()).append('\n')
+			sb
+			.append("\n\n-----------------------------\nWILL BE ADDED TO BACKUP   (")
+			.append("reason: ").append(((FileEntity)file).getReason()).append(" ) \n")
 			.append("copied to backup: ").append(file.isCopied() ? "YES" : "NO").append('\n');
 		}
 		if(file.isDeleteFromBackup()) {
-			sb.append('\n')
-			.append("WILL BE DELETED\n")
+			sb
+			.append("\n\n-----------------------------\nWILL BE DELETED\n")
 			.append("reason:\n");
 			appendDeleteReason(file, sb);
 		}
+		aboutTA.setText(sb.toString());
+	}
+	private Object subpath(Path p, boolean isSource) {
+		String prefix = isSource ? "%source%\\" : "%target%\\";   
+		Path start = isSource ? sourceRoot : targetRoot;
+		
+		if(p == null)
+			return "--";
+		if(start == null || start.getNameCount() == p.getNameCount() ||  !p.startsWith(start))
+			return p;
+
+		return prefix + p.subpath(start.getNameCount(), p.getNameCount());
 	}
 	private static final char[] separator = {' ', ' ', ' ', ' '};
 	private void append(String heading, AttrsKeeper ak, StringBuilder sb) {
@@ -326,12 +356,9 @@ public class FilesView extends BorderPane {
 		if(list.isEmpty())
 			sb.append("UNKNOWN\n");
 		else {
-			final int c = config.getTarget().getNameCount();
 			sb.append("Possibly moved to: \n");
-			for (FileTreeEntity f : list) {
-				Path p2 = f.getTargetPath();
-				sb.append(separator).append(p2.subpath(c, p2.getNameCount())).append('\n');
-			}
+			for (FileTreeEntity f : list) 
+				sb.append(separator).append(subpath(f.getTargetPath(), false)).append('\n');
 		}
 	}
 }

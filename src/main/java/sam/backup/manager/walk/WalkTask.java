@@ -98,7 +98,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 			}
 
 			sourceWalkFailed = false;
-			
+
 			boolean walk = !(config.isNoBackupWalk() || !RootConfig.backupDriveFound());
 
 			if(walk && fixedWalkMode.isBackup()){
@@ -108,12 +108,6 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 				}
 				backupWalked = true;
 			}
-
-			if(fixedWalkMode == WalkMode.SOURCE){
-				rootTree.walkCompleted((Path)null);
-				listener.walkCompleted(null);
-				return;
-			}
 		} catch (IOException e) {
 			String s = sourceWalkFailed ? "Source walk failed: "+config.getSource() : "Target walk failed: "+config.getTarget();
 			listener.walkFailed(s, e);
@@ -122,7 +116,6 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 
 		rootTree.walkCompleted(config.getTarget());
 		saveExcludeFilesList();
-		createResult();
 
 		listener.walkCompleted(createResult());
 	}
@@ -191,7 +184,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 				return CONTINUE;
 			}
 		});
-
+		
 		listener.update(new Update(sourceSize, sourceFileCount, sourceDirCount), !backupWalked ? null : new Update(targetSize, targetFileCount, targetDirCount));
 		return new WalkResult(backupList, delete);
 	}
@@ -265,7 +258,8 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 	}
 	@Override
 	public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-		dirs.get(dir).computeSize(currentWalkMode);
+		if(!rootTree.isRootPath(dir))
+			dirs.get(dir).computeSize(currentWalkMode);
 		return CONTINUE;
 	}
 

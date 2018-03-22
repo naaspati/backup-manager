@@ -11,7 +11,7 @@ dependencies {
    compile 'org.slf4j:slf4j-jdk14:1.8.0-beta1'
    compile 'com.google.code.gson:gson:2.8.2'
    compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
-  // compile files('myutils.jar')
+   compile files('myutils.jar')
   
    // testCompile 'junit:junit:4.12'
    // testCompile group: 'org.loadui', name: 'testFx', version: '3.1.2'
@@ -57,7 +57,7 @@ run.dependsOn << combineCss
 run.mustRunAfter combineCss
 
 run {
- main 'MainTest'
+ main 'Main'
  workingDir "$rootDir/compiled"
 }
 

@@ -222,8 +222,10 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 				return;
 
 			backups.add(ft);
-			getParent().backupNeeded(this, needed);
-		} else if(backups != null && backups.remove(ft) && backups.isEmpty()) {
+
+			if(getParent() != null)
+				getParent().backupNeeded(this, needed);
+		} else if(backups != null && backups.remove(ft) && backups.isEmpty() && getParent() != null) {
 			getParent().backupNeeded(this, false);
 		}
 	}
@@ -240,7 +242,8 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 		copied = children.stream().filter(FileTreeEntity::isBackupNeeded).allMatch(FileTreeEntity::isCopied);
 
 		if(children.isEmpty()) {
-			getParent().copied(this);
+			if(getParent() != null)
+				getParent().copied(this);
 			super.setUpdated();
 		}
 	}
@@ -251,7 +254,7 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 	void deleted(FileTreeEntity ft) {
 		children.remove(ft);
 
-		if(children.isEmpty())
+		if(children.isEmpty() && getParent() != null)
 			getParent().deleted(this);
 	}
 

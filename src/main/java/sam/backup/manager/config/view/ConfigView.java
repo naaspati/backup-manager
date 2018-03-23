@@ -12,8 +12,9 @@ import static sam.fx.helpers.FxHelpers.removeClass;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
-import java.util.List;
+import java.util.HashSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javafx.collections.FXCollections;
@@ -36,15 +37,15 @@ import sam.backup.manager.config.view.FilesView.FileViewMode;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
+import sam.backup.manager.file.AttrsKeeper;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
-import sam.backup.manager.file.FileTreeEntity;
+import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
-import sam.backup.manager.walk.WalkResult;
 import sam.fx.helpers.FxHelpers;
 
 public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler, WalkListener {
@@ -58,8 +59,6 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	private final Text bottomText;
 	private final IStartOnComplete<ConfigView> startEndAction;
 	private final AtomicBoolean cancel = new AtomicBoolean();
-
-	private volatile WalkResult walkResult;
 
 	public ConfigView(Config config, IStartOnComplete<ConfigView> startEndAction, Long lastUpdated) {
 		this.config = config;
@@ -151,30 +150,13 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 
 		}
 	}
-	
-	private ObservableSet<FileEntity> backups; 
-	public ObservableSet<FileEntity> getBackups() {
-		if(backups == null) {
-			backups = FXCollections.observableSet();
-			backups.addAll(walkResult.getBackups());
-		}
-		return backups;
-	}
-	private ObservableSet<FileTreeEntity> deletes; 
-	public ObservableSet<FileTreeEntity> getDeletes() {
-		if(deletes == null) {
-			deletes = FXCollections.observableSet();
-			deletes.addAll(walkResult.getDeletes());
-		}
-		return deletes;
-	}
 
 	private FilesView fv;
 	private Stage stage;
 	private void filesVies(FileViewMode mode) {
 		if(fv == null) {
 			fv = new FilesView(this);
-			
+
 			stage = new Stage();
 			Scene scene = new Scene(fv);
 			scene.getStylesheets().add("styles.css");
@@ -258,20 +240,43 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 				throw new IllegalStateException("invalid walkMode: "+mode);
 		});
 	}
+	
+	private volatile ObservableSet<FileEntity> backups;
+	public ObservableSet<FileEntity> getBackups() {
+		return backups;
+	}
 	@Override
-	public void walkCompleted(WalkResult result) {
-		this.walkResult = result;
-
-		List<FileEntity> backup = result.getBackups();
-		List<FileTreeEntity> delete = result.getDeletes();
-
+	public void walkCompleted() {
 		runLater(() -> {
-			if(backup.isEmpty() && delete.isEmpty()) {
+			int[] deleteCount = {0};
+			
+			HashSet<FileEntity> backups = new HashSet<>(); 
+
+			FileTreeWalker ftw = new FileTreeWalker() {
+				@Override
+				public FileVisitResult file(FileEntity ft, AttrsKeeper source, AttrsKeeper backup) {
+					if(ft.isBackupable()) 
+						backups.add(ft);
+					else if(ft.isDeletable())
+						deleteCount[0]++;
+
+					return FileVisitResult.CONTINUE;
+				}
+				@Override
+				public FileVisitResult dir(DirEntity ft, AttrsKeeper source, AttrsKeeper backup) {
+					return FileVisitResult.CONTINUE;
+				}
+			};
+
+			config.getFileTree().walk(ftw);
+
+			if(backups.isEmpty() && deleteCount[0] == 0) {
 				finish("Nothing to backup/delete", false);
 				startEndAction.onComplete(this);
 				return;
 			}
-			if(!backup.isEmpty() && !delete.isEmpty()) {
+			
+			if(!backups.isEmpty() && deleteCount[0] != 0) {
 				button.setType(ButtonType.FILES);
 				int c = GridPane.getColumnIndex(button);
 				int r = GridPane.getRowIndex(button);
@@ -279,10 +284,11 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 				HBox hb = new HBox(2, button, new CustomButton(ButtonType.DELETE, this));
 				container.add(hb, c, r, GridPane.REMAINING, GridPane.REMAINING);	
 			} else 
-				button.setType(backup.isEmpty() ? ButtonType.DELETE : ButtonType.FILES);
+				button.setType(backups.isEmpty() ? ButtonType.DELETE : ButtonType.FILES);
 
-			backupSizeT.setText(bytesToString(backup.stream().mapToLong(b -> b.getSourceAttrs().getSize()).sum()));
-			backupFileCountT.setText(valueOf(backup.size()));
+			backupSizeT.setText(bytesToString(backups.stream().mapToLong(b -> b.getSourceAttrs().getSize()).sum()));
+			backupFileCountT.setText(String.valueOf(backups.size()));
+			this.backups = FXCollections.observableSet(backups);
 		});
 		startEndAction.onComplete(this);
 	}
@@ -300,6 +306,6 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		bottomText.setText(msg);
 	}
 	public boolean hashBackups() {
-		return walkResult != null && !walkResult.getBackups().isEmpty();
+		return backups != null && !backups.isEmpty();
 	}
 }

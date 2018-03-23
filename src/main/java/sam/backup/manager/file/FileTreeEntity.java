@@ -4,6 +4,7 @@ import static sam.backup.manager.walk.WalkMode.BACKUP;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 
 import sam.backup.manager.file.FileTreeReader.Values;
 import sam.backup.manager.walk.WalkMode;
@@ -31,10 +32,32 @@ public abstract class FileTreeEntity {
 	}
 
 	public abstract boolean isDirectory();
-	public abstract boolean isCopied() ;
-	public abstract boolean isBackupNeeded() ;
-	public abstract boolean isDeleteFromBackup() ;
-
+	
+	private boolean backup, delete, copied;
+	private String reason;
+	
+	public boolean isCopied() {
+		return copied;
+	}
+	public boolean isBackupable() {
+		return backup;
+	}
+	public String getBackupReason() {
+		return reason;
+	}
+	public boolean isDeletable() {
+		return delete;
+	}
+	public void setCopied(boolean b) {
+		copied = b;
+	}
+	public void setBackupable(boolean b, String reason) {
+		backup = b;
+		this.reason = Objects.requireNonNull(reason); 
+	}
+	public void setDeletable(boolean b) {
+		delete = b;
+	}
 	public DirEntity getParent() {
 		return parent;
 	}

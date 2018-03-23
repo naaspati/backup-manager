@@ -8,10 +8,8 @@ import static java.nio.file.FileVisitResult.TERMINATE;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
 import java.util.function.Predicate;
 
 import sam.backup.manager.file.FileTreeReader.Values;
@@ -20,12 +18,12 @@ import sam.myutils.myutils.MyUtils;
 import se.sawano.java.text.AlphanumericComparator;
 
 public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntity>  {
-	private final List<FileTreeEntity> children;
+	private final FTEArray children;
 	private boolean walked;
 
 	DirEntity(Path path, DirEntity parent) {
 		super(path, parent);
-		children = new ArrayList<>();
+		children = new FTEArray();
 	}
 	DirEntity(FileTreeReader reader, Values values, DirEntity parent) throws IOException {
 		super(values, parent);
@@ -34,7 +32,7 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 			throw new IllegalArgumentException("not a dir: "+values);
 
 		int size = values.size();
-		children = new ArrayList<>(size);
+		children = new FTEArray(size);
 
 		if(size <= 0)
 			return;
@@ -222,57 +220,55 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 	private static AttrsKeeper atrk(WalkMode w, FileTreeEntity f) {
 		return w == WalkMode.BACKUP ? f.getBackupAttrs() : f.getSourceAttrs();
 	}
+	
+	@Override
+	public void setCopied(boolean b) {
+		super.setCopied(b);
+		for (int i = 0; i < children.size(); i++)
+			children.get(i).setCopied(b);
+	}
+	@Override
+	public void setBackupable(boolean b, String reason) {
+		super.setBackupable(b, reason);
+		
+		for (int i = 0; i < children.size(); i++)
+			children.get(i).setBackupable(b, reason);
+	}
+	@Override
+	public void setDeletable(boolean b) {
+		super.setDeletable(b);
+		
+		for (int i = 0; i < children.size(); i++)
+			children.get(i).setDeletable(b);
+	}
 
-	private List<FileTreeEntity> backups;
-	void backupNeeded(FileTreeEntity ft, boolean needed) {
-		if(needed) {
-			if(backups == null)
-				backups = new ArrayList<>();
-			if(backups.contains(ft))
-				return;
-
-			backups.add(ft);
-
-			if(getParent() != null)
-				getParent().backupNeeded(this, needed);
-		} else if(backups != null && backups.remove(ft) && backups.isEmpty() && getParent() != null) {
-			getParent().backupNeeded(this, false);
+	public boolean hasBackupable() {
+		if(this.isBackupable())
+			return true;
+		
+		for (FileTreeEntity f : children) {
+			if(f.isDirectory() ? f.castDir().hasBackupable() : f.isBackupable())
+				return true;
 		}
+		return false;
 	}
-	@Override
-	public boolean isBackupNeeded() {
-		return backups != null && !backups.isEmpty();
-	}
-	@Override
-	public boolean isDeleteFromBackup() {
-		return children.stream().allMatch(FileTreeEntity::isDeleteFromBackup);
-	}
-	private boolean copied;
-	void copied(FileTreeEntity ft) {
-		copied = children.stream().filter(FileTreeEntity::isBackupNeeded).allMatch(FileTreeEntity::isCopied);
-
-		if(children.isEmpty()) {
-			if(getParent() != null)
-				getParent().copied(this);
-			super.setUpdated();
+	public boolean hasDeletable() {
+		if(this.isDeletable())
+			return true;
+		for (FileTreeEntity f : children) {
+			if(f.isDirectory() ? f.castDir().hasDeletable() : f.isDeletable())
+				return true;
 		}
+		return false;
 	}
-	@Override
-	public boolean isCopied() {
-		return copied;
-	}
-	void deleted(FileTreeEntity ft) {
-		children.remove(ft);
-
-		if(children.isEmpty() && getParent() != null)
-			getParent().deleted(this);
-	}
-
 	@Override
 	public Iterator<FileTreeEntity> iterator() {
 		return children.iterator();
 	}
 	public int size() {
 		return children.size();
+	}
+	public boolean remove(FileTreeEntity ft) {
+		return children.remove(ft);
 	}
 }

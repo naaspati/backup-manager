@@ -123,8 +123,9 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 
 		rootTree.walkCompleted();
 		saveExcludeFilesList();
-
-		listener.walkCompleted(createResult());
+		updateFileTree();
+		
+		listener.walkCompleted();
 	}
 	private void saveExcludeFilesList() {
 		if(excludeFilesList.isEmpty())
@@ -152,11 +153,8 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 			FxPopupShop.showHidePopup("error occured", 1500);
 		}
 	}
-	private WalkResult createResult() {
+	private void updateFileTree() {
 		boolean deleteBackupIfSourceNotExists = backupWalked && config.istDeleteBackupIfSourceNotExists(); 
-
-		List<FileEntity> backupList = new ArrayList<>();
-		List<FileTreeEntity> delete = new ArrayList<>();
 
 		BackupNeeded backupNeeded = new BackupNeeded();
 
@@ -168,7 +166,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 
 				if(deleteBackupIfSourceNotExists && source == null && backup != null) {
 					logger.debug("file delete from backup: {}", backupK.getPath());
-					delete.add(ft);
+					ft.setDeletable(true);
 					return CONTINUE;
 				}
 
@@ -181,22 +179,21 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 					.test(() -> !skipModifiedCheck && sourceK.isModified(), "File Modified");
 				}
 
-				ft.setBackupNeeded(backupNeeded.isNeeded(), backupNeeded.getReason());
-				if(backupNeeded.isNeeded()) 
-					backupList.add(ft);
-
+				if(backupNeeded.isNeeded())
+					ft.setBackupable(backupNeeded.isNeeded(), backupNeeded.getReason());
+				
 				return CONTINUE;
 			}
 			@Override
 			public FileVisitResult dir(DirEntity ft, AttrsKeeper s, AttrsKeeper b) {
 				if(deleteBackupIfSourceNotExists && s.getCurrent() == null && b.getCurrent() != null) {
 					logger.debug("dir delete from backup: {}", b.getPath());
-					delete.add(ft);
+					ft.setDeletable(true);
+					return FileVisitResult.SKIP_SUBTREE;
 				} 
 				return CONTINUE;
 			}
 		});
-		return new WalkResult(backupList, delete);
 	}
 
 	private void walk(Path start, Predicate<Path> excluder,Predicate<Path> includer, WalkMode mode) throws IOException {
@@ -222,10 +219,13 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 			DirEntity ft = rootTree.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode);
 			listener.onDirFound(ft, walkMode);
 			
-			if(walkMode == WalkMode.BACKUP && !ft.isWalked()) {
+			/** TODO i think this should not be used, for better delete options
+			 * 
+			 * if(walkMode == WalkMode.BACKUP && !ft.isWalked()) {
 				logger.debug("backup walk skipped: {}", ft.getBackupAttrs().getPath());
 				return SKIP_SUBTREE;
 			}
+			 */
 				
 			if(skipDirNotModified && !atrs(ft).isModified()) {
 				logger.debug("source walk skipped: {}", ft.getSourceAttrs().getPath());

@@ -222,7 +222,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 
 			addBytesRead(0);
 			if(copy(src, target, buffer)) {
-				ft.setCopied();
+				ft.setCopied(true);
 				filesMoved.incrementAndGet();
 			}
 		}

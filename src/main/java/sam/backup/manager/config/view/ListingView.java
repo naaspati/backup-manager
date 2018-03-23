@@ -32,7 +32,6 @@ import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
-import sam.backup.manager.walk.WalkResult;
 import sam.console.ansi.ANSI;
 import sam.fx.helpers.FxHelpers;
 import sam.fx.popup.FxPopupShop;
@@ -103,8 +102,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 			dirCountT.setText(null);
 			fileCountT.setText("All count: "+s.length);
 		});
-		
-		walkCompleted(null);
+		walkCompleted();
 	}
 
 	@Override
@@ -141,7 +139,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 		runLater(() -> dirCountT.setText("  Dirs: "+(++dirCount)));
 	}
 	@Override
-	public void walkCompleted(WalkResult result) {
+	public void walkCompleted() {
 		if(treeText == null) {
 			treeText = config.getFileTree().toTreeString();
 			try {

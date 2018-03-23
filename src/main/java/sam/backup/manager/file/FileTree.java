@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
@@ -15,6 +14,7 @@ import java.util.function.Predicate;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+import sam.backup.manager.extra.Files2;
 import sam.backup.manager.file.FileTreeReader.Values;
 import sam.backup.manager.walk.WalkMode;
 
@@ -27,7 +27,7 @@ public class FileTree extends DirEntity {
 		super(reader, next, null);
 	}
 	public static FileTree read(Path path) throws IOException {
-		try(InputStream is = Files.newInputStream(path, StandardOpenOption.READ);
+		try(InputStream is = Files2.newInputStream(path, StandardOpenOption.READ);
 				GZIPInputStream gis = new GZIPInputStream(is);
 				DataInputStream dis = new DataInputStream(gis);
 				FileTreeReader reader = new FileTreeReader(dis)) {
@@ -35,7 +35,7 @@ public class FileTree extends DirEntity {
 		}
 	}
 	public void write(Path path) throws IOException {
-		try (OutputStream os = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+		try (OutputStream os = Files2.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
 				GZIPOutputStream gos = new GZIPOutputStream(os);
 				DataOutputStream dos = new DataOutputStream(gos);
 				FileTreeWriter writer = new FileTreeWriter(dos)){

@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
+import sam.backup.manager.extra.Files2;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.Attrs;
@@ -44,8 +45,6 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 	public static final Logger logger = LogManager.getLogger(WalkTask.class); 
 	
 	private final Config config;
-	// private volatile  long sourceSize, targetSize;
-	// private volatile int sourceFileCount, sourceDirCount, targetFileCount, targetDirCount;
 	private final ICanceler canceler;
 	private final List<Path> excludeFilesList = new ArrayList<>();
 	private final FileTree rootTree;
@@ -146,7 +145,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 
 		Path p = Utils.APP_DATA.resolve("excluded-files/"+(initialWalkMode+"/")+config.getSource().hashCode()+".txt");
 		try {
-			Files.createDirectories(p.getParent());
+			Files2.createDirectories(p.getParent());
 			FilesUtils.appendFileAtTop(sb.toString().getBytes(), p);
 		} catch (IOException e) {
 			LogManager.getLogger(getClass()).error("error occured while saving: "+p, e);

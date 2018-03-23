@@ -19,7 +19,6 @@ import static sam.fx.helpers.FxHelpers.setClass;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
@@ -43,6 +42,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.config.view.ConfigView;
 import sam.backup.manager.enums.State;
+import sam.backup.manager.extra.Files2;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
@@ -238,7 +238,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 			Path p = target.getParent();
 			
 			try {
-				Files.createDirectories(p);
+				Files2.createDirectories(p);
 				createdDirs.add(p);
 			} catch (Exception e) {
 				LOGGER.error("failed to create dir: ", p, e);
@@ -268,7 +268,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 			return false;
 		}
 		try {
-			Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+			Files2.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
 			LOGGER.debug("file renamed {} -> {}", temp, target);
 		} catch (IOException e) {
 			LOGGER.error("file renaming failed {} -> {}", temp, target, e);

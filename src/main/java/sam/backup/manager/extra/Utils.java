@@ -39,7 +39,6 @@ import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTree;
-import sam.console.ansi.ANSI;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.fileutils.FilesUtils;

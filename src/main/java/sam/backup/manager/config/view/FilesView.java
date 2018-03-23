@@ -51,6 +51,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import sam.backup.manager.App;
+import sam.backup.manager.extra.Files2;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.AttrsKeeper;
 import sam.backup.manager.file.DirEntity;
@@ -192,7 +193,7 @@ public class FilesView extends BorderPane {
 						if(Files.isDirectory(path)) 
 							deleteDir(path, sb);
 						else {
-							Files.delete(path);
+							Files2.delete(path);
 							sb.append("  ").append(path.getFileName());
 						}
 					} catch (IOException e) {
@@ -221,13 +222,13 @@ public class FilesView extends BorderPane {
 			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
 					throws IOException {
 				StringUtils.repeat("  ", file.getNameCount() - count, sb).append(file.getFileName()).append('\n');
-				Files.delete(file);
+				Files2.delete(file);
 				return FileVisitResult.CONTINUE;
 			}
 			@Override
 			public FileVisitResult postVisitDirectory(Path dir, IOException exc)
 					throws IOException {
-				Files.delete(dir);
+				Files2.delete(dir);
 				return FileVisitResult.CONTINUE;
 			}
 		});

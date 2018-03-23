@@ -10,3 +10,16 @@
 #files-view-count {
 	-fx-fill:yellowgreen;
 }
+#about-pane {
+	-fx-background-color:white;
+	-fx-padding:5;
+}
+#about-pane .grid * {
+	-fx-text-size:0.8em;	
+}
+#about-pane .text-area{
+	-fx-font-family:Consolas;
+	-fx-border-color:null;
+	-fx-border-width:0;
+}
+

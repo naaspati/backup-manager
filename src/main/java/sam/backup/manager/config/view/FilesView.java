@@ -32,6 +32,8 @@ import org.apache.logging.log4j.LogManager;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.ObservableSet;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -48,7 +50,7 @@ import javafx.scene.control.cell.CheckBoxTreeCell;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.text.Font;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.App;
 import sam.backup.manager.extra.Files2;
@@ -62,6 +64,9 @@ import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.console.ansi.ANSI;
+import sam.fx.alert.FxAlert;
+import sam.fx.helpers.FxHelpers;
+import sam.myutils.fileutils.FilesUtils;
 import sam.myutils.myutils.MyUtils;
 import sam.string.stringutils.StringUtils;
 
@@ -72,7 +77,6 @@ public class FilesView extends BorderPane {
 
 	private final TreeView<String> treeView;
 	private Unit currentRootItem;	
-	private final TextArea aboutTA;
 	private final ToggleButton expandAll = new ToggleButton("Expand All");
 	private final SimpleIntegerProperty selectedCount = new SimpleIntegerProperty();
 	private final SimpleIntegerProperty totalCount = new SimpleIntegerProperty();
@@ -81,6 +85,7 @@ public class FilesView extends BorderPane {
 
 	private final ConfigView configView;
 	private final FileTree fileTree;
+	private final AboutPane aboutPane = new AboutPane();
 
 	public FilesView(ConfigView view) {
 		configView = Objects.requireNonNull(view);
@@ -92,7 +97,7 @@ public class FilesView extends BorderPane {
 		treeView = new TreeView<>();
 		treeView.getSelectionModel()
 		.selectedItemProperty()
-		.addListener((p, o, n) -> change(n == null ? null : ((Unit)n).file));
+		.addListener((p, o, n) -> aboutPane.reset(n == null ? null : ((Unit)n).file));
 
 		treeView.setCellFactory(CheckBoxTreeCell.forTreeView());
 
@@ -105,18 +110,8 @@ public class FilesView extends BorderPane {
 			expand(b, treeView.getRoot().getChildren());
 		});
 
-		aboutTA = new TextArea();
-		aboutTA.setEditable(false);
-		aboutTA.setPrefColumnCount(12);
-		aboutTA.setFont(Font.font("Consolas"));
-
-		RadioMenuItem item = new RadioMenuItem("wrap text");
-		aboutTA.wrapTextProperty().bind(item.selectedProperty());
-		ContextMenu menu = new ContextMenu(item);
-
-		aboutTA.setContextMenu(menu);
-
-		setCenter(new SplitPane(treeView, aboutTA));
+		aboutPane.setMinWidth(300);
+		setCenter(new SplitPane(treeView, aboutPane));
 		setTop(top());
 	}
 	private Node top() {
@@ -318,89 +313,159 @@ public class FilesView extends BorderPane {
 			else return ft -> ft.isBackupNeeded() && (ft.isDirectory() || backups.contains(ft));
 		}
 	}
-	private void change(FileTreeEntity fw) {
-		if(fw == null) {
-			aboutTA.setText(null);
-			return;
+	private class AboutPane extends VBox {
+		final Text name = new Text();
+		final Hyperlink sourceLink = new Hyperlink();
+		final Hyperlink trgtLink = new Hyperlink();
+		final TextArea about = new TextArea();
+		final StringBuilder sb = new StringBuilder();
+		final GridPane grid = FxHelpers.gridPane(5);
+		
+		AboutPane() {
+			super(10);
+			this.setId("about-pane");
+			
+			EventHandler<ActionEvent> handler = e -> {
+				Path p = (Path) ((Hyperlink)e.getSource()).getUserData();
+				try {
+					FilesUtils.openFileLocationInExplorer(p.toFile());
+				} catch (IOException e1) {
+					FxAlert.showErrorDialog(p, "failed to open location", e);
+				}
+			};
+			sourceLink.setOnAction(handler);
+			sourceLink.setWrapText(true);
+			
+			trgtLink.setOnAction(handler);
+			trgtLink.setWrapText(true);
+			
+			setClass(grid, "grid");
+			
+			grid.addRow(0, new Text("name: "), name);
+			grid.addRow(1, new Text("source: "), sourceLink);
+			grid.addRow(2, new Text("target: "), trgtLink);
+			
+			about.setEditable(false);
+			about.setPrefColumnCount(12);
+			about.setMaxWidth(Double.MAX_VALUE);
+			about.setMaxHeight(Double.MAX_VALUE);
+
+			RadioMenuItem item = new RadioMenuItem("wrap text");
+			about.wrapTextProperty().bind(item.selectedProperty());
+			ContextMenu menu = new ContextMenu(item);
+
+			about.setContextMenu(menu);
+			
+			getChildren().addAll(grid, about);
+			grid.setVisible(false); 
+			about.setVisible(false);
 		}
-		setFileDetails(fw);
-	}
-
-	private void setFileDetails(FileTreeEntity file) {
-		StringBuilder sb = new StringBuilder();
-
-		sb.append("source: ").append(subpath(file.getSourceAttrs().getPath(), true)).append('\n')
-		.append("target: ").append(subpath(file.getBackupAttrs().getPath(), false)).append('\n');
-
-		append("About Source: \n", file.getSourceAttrs(), sb);
-		append("\nAbout Backup: \n", file.getBackupAttrs(), sb);
-
-		if(file.isDirectory()) {
-			aboutTA.setText(sb.toString());	
-			return;
-		}
-
-		if(file.isBackupNeeded()) {
-			sb
-			.append("\n\n-----------------------------\nWILL BE ADDED TO BACKUP   (")
-			.append("reason: ").append(((FileEntity)file).getReason()).append(" ) \n")
-			.append("copied to backup: ").append(file.isCopied() ? "YES" : "NO").append('\n');
-		}
-		if(file.isDeleteFromBackup()) {
-			sb
-			.append("\n\n-----------------------------\nWILL BE DELETED\n")
-			.append("reason:\n");
-			appendDeleteReason(file, sb);
-		}
-		aboutTA.setText(sb.toString());
-	}
-	private Object subpath(Path p, boolean isSource) {
-		String prefix = isSource ? "%source%\\" : "%target%\\";   
-		Path start = isSource ? sourceRoot : targetRoot;
-
-		if(p == null)
-			return "--";
-		if(start == null || start.getNameCount() == p.getNameCount() ||  !p.startsWith(start))
-			return p;
-
-		return prefix + p.subpath(start.getNameCount(), p.getNameCount());
-	}
-	private static final char[] separator = {' ', ' ', ' ', ' '};
-	private void append(String heading, AttrsKeeper ak, StringBuilder sb) {
-		sb.append(heading);
-		append("old:\n", ak.getOld(), sb);
-		append("new:\n", ak.getCurrent(), sb);
-	}
-	private void append(String heading, Attrs a, StringBuilder sb) {
-		if(a != null && (a.getSize() != 0 || a.getModifiedTime() != 0)) {
-			sb.append(separator).append(heading)
-			.append(separator).append(separator).append("size: ").append(a.getSize() == 0 ? "0" : bytesToString(a.getSize())).append('\n')
-			.append(separator).append(separator).append("last-modified: ").append(a.getModifiedTime() == 0 ? "--" : millsToTimeString(a.getModifiedTime())).append('\n');
-		}
-	}
-	private void appendDeleteReason(FileTreeEntity file, StringBuilder sb) {
-		List<FileTreeEntity> list = new ArrayList<>();
-		Path name = file.getFileName();
-
-		fileTree.walk(new FileTreeWalker() {
-
-			@Override
-			public FileVisitResult file(FileEntity ft, AttrsKeeper source, AttrsKeeper backup) {
-				if(ft != file && name.equals(ft.getFileName()))
-					list.add(ft);
-				return FileVisitResult.CONTINUE;
+		
+		void reset(FileTreeEntity file) {
+			if(file == null) {
+				grid.setVisible(false); 
+				about.setVisible(false);
+				return;
 			}
-			@Override
-			public FileVisitResult dir(DirEntity ft, AttrsKeeper source, AttrsKeeper backup) {
-				return FileVisitResult.CONTINUE;
+			
+			Path s = file.getSourceAttrs().getPath();
+			Path b = file.getBackupAttrs().getPath();
+			
+			if(s == null)
+				return;
+			
+			name.setText(s.getFileName().toString());
+			
+			set(sourceLink, s, true);
+			set(trgtLink, b, false);
+
+			sb.setLength(0);
+			
+			try {
+				append("About Source: \n", file.getSourceAttrs());
+				append("\nAbout Backup: \n", file.getBackupAttrs());
+
+				if(file.isDirectory())
+					return;
+
+				if(file.isBackupNeeded()) {
+					sb
+					.append("\n\n-----------------------------\nWILL BE ADDED TO BACKUP   (")
+					.append("reason: ").append(((FileEntity)file).getReason()).append(" ) \n")
+					.append("copied to backup: ").append(file.isCopied() ? "YES" : "NO").append('\n');
+				}
+				if(file.isDeleteFromBackup()) {
+					sb
+					.append("\n\n-----------------------------\nWILL BE DELETED\n")
+					.append("reason:\n");
+					appendDeleteReason(file);
+				}
+			} finally {
+				about.setText(sb.toString());
+				grid.setVisible(true); 
+				about.setVisible(true);
 			}
-		});
-		if(list.isEmpty())
-			sb.append("UNKNOWN\n");
-		else {
-			sb.append("Possibly moved to: \n");
-			for (FileTreeEntity f : list) 
-				sb.append(separator).append(subpath(f.getBackupAttrs().getPath(), false)).append('\n');
+		}
+
+		final char[] separator = {' ', ' ', ' ', ' '};
+		private void append(String heading, AttrsKeeper ak) {
+			sb.append(heading);
+			append("old:\n", ak.getOld());
+			append("new:\n", ak.getCurrent());
+		}
+		private void append(String heading, Attrs a) {
+			if(a != null && (a.getSize() != 0 || a.getModifiedTime() != 0)) {
+				sb.append(separator).append(heading)
+				.append(separator).append(separator).append("size: ").append(a.getSize() == 0 ? "0" : bytesToString(a.getSize())).append('\n')
+				.append(separator).append(separator).append("last-modified: ").append(a.getModifiedTime() == 0 ? "--" : millsToTimeString(a.getModifiedTime())).append('\n');
+			}
+		}
+		private void appendDeleteReason(FileTreeEntity file) {
+			List<FileTreeEntity> list = new ArrayList<>();
+			Path name = file.getFileName();
+
+			fileTree.walk(new FileTreeWalker() {
+
+				@Override
+				public FileVisitResult file(FileEntity ft, AttrsKeeper source, AttrsKeeper backup) {
+					if(ft != file && name.equals(ft.getFileName()))
+						list.add(ft);
+					return FileVisitResult.CONTINUE;
+				}
+				@Override
+				public FileVisitResult dir(DirEntity ft, AttrsKeeper source, AttrsKeeper backup) {
+					return FileVisitResult.CONTINUE;
+				}
+			});
+			if(list.isEmpty())
+				sb.append("UNKNOWN\n");
+			else {
+				sb.append("Possibly moved to: \n");
+				for (FileTreeEntity f : list) 
+					sb.append(separator).append(subpath(f.getBackupAttrs().getPath(), false)).append('\n');
+			}
+		}
+		private void set(Hyperlink h, Path path, boolean isSource) {
+			if(path == null) {
+				h.setText("--");
+				h.setDisable(true);
+				return;
+			}
+			h.setText(subpath(path, isSource).toString());
+			h.setDisable(false);
+			h.setUserData(path);
+		}
+		private Object subpath(Path p, boolean isSource) {
+			String prefix = isSource ? "%source%\\" : "%target%\\";   
+			Path start = isSource ? sourceRoot : targetRoot;
+
+			if(p == null)
+				return "--";
+			if(start == null || start.getNameCount() == p.getNameCount() ||  !p.startsWith(start))
+				return p;
+
+			return prefix + p.subpath(start.getNameCount(), p.getNameCount());
 		}
 	}
+
 }

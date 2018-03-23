@@ -8,9 +8,6 @@ import sam.myutils.fileutils.FilesUtils;
 
 public class Main  {
 	public static void main(String[] args) {
-		LogManager.getLogger(Main.class)
-		.debug("error {} {}", 1 + 2, 2 + 2, new NullPointerException(), new NullPointerException(), new NullPointerException());
-		
 		if(args.length == 1 && args[0].equals("open")) {
 			FilesUtils.openFileNoError(new File("."));
 			System.exit(0);

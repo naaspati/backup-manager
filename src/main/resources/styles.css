@@ -210,7 +210,7 @@
 /** style.css */ 
 .root {
 	-fx-font-family: 'Consolas';
-	-fx-background-color: white;
+	-fx-background-color:white;
 }
 
 .scroll-pane .viewport, .accordion {
@@ -228,6 +228,5 @@
 	-fx-padding:0;
 	
 }
-
 
 

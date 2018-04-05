@@ -1,8 +1,8 @@
 package sam.backup.manager.config.view;
 
 import static javafx.application.Platform.runLater;
-import static sam.fx.helpers.FxHelpers.addClass;
-import static sam.fx.helpers.FxHelpers.setClass;
+import static sam.fx.helpers.FxClassHelper.addClass;
+import static sam.fx.helpers.FxClassHelper.setClass;
 import static sam.fx.helpers.FxHelpers.text;
 
 import java.io.IOException;
@@ -14,7 +14,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.Utils;
-import sam.myutils.myutils.MyUtils;
+import sam.myutils.MyUtils;
 
 public class RootView extends VBox {
 	private final Text sizeText;

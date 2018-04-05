@@ -7,8 +7,8 @@ import static javafx.scene.layout.GridPane.REMAINING;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
-import static sam.fx.helpers.FxHelpers.addClass;
-import static sam.fx.helpers.FxHelpers.removeClass;
+import static sam.fx.helpers.FxClassHelper.addClass;
+import static sam.fx.helpers.FxClassHelper.removeClass;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

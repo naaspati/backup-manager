@@ -9,7 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import sam.string.stringutils.StringUtils;
+import sam.string.StringUtils;
 
 public class Filter implements Predicate<Path> {
 	private Set<Path> fullPaths, names;

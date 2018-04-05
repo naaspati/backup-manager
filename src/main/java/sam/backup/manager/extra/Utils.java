@@ -39,9 +39,9 @@ import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTree;
+import sam.fileutils.FilesUtils;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
-import sam.myutils.fileutils.FilesUtils;
 
 public class Utils {
 	public static final Path APP_DATA = Paths.get("app_data");
@@ -167,6 +167,8 @@ public class Utils {
 
 		if(Files.exists(p))
 			return FileTree.read(p);
+		
+		LOGGER.warn("treeFile file not found: {}", p);
 
 		return null;
 	}

@@ -7,12 +7,16 @@ import java.util.EnumSet;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import sam.backup.manager.file.Filter;
 import sam.backup.manager.walk.WalkSkip;
-import sam.console.ansi.ANSI;
+import sam.console.ANSI;
 
 public abstract class ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;
+	protected static final Logger LOGGER =  LogManager.getLogger(ConfigBase.class);
 	
 	protected String[] excludes;
 	protected String[] includes;
@@ -56,7 +60,7 @@ public abstract class ConfigBase implements Serializable {
 				try {
 					sink.add(WalkSkip.valueOf(s));
 				} catch (IllegalArgumentException e) {
-					System.out.println(ANSI.red("bad WalkSkip constant: ")+s);
+					LOGGER.info(ANSI.red("bad WalkSkip constant: ")+s);
 				}
 			}
 		}

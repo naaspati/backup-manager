@@ -2,7 +2,7 @@
 package sam.backup.manager;
 import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
-import static sam.fx.helpers.FxHelpers.menuitem;
+import static sam.fx.helpers.FxManuItemMaker.menuitem;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javafx.application.Application;
 import javafx.application.HostServices;
@@ -47,11 +48,12 @@ import sam.backup.manager.viewers.TransferViewer;
 import sam.backup.manager.viewers.ViewSwitcher;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
+import sam.fileutils.FilesUtils;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
-import sam.myutils.fileutils.FilesUtils;
 
 public class App extends Application {
+	private static final Logger LOGGER =  LogManager.getLogger(App.class);
 	
 	private static Stage stage;
 	private static HostServices hs;
@@ -172,9 +174,9 @@ public class App extends Application {
 			Path p = root.resolveSibling(root.getFileName()+".txt");
 			Utils.saveToFile(ft.toTreeString(), p);
 			FxPopupShop.showHidePopup(p.getFileName()+" saved", 1500);
-			LogManager.getLogger(getClass()).info("saved: {}", p);
+			LOGGER.info("saved: {}", p);
 		} catch (IOException e) {
-			LogManager.getLogger(getClass()).error("failed to walk: {}", root, e);
+			LOGGER.error("failed to walk: {}", root, e);
 			Utils.showErrorDialog(root, "failed to walk", e);
 		}
 	}
@@ -196,6 +198,7 @@ public class App extends Application {
 					c.setFileTree(f != null ? f : new FileTree(c.getSource()));
 				} catch (IOException e1) {
 					showErrorDialog(null, "failed to read TreeFile: ", e1);
+					LOGGER.error("failed to read TreeFile	", e1);
 					return;
 				}
 				Utils.run(new WalkTask(c, WalkMode.SOURCE, e, e));
@@ -252,6 +255,7 @@ public class App extends Application {
 							ft = Utils.readFiletree(c);
 						} catch (IOException e) {
 							showErrorDialog(null, "failed to read TreeFile: ", e);
+							LOGGER.error("failed to read TreeFile: ", e);
 							return;
 						}
 						if(ft == null) {

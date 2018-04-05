@@ -59,6 +59,7 @@ run.dependsOn << combineCss
 run.mustRunAfter combineCss
 
 run {
+ environment('DRY_RUN', 'true')
  main 'Main'
  workingDir "$rootDir/compiled"
 }

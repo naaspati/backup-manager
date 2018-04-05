@@ -38,8 +38,8 @@ import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeEntity;
 import sam.backup.manager.file.FileTreeWalker;
+import sam.fileutils.FilesUtils;
 import sam.fx.popup.FxPopupShop;
-import sam.myutils.fileutils.FilesUtils;
 
 public class WalkTask implements Runnable, FileVisitor<Path> {
 	public static final Logger logger = LogManager.getLogger(WalkTask.class); 
@@ -175,7 +175,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 				if(source != null) {
 					backupNeeded
 					.test(backupWalked && backup == null, "File not found in backup")
-					.test(sourceK::isNew, "New File")
+					.test(backup == null, "New File") //in new check
 					.test(() -> !skipModifiedCheck && sourceK.isModified(), "File Modified");
 				}
 
@@ -219,14 +219,10 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 			DirEntity ft = rootTree.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode);
 			listener.onDirFound(ft, walkMode);
 			
-			/** TODO i think this should not be used, for better delete options
-			 * 
-			 * if(walkMode == WalkMode.BACKUP && !ft.isWalked()) {
+			if(walkMode == WalkMode.BACKUP && !ft.isWalked()) {
 				logger.debug("backup walk skipped: {}", ft.getBackupAttrs().getPath());
 				return SKIP_SUBTREE;
 			}
-			 */
-				
 			if(skipDirNotModified && !atrs(ft).isModified()) {
 				logger.debug("source walk skipped: {}", ft.getSourceAttrs().getPath());
 				return SKIP_SUBTREE;

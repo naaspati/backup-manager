@@ -14,7 +14,7 @@ import java.util.function.Predicate;
 
 import sam.backup.manager.file.FileTreeReader.Values;
 import sam.backup.manager.walk.WalkMode;
-import sam.myutils.myutils.MyUtils;
+import sam.myutils.MyUtils;
 import se.sawano.java.text.AlphanumericComparator;
 
 public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntity>  {
@@ -73,38 +73,6 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 		children.add(f);
 		return f;
 	}
-
-	/**
-	 * @Override
-	void update(Path parent) {
-		super.update(parent);
-
-		if(children.isEmpty()) {
-			setSize(0);
-			return;
-		}
-
-		long size = 0;
-		Path t = getTargetPath();
-		Iterator<FileTreeEntity> itr = children.iterator();
-
-		while (itr.hasNext()) {
-			FileTreeEntity f = itr.next();
-			if(walked && f.getSourceAttrs() == null && f.getBackupAttrs() == null) {
-				itr.remove();
-				System.out.println("removed from filetree: "+getfileNameString()+" -> "+f.getfileNameString());
-			}
-			else {
-				f.update(t);
-				size += f.getSize();
-			}
-		}
-		setSize(size);
-	}
-	 * @param walker
-	 * @return
-	 */
-
 	FileVisitResult _walk(FileTreeWalker walker) {
 		for (FileTreeEntity f : children) {
 			if(f.isDirectory() && (((DirEntity)f).children.isEmpty()))
@@ -211,10 +179,9 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 		Attrs atrs = atrk(w,f).getCurrent();
 		
 		if(atrs == null) {
-			System.out.println(f+"  "+w+"  atrs null");
+			LOGGER.debug("attrs not found which calculating size: {}, {}",f, w);
 			return 0;
 		}
-		
 		return atrs.size;
 	}
 	private static AttrsKeeper atrk(WalkMode w, FileTreeEntity f) {

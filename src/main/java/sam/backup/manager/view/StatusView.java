@@ -4,7 +4,7 @@ import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.divide;
 import static sam.backup.manager.extra.Utils.durationToString;
-import static sam.fx.helpers.FxHelpers.setClass;
+import static sam.fx.helpers.FxClassHelper.setClass;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;

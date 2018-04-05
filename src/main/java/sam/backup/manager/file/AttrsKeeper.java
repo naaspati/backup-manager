@@ -9,6 +9,7 @@ public class AttrsKeeper {
 	
 	AttrsKeeper() {}
 	AttrsKeeper(Attrs old) {
+		System.out.println(old);
 		this.old = old;
 	}
 	public Attrs getCurrent() {
@@ -31,9 +32,6 @@ public class AttrsKeeper {
 	}
 	public Path getPath() {
 		return path;
-	}
-	public boolean isNew() {
-		return old == null;
 	}
 	public long getSize() {
 		return current != null ? current.size : old != null ? old.size : 0;

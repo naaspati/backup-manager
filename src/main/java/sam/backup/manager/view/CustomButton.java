@@ -1,8 +1,8 @@
 package sam.backup.manager.view;
 
-import static sam.fx.helpers.FxHelpers.addClass;
-import static sam.fx.helpers.FxHelpers.removeClass;
-import static sam.fx.helpers.FxHelpers.setClass;
+import static sam.fx.helpers.FxClassHelper.addClass;
+import static sam.fx.helpers.FxClassHelper.removeClass;
+import static sam.fx.helpers.FxClassHelper.setClass;
 
 import javafx.scene.control.Button;
 import javafx.scene.control.Tooltip;

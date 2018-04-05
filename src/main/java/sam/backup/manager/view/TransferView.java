@@ -12,9 +12,9 @@ import static sam.backup.manager.enums.State.RUNNING;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.divide;
 import static sam.backup.manager.extra.Utils.millisToString;
-import static sam.fx.helpers.FxHelpers.addClass;
+import static sam.fx.helpers.FxClassHelper.addClass;
+import static sam.fx.helpers.FxClassHelper.setClass;
 import static sam.fx.helpers.FxHelpers.button;
-import static sam.fx.helpers.FxHelpers.setClass;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -49,9 +49,9 @@ import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TransferSummery;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.FileEntity;
+import sam.collection.WeakStore;
 import sam.fx.popup.FxPopupShop;
-import sam.myutils.myutils.MyUtils;
-import sam.weakstore.WeakStore;
+import sam.myutils.MyUtils;
 
 
 public class TransferView extends VBox implements Runnable, IStopStart, ButtonAction, ICanceler {

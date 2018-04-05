@@ -4,6 +4,7 @@ import java.util.List;
 
 import javafx.scene.Node;
 import sam.backup.manager.config.view.ListingView;
+import sam.fx.helpers.FxClassHelper;
 import sam.fx.helpers.FxHelpers;
 
 public class ListViewer extends ScrollPane2<ListingView> implements Viewer {
@@ -24,7 +25,7 @@ public class ListViewer extends ScrollPane2<ListingView> implements Viewer {
 	}
 	
 	private ListViewer() {
-		FxHelpers.setClass(this, "list-viewer");
+		FxClassHelper.setClass(this, "list-viewer");
 	}
 	public void addAll(List<ListingView> list) {
 		container.getChildren().addAll(list);

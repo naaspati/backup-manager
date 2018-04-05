@@ -6,7 +6,7 @@ import static sam.backup.manager.extra.Utils.millsToTimeString;
 import static sam.backup.manager.extra.Utils.saveFiletree;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
 import static sam.backup.manager.extra.Utils.showStage;
-import static sam.fx.helpers.FxHelpers.setClass;
+import static sam.fx.helpers.FxClassHelper.setClass;
 import static sam.fx.helpers.FxHelpers.text;
 
 import java.io.IOException;
@@ -14,6 +14,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.TextArea;
@@ -32,11 +35,13 @@ import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
-import sam.console.ansi.ANSI;
-import sam.fx.helpers.FxHelpers;
+import sam.console.ANSI;
+import sam.fx.helpers.FxClassHelper;
 import sam.fx.popup.FxPopupShop;
 
 public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAction, WalkListener {
+	private static final Logger LOGGER =  LogManager.getLogger(ListingView.class);
+	
 	private final Config config;
 	private final IStartOnComplete<ListingView> startEnd;
 	private volatile boolean cancel;
@@ -54,7 +59,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 		button = new CustomButton(ButtonType.WALK, this);
 
 		Hyperlink header = hyperlink(config.getSource());
-		FxHelpers.addClass(header, "header");
+		FxClassHelper.addClass(header, "header");
 		fileCountT = text("  Files: --", "count-text");
 		dirCountT = text("  Dirs: --", "count-text");
 
@@ -88,11 +93,11 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 
 	private void start1Depth() {
 		final Path root = config.getSource();
-		System.out.println(ANSI.yellow("1-depth walk: ")+root);
+		LOGGER.info(ANSI.yellow("1-depth walk: ")+root);
 
 		if(!Files.isDirectory(root)) {
 			FxPopupShop.showHidePopup("dir not found: \n"+root, 1500);
-			System.out.println(ANSI.red("dir not found: "+root));
+			LOGGER.info(ANSI.red("dir not found: "+root));
 			return;
 		}
 		String[] s = root.toFile().list();
@@ -124,7 +129,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	
 	@Override
 	public void walkFailed(String reason, Throwable e) {
-		System.out.println(ANSI.red(reason));
+		LOGGER.info(ANSI.red(reason));
 		e.printStackTrace();
 	}
 	
@@ -166,7 +171,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 				String name = config.getSource().getFileName()+"-"+config.getSource().hashCode()+".txt";
 				p = listPath == null ? config.getSource().resolveSibling(name) : listPath.resolve(name);
 			}
-			System.out.println(p);
+			LOGGER.info(p);
 			if(Utils.saveToFile(treeText, p)) {
 				FxPopupShop.showHidePopup("List created\nfor: "+config.getSource(), 3000);
 				startEnd.onComplete(this);

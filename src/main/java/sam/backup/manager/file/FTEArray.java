@@ -53,7 +53,7 @@ public class FTEArray implements Iterable<FileTreeEntity> {
 		return index == 0;
 	}
 	public void sort(Comparator<FileTreeEntity> comparator) {
-		Arrays.sort(array, 0, index);
+		Arrays.sort(array, 0, index, comparator);
 	}
 	public Stream<FileTreeEntity> stream() {
 		return Arrays.stream(array, 0, index);

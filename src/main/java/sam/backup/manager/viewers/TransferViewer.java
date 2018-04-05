@@ -4,6 +4,7 @@ import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
 import sam.backup.manager.view.StatusView;
 import sam.backup.manager.view.TransferView;
+import sam.fx.helpers.FxClassHelper;
 import sam.fx.helpers.FxHelpers;
 
 public class TransferViewer extends BorderPane implements Viewer {
@@ -23,7 +24,7 @@ public class TransferViewer extends BorderPane implements Viewer {
 	private final ScrollPane2<TransferView> container = new ScrollPane2<TransferView>() {};
 	
 	private TransferViewer() {
-		FxHelpers.setClass(this, "transfer-viewer");
+		FxClassHelper.setClass(this, "transfer-viewer");
 	}
 	public void add(TransferView view) {
 		container.add(view);

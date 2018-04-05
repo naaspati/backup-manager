@@ -1,6 +1,6 @@
 package sam.backup.manager.viewers;
 
-import static sam.fx.helpers.FxHelpers.setClass;
+import static sam.fx.helpers.FxClassHelper.setClass;
 
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;

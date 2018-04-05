@@ -1,5 +1,6 @@
 package sam.backup.manager.extra;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -12,14 +13,14 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import sam.myutils.fileutils.FilesUtils;
-import sam.myutils.myutils.MyUtils;
+import sam.fileutils.FilesUtils;
+import sam.myutils.MyUtils;
 
 public final class Files2 {
 	private static final boolean DRY_RUN;
 	private static final Path TEMP_DIR;
 	private static final Logger LOGGER;
-	
+
 	private Files2() {}
 
 	static {
@@ -38,6 +39,7 @@ public final class Files2 {
 					LOGGER.warn("failed to delete temp_dir: {}", TEMP_DIR, e);
 				}
 			});
+			LOGGER.debug("DRY_RUN enabled");
 		} else {
 			TEMP_DIR = null;
 			LOGGER = null;
@@ -77,7 +79,7 @@ public final class Files2 {
 		else
 			return Files.newInputStream(path, options);
 	}
-	
+
 	public static OutputStream newOutputStream(Path path, StandardOpenOption...options) throws IOException {
 		if(DRY_RUN) {
 			Path p2 = Files.createTempFile(path.getFileName().toString(), "");
@@ -86,5 +88,14 @@ public final class Files2 {
 		}
 		else
 			return Files.newOutputStream(path, options);
+	}
+
+	public static boolean delete(File file) {
+		if(DRY_RUN) {
+			LOGGER.debug("file delete: {}", file);
+			return true;
+		}
+		else
+			return file.delete();
 	}
 }

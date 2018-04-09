@@ -13,14 +13,10 @@ public class Main  {
 			System.exit(0);
 		}
 		if(args.length == 1 && args[0].equals("-v")) {
-			System.out.println("1.008");
+			System.out.println("1.02");
 			System.exit(0);
 		}
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> LogManager.getLogger(Main.class).fatal("thread: {}", thread.getName(), exception));
-
-		if(args.length == 1 && args[0].equals("--filter-tester"))
-			Application.launch(FilterTester.class, args);
-		else
-			Application.launch(App.class, args);
+		Application.launch(App.class, args);
 	}
 }

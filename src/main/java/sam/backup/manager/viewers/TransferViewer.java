@@ -2,12 +2,13 @@ package sam.backup.manager.viewers;
 
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
+import sam.backup.manager.transfer.TransferView;
+import sam.backup.manager.view.IUpdatable;
 import sam.backup.manager.view.StatusView;
-import sam.backup.manager.view.TransferView;
 import sam.fx.helpers.FxClassHelper;
 import sam.fx.helpers.FxHelpers;
 
-public class TransferViewer extends BorderPane implements Viewer {
+public class TransferViewer extends BorderPane implements Viewer, IUpdatable {
 	
 	private static volatile TransferViewer instance;
 
@@ -25,10 +26,10 @@ public class TransferViewer extends BorderPane implements Viewer {
 	
 	private TransferViewer() {
 		FxClassHelper.setClass(this, "transfer-viewer");
+		setCenter(container);
 	}
 	public void add(TransferView view) {
 		container.add(view);
-		setCenter(container);
 	}
 	@Override
 	public Node disabledView() {
@@ -36,5 +37,9 @@ public class TransferViewer extends BorderPane implements Viewer {
 	}
 	public void setStatusView(StatusView statusView) {
 		setBottom(statusView);
+	}
+	@Override
+	public void update() {
+		container.stream().forEach(t -> t.update());
 	}
 }

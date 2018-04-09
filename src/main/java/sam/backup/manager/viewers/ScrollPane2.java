@@ -2,6 +2,9 @@ package sam.backup.manager.viewers;
 
 import static sam.fx.helpers.FxClassHelper.setClass;
 
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
@@ -21,5 +24,13 @@ abstract class ScrollPane2<E extends Node> extends ScrollPane  {
 	}
 	public void add(E view) {
 		container.getChildren().add(view);
+	}
+	@SuppressWarnings("unchecked")
+	public Stream<E> stream() {
+		return container.getChildren().stream().map(n -> (E)n);
+	}
+	@SuppressWarnings("unchecked")
+	public void forEach(Consumer<E> consumer) {
+		container.getChildren().forEach(e -> consumer.accept((E) e));
 	}
 }

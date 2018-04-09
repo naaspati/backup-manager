@@ -3,17 +3,22 @@ package sam.backup.manager.config;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import sam.backup.manager.config.filter.Filter;
+import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.file.FileTree;
 
 public class Config extends ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;
-	
+
 	private String source;
 	private String target;
-
+	private boolean disable;
+	private Integer depth; 
+	private StoringSetting storingMethod;
+	private String name;
+	
 	private transient RootConfig root;
 	private transient Path sourceP;
 	private transient Path targetP;
@@ -32,11 +37,14 @@ public class Config extends ConfigBase implements Serializable {
 	private Path _getSource() {
 		if(source.startsWith("%root%") || source.startsWith("%ROOT%"))
 			return Paths.get((root.getFullBackupRoot() == null ? "G:/Sameer" : root.getFullBackupRoot().toString()) + source.substring(6)); 
-		
+
 		return Paths.get(source);
 	}
+	public String getName() {
+		return name;
+	}
 	public String getTargetString() {
-		return target;
+		return target;	
 	}
 	public Path getTarget() {
 		if(targetP == null && RootConfig.backupDriveFound()) {
@@ -50,31 +58,28 @@ public class Config extends ConfigBase implements Serializable {
 		}
 		return targetP;
 	}
-	
-	public String getSourceText() {
-		return source;
-	}
-	public void setRoot(RootConfig root) {
+	public void init(RootConfig root) {
 		this.root = root;
+		if(storingMethod != null) {
+			IFilter f = this.storingMethod.getSelecter();
+			if(f instanceof Filter)
+				((Filter)f).setConfig(this);	
+		}
+		super.init();
 	}
 	@Override
 	protected RootConfig getRoot() {
 		return root;
 	}
 	@Override
-	public Predicate<Path> getSourceExcluder() {
+	public IFilter getSourceFilter() {
 		if(excluder != null) return excluder;
-		return excluder = createFilter(root.getSourceExcluder(), excludes);
+		return excluder = combine(root.getSourceFilter(), excludes);
 	}
 	@Override
-	public Predicate<Path> getTargetExcluder() {
+	public IFilter getTargetFilter() {
 		if(targetExcluder != null) return targetExcluder;
-		return targetExcluder = createFilter(root.getTargetExcluder(), targetExcludes);
-	}
-	@Override
-	public Predicate<Path> getSourceIncluder() {
-		if(includer != null) return includer;
-		return includer = createFilter(includes);
+		return targetExcluder = combine(root.getTargetFilter(), targetExcludes);
 	}
 	public FileTree getFileTree() {
 		return fileTree;
@@ -83,6 +88,15 @@ public class Config extends ConfigBase implements Serializable {
 		this.fileTree = filetree;
 	}
 	public boolean is1DepthWalk() {
-		return getDepth() == 1 && Stream.of(excludes, includes, targetExcludes, walkSkips).allMatch(t -> t == null || t.length == 0);
+		return getDepth() == 1 && Stream.of(excludes, targetExcludes, options).allMatch(t -> t == null);
+	}
+	public int getDepth() {
+		return depth == null ? Integer.MAX_VALUE : depth;
+	}
+	public boolean isDisabled() {
+		return disable;
+	}
+	public StoringSetting getStoringMethod() {
+		return storingMethod == null ? StoringSetting.DIRECT_COPY : storingMethod;
 	}
 }

@@ -2,6 +2,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 apply plugin: 'java'
+apply plugin: 'groovy'
 apply plugin: 'application'
 
 repositories {
@@ -10,18 +11,26 @@ repositories {
 dependencies {
   // compile 'org.slf4j:slf4j-jdk14:1.8.0-beta1'
    compile 'com.google.code.gson:gson:2.8.2'
+   // compile 'com.eclipsesource.minimal-json:minimal-json:0.9.5'
    compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
    compile files('myutils.jar')
    compile 'org.apache.logging.log4j:log4j-api:2.11.0'
    compile 'org.apache.logging.log4j:log4j-core:2.11.0'
+   // compile 'net.sf.sevenzipjbinding:sevenzipjbinding:9.20-2.00beta';
+   // compile 'net.sf.sevenzipjbinding:sevenzipjbinding-windows-amd64:9.20-2.00beta';
   
    // testCompile 'junit:junit:4.12'
    // testCompile group: 'org.loadui', name: 'testFx', version: '3.1.2'
    // testCompile 'org.testfx:testfx-core:4.0.11-alpha'
-   // testCompile 'org.testfx:testfx-junit:4.0.11-alpha'   
+   // testCompile 'org.testfx:testfx-junit:4.0.11-alpha'
+  testCompile 'org.spockframework:spock-core:1.1-groovy-2.4'
+  testCompile 'org.slf4j:slf4j-jdk14:1.8.0-beta1'
+  testCompile( 'com.athaydes:spock-reports:1.4.0' ) {
+        transitive = false // this avoids affecting version of Groovy/Spock
+    }     
 }
  
-version = 1.055
+version = 1.075
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
@@ -59,7 +68,7 @@ run.dependsOn << combineCss
 run.mustRunAfter combineCss
 
 run {
- environment('DRY_RUN', 'true')
+ environment('custom.filter.dir', 'custom.filters')
  main 'Main'
  workingDir "$rootDir/compiled"
 }

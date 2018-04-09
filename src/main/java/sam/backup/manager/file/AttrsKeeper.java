@@ -6,10 +6,9 @@ public class AttrsKeeper {
 	private Attrs old;
 	private Attrs current;
 	private Path path;
-	
+
 	AttrsKeeper() {}
 	AttrsKeeper(Attrs old) {
-		System.out.println(old);
 		this.old = old;
 	}
 	public Attrs getCurrent() {
@@ -19,7 +18,8 @@ public class AttrsKeeper {
 		this.current = current;
 	}
 	void setUpdated() {
-		old = current;
+		if(current != null)
+			old = current;
 	}
 	public boolean isModified() {
 		return old == null || old.modifiedTime != current.modifiedTime;
@@ -30,7 +30,7 @@ public class AttrsKeeper {
 	void setPath(Path path) {
 		this.path = path;
 	}
-	public Path getPath() {
+	Path getPath() {
 		return path;
 	}
 	public long getSize() {

@@ -16,11 +16,11 @@ import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.Utils;
 import sam.myutils.MyUtils;
 
-public class RootView extends VBox {
+public class AboutDriveView extends VBox {
 	private final Text sizeText;
 	private RootConfig root;
 
-	public RootView(RootConfig root) {
+	public AboutDriveView(RootConfig root) {
 		setClass(this, "root-view");
 		this.root = root;
 

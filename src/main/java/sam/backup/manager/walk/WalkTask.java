@@ -17,20 +17,19 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
-import sam.backup.manager.extra.Files2;
+import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.ICanceler;
-import sam.backup.manager.extra.Utils;
+import sam.backup.manager.extra.Options;
+import static sam.backup.manager.extra.Utils.*;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.AttrsKeeper;
 import sam.backup.manager.file.DirEntity;
@@ -43,7 +42,7 @@ import sam.fx.popup.FxPopupShop;
 
 public class WalkTask implements Runnable, FileVisitor<Path> {
 	public static final Logger logger = LogManager.getLogger(WalkTask.class); 
-	
+
 	private final Config config;
 	private final ICanceler canceler;
 	private final List<Path> excludeFilesList = new ArrayList<>();
@@ -56,7 +55,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 	private WalkMode walkMode;
 	private final WalkListener listener;
 
-	private Predicate<Path> excluder, includer;
+	private IFilter excluder;
 
 	public WalkTask(Config config, WalkMode walkMode, ICanceler canceler, WalkListener listener) {
 		this.config = config;
@@ -64,9 +63,9 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		this.initialWalkMode = walkMode;
 		this.listener = listener;
 
-		Set<WalkSkip> skips = config.getWalkSkips();
-		this.skipDirNotModified = skips.contains(WalkSkip.DIR_NOT_MODIFIED);
-		this.skipFiles = skips.contains(WalkSkip.FILES);
+		Set<Options> options = config.getOptions();
+		this.skipDirNotModified = options.contains(Options.SKIP_DIR_NOT_MODIFIED);
+		this.skipFiles = options.contains(Options.SKIP_FILES);
 
 		this.skipModifiedCheck = config.isNoModifiedCheck();
 		this.canceler = canceler;
@@ -74,7 +73,6 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 
 	private static final IdentityHashMap<FileTree, Void> sourceWalkCompleted = new IdentityHashMap<>();
 	private static final IdentityHashMap<FileTree, Void> backupWalkCompleted = new IdentityHashMap<>();
-	private boolean sourceWalked;
 	private boolean backupWalked;
 
 	@Override
@@ -93,12 +91,10 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		try {
 			if(initialWalkMode.isSource()) {
 				if(!sourceWalkCompleted.containsKey(rootTree)) {
-					walk(root, config.getSourceExcluder(), config.getSourceIncluder(), WalkMode.SOURCE);
+					walk(root, config.getSourceFilter(), WalkMode.SOURCE);
 					sourceWalkCompleted.put(rootTree, null);
 				} else 
 					logger.debug("source walk skipped: {}", root);
-				
-				sourceWalked = true;
 			}
 
 			sourceWalkFailed = false;
@@ -107,11 +103,11 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 
 			if(walk && initialWalkMode.isBackup()){
 				if(!backupWalkCompleted.containsKey(rootTree)) {
-					walk(config.getTarget(), config.getTargetExcluder(), p -> false, WalkMode.BACKUP);
+					walk(config.getTarget(), config.getTargetFilter(), WalkMode.BACKUP);
 					backupWalkCompleted.put(rootTree, null);
 				} else 
 					logger.debug("backup walk skipped: {}", config.getTarget());
-				
+
 				backupWalked = true;
 			}
 		} catch (IOException e) {
@@ -124,7 +120,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		rootTree.walkCompleted();
 		saveExcludeFilesList();
 		updateFileTree();
-		
+
 		listener.walkCompleted();
 	}
 	private void saveExcludeFilesList() {
@@ -144,92 +140,80 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 		}
 		sb.append("\n\n-------------------------------------------------\n\n");
 
-		Path p = Utils.APP_DATA.resolve("excluded-files/"+(initialWalkMode+"/")+config.getSource().hashCode()+".txt");
+		Path p = TEMPS_DIR.resolve("excluded-files/"+initialWalkMode).resolve(hashedName(config.getSource(), ".txt"));
 		try {
-			Files2.createDirectories(p.getParent());
+			Files.createDirectories(p.getParent());
 			FilesUtils.appendFileAtTop(sb.toString().getBytes(), p);
+			logger.info("created: {}", subpath(p, TEMPS_DIR));
 		} catch (IOException e) {
 			LogManager.getLogger(getClass()).error("error occured while saving: "+p, e);
 			FxPopupShop.showHidePopup("error occured", 1500);
 		}
 	}
 	private void updateFileTree() {
-		boolean deleteBackupIfSourceNotExists = backupWalked && config.istDeleteBackupIfSourceNotExists(); 
-
 		BackupNeeded backupNeeded = new BackupNeeded();
 
 		rootTree.walk(new FileTreeWalker() {
 			@Override
-			public FileVisitResult file(FileEntity ft, AttrsKeeper sourceK, AttrsKeeper backupK) {
+			public FileVisitResult file(FileEntity ft) {
+				AttrsKeeper sourceK = ft.getSourceAttrs();
 				Attrs source = sourceK.getCurrent();
-				Attrs backup = backupK.getCurrent();
-
-				if(deleteBackupIfSourceNotExists && source == null && backup != null) {
-					logger.debug("file delete from backup: {}", backupK.getPath());
-					ft.setDeletable(true);
-					return CONTINUE;
-				}
 
 				backupNeeded.clear();
 
 				if(source != null) {
 					backupNeeded
-					.test(backupWalked && backup == null, "File not found in backup")
-					.test(backup == null, "New File") //in new check
-					.test(() -> !skipModifiedCheck && sourceK.isModified(), "File Modified");
+					.test(isNew(ft), "(1) new File")
+					.test(!skipModifiedCheck && sourceK.isModified(), "(2) File Modified");
 				}
 
 				if(backupNeeded.isNeeded())
 					ft.setBackupable(backupNeeded.isNeeded(), backupNeeded.getReason());
-				
 				return CONTINUE;
 			}
+			private boolean isNew(FileTreeEntity ft) {
+				return backupWalked ? ft.getBackupAttrs().getCurrent() == null : ft.getSourceAttrs().getOld() == null;
+			}
 			@Override
-			public FileVisitResult dir(DirEntity ft, AttrsKeeper s, AttrsKeeper b) {
-				if(deleteBackupIfSourceNotExists && s.getCurrent() == null && b.getCurrent() != null) {
-					logger.debug("dir delete from backup: {}", b.getPath());
-					ft.setDeletable(true);
-					return FileVisitResult.SKIP_SUBTREE;
-				} 
+			public FileVisitResult dir(DirEntity ft) {
+				if(isNew(ft)) {
+					ft.setBackupable(true, "(3) new File/Directory");
+					return SKIP_SUBTREE;	
+				}
 				return CONTINUE;
 			}
 		});
 	}
 
-	private void walk(Path start, Predicate<Path> excluder,Predicate<Path> includer, WalkMode mode) throws IOException {
+	private void walk(Path start, IFilter excluder, WalkMode mode) throws IOException {
 		this.excluder = excluder;
-		this.includer = includer;
 		this.walkMode = mode;
 
 		rootTree.walkStarted(start);
-		dirs.clear();
 		Files.walkFileTree(start, EnumSet.noneOf(FileVisitOption.class), config.getDepth(), this);
 	}
-
-	private final HashMap<Path, DirEntity> dirs = new HashMap<>();
 
 	@Override
 	public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 		if(canceler.isCancelled())
 			return TERMINATE;
 
-		boolean notRoot = !rootTree.isRootPath(dir); 
-
-		if(notRoot && include(dir)) {
+		if(rootTree.isRootPath(dir)) {
+			rootTree.setAttr(new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode, dir);
+		} else if(include(dir)) {
 			DirEntity ft = rootTree.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode);
 			listener.onDirFound(ft, walkMode);
-			
+
 			if(walkMode == WalkMode.BACKUP && !ft.isWalked()) {
-				logger.debug("backup walk skipped: {}", ft.getBackupAttrs().getPath());
+				logger.debug("backup walk skipped: {}", ft.getBackupPath());
 				return SKIP_SUBTREE;
 			}
 			if(skipDirNotModified && !atrs(ft).isModified()) {
-				logger.debug("source walk skipped: {}", ft.getSourceAttrs().getPath());
+				logger.debug("source walk skipped: {}", ft.getSourcePath());
 				return SKIP_SUBTREE;
 			}
 			ft.setWalked(true);
-			dirs.put(dir, ft);
-		} else if(notRoot) {
+		} else {
 			excludeFilesList.add(dir);
 			return SKIP_SUBTREE;
 		}
@@ -238,13 +222,9 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 	private AttrsKeeper atrs(FileTreeEntity ft) {
 		return walkMode == WalkMode.BACKUP ? ft.getBackupAttrs() : ft.getSourceAttrs();
 	}
-	@Override
 	public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-		if(!rootTree.isRootPath(dir))
-			dirs.get(dir).computeSize(walkMode);
 		return CONTINUE;
 	}
-
 	@Override
 	public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
 		if(canceler.isCancelled())
@@ -263,7 +243,7 @@ public class WalkTask implements Runnable, FileVisitor<Path> {
 	}
 
 	private boolean include(Path file) {
-		return includer.test(file) || !excluder.test(file);
+		return !excluder.test(file);
 	}
 	@Override
 	public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {

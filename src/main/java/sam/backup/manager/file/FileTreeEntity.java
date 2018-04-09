@@ -9,7 +9,6 @@ import java.util.Objects;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import sam.backup.manager.file.FileTreeReader.Values;
 import sam.backup.manager.walk.WalkMode;
 
 public abstract class FileTreeEntity {
@@ -22,24 +21,41 @@ public abstract class FileTreeEntity {
 	private final AttrsKeeper sourceAttrs;
 	private final AttrsKeeper backupAttrs;
 
+	/**
+	 * to create clone
+	 * @param f
+	 */
+	FileTreeEntity(FileTreeEntity f, DirEntity parent) {
+		this.fileNameString = f.fileNameString;
+		this.fileName = f.fileName;
+		this.parent = parent;
+		this.sourceAttrs = f.sourceAttrs;
+		this.backupAttrs = f.backupAttrs;
+		this.backup = f.backup;
+		this.copied = f.copied;
+		this.delete = f.delete;
+		this.reason = f.reason;
+	}
+
 	FileTreeEntity(Path path, DirEntity parent) {
 		this.fileName = path;
 		this.sourceAttrs = new AttrsKeeper();
 		this.backupAttrs = new AttrsKeeper();
 		this.parent = parent;
 	}
-	FileTreeEntity(Values values, DirEntity parent) {
-		this.fileNameString = values.getFilenameString();
-		this.sourceAttrs = new AttrsKeeper(values.getSrcAttrs());
-		this.backupAttrs = new AttrsKeeper(values.getBackupAttrs());
+	
+	public FileTreeEntity(String fileNameString, DirEntity parent, Attrs sourceAttr, Attrs backupAttr) {
+		this.fileNameString = fileNameString;
 		this.parent = parent;
+		this.sourceAttrs = new AttrsKeeper(sourceAttr);
+		this.backupAttrs = new AttrsKeeper(backupAttr);
 	}
 
 	public abstract boolean isDirectory();
-	
-	private boolean backup, delete, copied;
+
+	private boolean backup, copied, delete;
 	private String reason;
-	
+
 	public boolean isCopied() {
 		return copied;
 	}
@@ -49,26 +65,29 @@ public abstract class FileTreeEntity {
 	public String getBackupReason() {
 		return reason;
 	}
-	public boolean isDeletable() {
-		return delete;
-	}
 	public void setCopied(boolean b) {
 		copied = b;
 	}
+	public void setBackupable(boolean b) {
+		backup = b;
+	}
 	public void setBackupable(boolean b, String reason) {
 		backup = b;
-		this.reason = Objects.requireNonNull(reason); 
+		this.reason = Objects.requireNonNull(reason);
 	}
-	public void setDeletable(boolean b) {
-		delete = b;
+	public boolean isDeletable() {
+		return delete;
+	}
+	public void setDeletable(boolean delete) {
+		this.delete = delete;
 	}
 	public DirEntity getParent() {
 		return parent;
 	}
-	DirEntity castDir() {
+	public DirEntity asDir() {
 		return (DirEntity)this;
 	}
-	FileEntity castFile() {
+	public FileEntity asFile() {
 		return (FileEntity)this;
 	}
 	public Path getFileName() {
@@ -99,5 +118,21 @@ public abstract class FileTreeEntity {
 	protected void setUpdated() {
 		getBackupAttrs().setUpdated();
 		getSourceAttrs().setUpdated();
+	}
+	public long getSourceSize() {
+		return sourceAttrs.getSize();
+	}
+	public Path getSourcePath() {
+		return sourceAttrs.getPath();
+	}
+	public Path getBackupPath() {
+		Path  p = backupAttrs.getPath();
+		if(p == null)
+			p = parent.getBackupPath().resolve(getFileName());
+		return p;
+	}
+	protected void markUpdated() {
+		sourceAttrs.setUpdated();
+		backupAttrs.setUpdated();
 	}
 }

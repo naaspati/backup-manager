@@ -30,5 +30,17 @@ public class Attrs {
 		
 		Attrs other = (Attrs) obj;
 		return modifiedTime == other.modifiedTime && size == other.size;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("Attrs [modifiedTime=");
+		builder.append(modifiedTime);
+		builder.append(", size=");
+		builder.append(size);
+		builder.append("]");
+		return builder.toString();
 	}	
+	
 }

@@ -1,60 +1,35 @@
 package sam.backup.manager.file;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
 
-import sam.backup.manager.extra.Files2;
-import sam.backup.manager.file.FileTreeReader.Values;
+import sam.backup.manager.config.Config;
+import sam.backup.manager.extra.Utils;
 import sam.backup.manager.walk.WalkMode;
 
 public class FileTree extends DirEntity {
+	private final Config config;
 	public FileTree(Path path) {
 		super(path, null);
+		this.config = null;
+	}
+	public FileTree(Config config) {
+		super(config.getSource(), null);
+		this.config = config;
+	}
+	FileTree(Config config, String fileNameString, Attrs sourceAttr, Attrs backupAttr) {
+		super(fileNameString, null, sourceAttr, backupAttr);
+		this.config = config;
+	}
+	public Config getConfig() {
+		return config;
 	}
 	
-	private FileTree(FileTreeReader reader, Values next) throws IOException {
-		super(reader, next, null);
-	}
-	public static FileTree read(Path path) throws IOException {
-		try(InputStream is = Files2.newInputStream(path, StandardOpenOption.READ);
-				GZIPInputStream gis = new GZIPInputStream(is);
-				DataInputStream dis = new DataInputStream(gis);
-				FileTreeReader reader = new FileTreeReader(dis)) {
-			return new FileTree(reader, reader.next()); 
-		}
-	}
-	public void write(Path path) throws IOException {
-		try (OutputStream os = Files2.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-				GZIPOutputStream gos = new GZIPOutputStream(os);
-				DataOutputStream dos = new DataOutputStream(gos);
-				FileTreeWriter writer = new FileTreeWriter(dos)){
-			writer.write(this);
-		}
-	}
-	public String toTreeString() {
-		return toTreeString(p -> true);
-	}
-	public String toTreeString(Predicate<FileTreeEntity> filter) {
-		StringBuilder sb = new StringBuilder();
-		appendDetails(sb, this, new char[0]);
-		append(new char[] {' ', '|'}, sb, filter);
-		return sb.toString();	
-	}
-	public void walk(FileTreeWalker walker) {
-		super._walk(walker);
-	}
-
 	private boolean walkStarted;
 	private int nameCount;
 	private Path rootPath;
@@ -63,12 +38,13 @@ public class FileTree extends DirEntity {
 		walkStarted = true;
 		rootPath = root;
 		nameCount = root.getNameCount();
+		setWalked(true);
 	}
 
 	private volatile DirLocaltor locator;
 	private volatile Path currentParent;
 	private volatile DirLocaltor currentLocator;
-
+	
 	private final class DirLocaltor {
 		private final DirEntity value;
 		private final Map<Path, DirLocaltor> map = new HashMap<>();
@@ -102,7 +78,7 @@ public class FileTree extends DirEntity {
 				dl = map.get(name);
 			}
 			if(dl == null) 
-				throw new IOException(String.format("failed to complete walk: subpath:%s, index:%s, isDir:%s ", subpath, index, isDir));
+				throw new IOException(Utils.format("failed to complete walk: subpath:%s, index:%s, isDir:%s ", subpath, index, isDir));
 
 			return dl.walk2(subpath, index+1, isDir);
 		}
@@ -110,7 +86,7 @@ public class FileTree extends DirEntity {
 			FileTreeEntity entity = value.addChild(name, isDir);
 
 			if(entity.isDirectory())
-				map.put(name, new DirLocaltor(entity.castDir()));
+				map.put(name, new DirLocaltor(entity.asDir()));
 
 			return entity;
 		}
@@ -126,10 +102,10 @@ public class FileTree extends DirEntity {
 		return dir.equals(rootPath);
 	}
 	public DirEntity addDirectory(Path fullpath, Attrs af, WalkMode walkType) throws IOException {
-		return add(fullpath, af, walkType, true).castDir();
+		return add(fullpath, af, walkType, true).asDir();
 	}
 	public FileEntity addFile(Path fullpath, Attrs af, WalkMode walkType) throws IOException {
-		return add(fullpath, af, walkType, false).castFile();
+		return add(fullpath, af, walkType, false).asFile();
 	}
 	private FileTreeEntity add(Path fullpath, Attrs af, WalkMode walkType, boolean isDirectory) throws IOException {
 		if(!walkStarted)
@@ -160,5 +136,49 @@ public class FileTree extends DirEntity {
 		locator = null;
 		currentParent = null;
 		currentLocator = null;
+	}
+	@Override
+	public Path getSourcePath() {
+		return getFileName();
+	}
+	@Override
+	public Path getBackupPath() {
+		return config == null ? null : config.getTarget();
+	}
+	@Override
+	public AttrsKeeper getSourceAttrs() {
+		if(super.getSourceAttrs().getPath() != getFileName())
+			super.getSourceAttrs().setPath(getFileName());
+		
+		return super.getSourceAttrs();
+	}
+	@Override
+	public AttrsKeeper getBackupAttrs() {
+		if(config != null && super.getBackupAttrs().getPath() != config.getTarget())
+			super.getBackupAttrs().setPath(config.getTarget());
+		
+		return super.getBackupAttrs();
+	}
+	public FilteredFileTree getFilteredView(Predicate<FileTreeEntity> filter) {
+		return new FilteredFileTree(this, filter); 
+	}
+
+	public void setAttr(Attrs attr, WalkMode walkType, Path fullpath) {
+		super.setAttrs(attr, walkType, fullpath);
+	}
+	public void forcedMarkUpdated() {
+		walk(new SimpleFileTreeWalker() {
+			@Override
+			public FileVisitResult file(FileEntity ft) {
+				ft.setCopied(true);
+				return FileVisitResult.CONTINUE;
+			}
+			@Override
+			public FileVisitResult dir(DirEntity ft) {
+				ft.markUpdated();
+				return FileVisitResult.CONTINUE;
+			}
+		});
+		markUpdated();
 	}
 }

@@ -18,8 +18,8 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.extra.OldNewLong;
-import sam.backup.manager.extra.TransferSummery;
+import sam.backup.manager.transfer.OldNewLong;
+import sam.backup.manager.transfer.TransferSummery;
 public class StatusView extends HBox {
 	private final AtomicLong total = new AtomicLong();
 	private volatile String totalString;
@@ -49,7 +49,7 @@ public class StatusView extends HBox {
 	}
 
 	public void addSummery(TransferSummery ts) {
-		updateTotal(ts.getTotal());
+		updateTotal(ts.getTotalSize());
 		
 		bytesRead.addAndGet(ts.getBytesRead());
 		speed.addAndGet(ts.getSpeed());
@@ -57,7 +57,7 @@ public class StatusView extends HBox {
 		
 	}
 	public void removeSummery(TransferSummery ts) {
-		updateTotal(ts.getTotal()*-1);
+		updateTotal(ts.getTotalSize()*-1);
 		ts.setStatusView(null);
 		bytesRead.addAndGet(ts.getBytesRead()*-1);
 		speed.addAndGet(ts.getSpeed()*-1);

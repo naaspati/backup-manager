@@ -1,72 +1,60 @@
 package sam.backup.manager.config;
 
 import java.io.Serializable;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
-import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import sam.backup.manager.file.Filter;
-import sam.backup.manager.walk.WalkSkip;
-import sam.console.ANSI;
+import sam.backup.manager.config.filter.Filter;
+import sam.backup.manager.config.filter.IFilter;
+import sam.backup.manager.extra.Options;
 
-public abstract class ConfigBase implements Serializable {
+abstract class ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;
 	protected static final Logger LOGGER =  LogManager.getLogger(ConfigBase.class);
 	
-	protected String[] excludes;
-	protected String[] includes;
-	protected String[] targetExcludes;
-	protected String[] walkSkips;
+	protected Filter excludes;
+	protected Filter targetExcludes;
+	protected Options[] options;
 	protected Boolean noBackupWalk;
 	protected Boolean noModifiedCheck;
-	protected Boolean disable;
-	protected Boolean deleteBackupIfSourceNotExists;
-	private Integer depth; 
 
-	protected transient Predicate<Path> excluder, targetExcluder, includer;
+	protected transient IFilter excluder, targetExcluder, includer;
 	private transient boolean modified = false; //  for when Configs can be modified 
-	protected transient Set<WalkSkip> _walkSkips;
+	protected transient Set<Options> _options;
 
 	protected abstract RootConfig getRoot();
-	public abstract Predicate<Path> getTargetExcluder();
-	public abstract Predicate<Path> getSourceExcluder();
-	public abstract Predicate<Path> getSourceIncluder();
+	public abstract IFilter getTargetFilter();
+	public abstract IFilter getSourceFilter();
+	
+	protected void init() {
+		if(excludes != null)
+			excludes.setConfig((Config) this);
+		if(targetExcludes != null)
+			targetExcludes.setConfig((Config) this);
+	}
 
-	public Set<WalkSkip> getWalkSkips() {
-		if(_walkSkips != null) return _walkSkips;
+	public Set<Options> getOptions() {
+		if(_options != null) return _options;
 
-		EnumSet<WalkSkip> temp = EnumSet.noneOf(WalkSkip.class);
+		EnumSet<Options> temp = EnumSet.noneOf(Options.class);
 		fill(getRoot(), temp);
 		fill(this, temp);
 		
-		_walkSkips = Collections.unmodifiableSet(temp);
+		_options = Collections.unmodifiableSet(temp);
 		
-		return _walkSkips;
+		return _options;
 	}
-	protected void fill(ConfigBase config, EnumSet<WalkSkip> sink) {
-		if(config.walkSkips == null || config.walkSkips.length == 0)
+	protected void fill(ConfigBase config, EnumSet<Options> sink) {
+		if(config.options == null || config.options.length == 0)
 			return;
-		if(config._walkSkips != null)
-			sink.addAll(config._walkSkips);
-		else {
-			for (String s : walkSkips) {
-				if(s == null || s.isEmpty())
-					continue;
-				try {
-					sink.add(WalkSkip.valueOf(s));
-				} catch (IllegalArgumentException e) {
-					LOGGER.info(ANSI.red("bad WalkSkip constant: ")+s);
-				}
-			}
-		}
-	}
-	public int getDepth() {
-		return depth == null ? Integer.MAX_VALUE : depth;
+		if(config._options != null)
+			sink.addAll(config._options);
+		else
+			for (Options w : options) sink.add(w);
 	}
 	public boolean isModified() {
 		return modified;
@@ -75,38 +63,24 @@ public abstract class ConfigBase implements Serializable {
 		this.modified = true;
 	}
 	public boolean isNoBackupWalk() {
-		return compareBooleans(noBackupWalk, getRoot().noBackupWalk);
+		return either(noBackupWalk, getRoot().noBackupWalk, false);
 	}
 	public boolean isNoModifiedCheck() {
-		return compareBooleans(noModifiedCheck, getRoot().noModifiedCheck);
+		return either(noModifiedCheck, getRoot().noModifiedCheck, false);
 	}
-	public boolean istDeleteBackupIfSourceNotExists() {
-		return compareBooleans(deleteBackupIfSourceNotExists, getRoot().deleteBackupIfSourceNotExists);
-	}
-	public Boolean isDisabled() {
-		return compareBooleans(disable, getRoot().disable);
-	}
-	public void setDisabled(boolean disable) {
-		this.disable = disable;
-	}
-	protected static Predicate<Path> createFilter(Predicate<Path> rootExcluder, String[] configExcludes) {
-		if(rootExcluder == null && configExcludes == null)
+	protected static IFilter combine(IFilter root, IFilter self) {
+		if(root == null && self == null)
 			return (p -> false);
-		if(rootExcluder == null)
-			return createFilter(configExcludes);
-		if(configExcludes == null)
-			return rootExcluder;
+		if(root == null)
+			return self;
+		if(self == null)
+			return root;
 
-		Filter e = new Filter(configExcludes);
-		return e.isAlwaysFalse() ? rootExcluder : e.or(rootExcluder);
+		return self.or(root);
 	}
-	protected static Predicate<Path> createFilter(String[] excludes) {
-		Filter e = new Filter(excludes);
-		return e.isAlwaysFalse() ? (p -> false) : e; // e.isNoExclude() then Eclude e, can be left for grabage collection
-	}
-	protected boolean compareBooleans(Boolean b1, Boolean b2) {
-		if(b1 == null && b2 == null)
-			return false;
-		return b1 != null ? b1 : b2;
+	protected <T> T either(T t1, T t2, T defaultValue) {
+		if(t1 == null && t2 == null)
+			return defaultValue;
+		return t1 != null ? t1 : t2;
 	}
 }

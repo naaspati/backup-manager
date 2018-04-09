@@ -1,7 +1,5 @@
 package sam.backup.manager.walk;
 
-import java.util.function.BooleanSupplier;
-
 class BackupNeeded {
 	private boolean needed;
 	private String reason;
@@ -25,7 +23,8 @@ class BackupNeeded {
 		return this;
 	}
 	
-	public BackupNeeded test(BooleanSupplier s, String reason) {
+	/**
+	 * public BackupNeeded test(BooleanSupplier s, String reason) {
 		if(needed)
 			return this;
 		
@@ -36,6 +35,7 @@ class BackupNeeded {
 		
 		return this;
 	}
+	 */
 
 	public void clear() {
 		needed = false;

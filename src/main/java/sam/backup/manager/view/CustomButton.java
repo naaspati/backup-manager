@@ -18,7 +18,6 @@ public class CustomButton extends Button {
 		setClass(this, "custom-btn");
 		setType(type);
 		setEventHandler(eventHandler);
-		
 
 		setOnAction(e -> {
 			if(this.action != null)

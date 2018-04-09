@@ -2,39 +2,45 @@ package sam.backup.manager.file;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.zip.GZIPOutputStream;
 
-public class FileTreeWriter implements AutoCloseable {
-	private final DataOutputStream dos;
- 
-	public FileTreeWriter(DataOutputStream dos) {
-		this.dos = dos;
+public class FileTreeWriter  {
+	private DataOutputStream dos;
+
+	public void write(Path path, FileTree tree) throws IOException {
+		try (OutputStream os = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+				GZIPOutputStream gos = new GZIPOutputStream(os);
+				DataOutputStream dos = new DataOutputStream(gos);
+				){
+			this.dos = dos;
+			write(tree);
+		}
 	}
-	public void write(FileTreeEntity tree) throws IOException {
+
+	private void write(FileTreeEntity tree) throws IOException {
 		dos.writeBoolean(tree.isDirectory());
 		dos.writeUTF(tree.getfileNameString());
-		
+
 		writeAttrs(tree.getSourceAttrs());
 		writeAttrs(tree.getBackupAttrs());
-		
+
 		if(tree.isDirectory()) {
-			int c = tree.castDir().size();
-			dos.writeInt(c);
-			
-			if(c != 0) {
-				for (FileTreeEntity f : tree.castDir())
+			DirEntity dir = tree.asDir();
+			dos.writeInt(dir.count());
+
+			if(!dir.isEmpty()) {
+				for (FileTreeEntity f : dir)
 					write(f);
 			}
 		}
 	}
 	private void writeAttrs(AttrsKeeper ak) throws IOException {
 		Attrs a = ak.getOld();
-		dos.writeLong(a.modifiedTime);
-		dos.writeLong(a.size);
-		
+		dos.writeLong(a == null ? 0 : a.modifiedTime);
+		dos.writeLong(a == null ? 0 : a.size);
 	}
-	@Override
-	public void close() throws IOException {
-		dos.close();
-	}
-
 }

@@ -1,7 +1,6 @@
 
 package sam.backup.manager;
 import static javafx.application.Platform.runLater;
-import static sam.backup.manager.extra.Utils.showErrorDialog;
 import static sam.fx.helpers.FxManuItemMaker.menuitem;
 
 import java.io.File;
@@ -13,10 +12,8 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,23 +28,19 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
-import sam.backup.manager.config.Config;
+import sam.backup.manager.config.ConfigReader;
 import sam.backup.manager.config.RootConfig;
-import sam.backup.manager.config.view.ConfigView;
-import sam.backup.manager.config.view.ListingView;
-import sam.backup.manager.config.view.RootView;
-import sam.backup.manager.extra.IStartOnComplete;
+import sam.backup.manager.config.view.AboutDriveView;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.view.StatusView;
-import sam.backup.manager.view.TransferView;
 import sam.backup.manager.view.ViewType;
 import sam.backup.manager.viewers.TransferViewer;
 import sam.backup.manager.viewers.ViewSwitcher;
 import sam.backup.manager.walk.WalkMode;
-import sam.backup.manager.walk.WalkTask;
 import sam.fileutils.FilesUtils;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
@@ -65,14 +58,12 @@ public class App extends Application {
 		return hs;
 	}
 	private RootConfig root;
-	private RootView rootView;
+	private AboutDriveView aboutDriveView;
 	private StatusView statusView;
 	private final BorderPane rootContainer = new BorderPane();
 
 	private ViewSwitcher centerView;
-	private List<IStopStart> stoppableTasks ;
-	private volatile boolean backupLastPerformedModified;
-	private Map<String, Long> backupLastPerformed ;
+	private final Set<IStopStart> stoppableTasks = new HashSet<>();
 
 	@Override
 	public void start(Stage stage) throws Exception {
@@ -99,7 +90,7 @@ public class App extends Application {
 		t.start();
 	}
 	private void secondStart() {
-		root = Utils.readConfigJson();
+		root = new ConfigReader().read();
 
 		Path drive = null;
 		for (Path p : FileSystems.getDefault().getRootDirectories()) {
@@ -110,12 +101,9 @@ public class App extends Application {
 		}
 		root.init(drive);
 		runLater(() -> {
-			rootView = new RootView(this.root);
-			rootContainer.setTop(new BorderPane(rootView, getMenubar(), null, null, null));
+			aboutDriveView = new AboutDriveView(this.root);
+			rootContainer.setTop(new BorderPane(aboutDriveView, getMenubar(), null, null, null));
 		});
-
-		backupLastPerformed = Utils.readBackupLastPerformedPathTimeMap();  
-		stoppableTasks = new ArrayList<>();
 
 		centerView = new ViewSwitcher();
 		runLater(() -> rootContainer.setCenter(centerView));
@@ -123,13 +111,13 @@ public class App extends Application {
 		if(root.hasBackups()) {
 			statusView = new StatusView();
 			runLater(() -> TransferViewer.getInstance().setStatusView(statusView));
-			processConfigs();
+			ConfigManager.init(statusView, aboutDriveView, centerView, root, stoppableTasks);
 		}
 		else 
 			centerView.setStatus(ViewType.BACKUP, true);
 
 		if(root.hasLists())
-			processLists();
+			 ListsManager.init(root, stoppableTasks, centerView);
 
 		runLater(centerView::firstClick);
 	}
@@ -137,7 +125,7 @@ public class App extends Application {
 	private Node getMenubar() {
 		Menu  file = new Menu("_File",
 				null,
-				menuitem("open app dir", e -> FilesUtils.openFileNoError(Utils.APP_DATA.toFile())),
+				menuitem("open app dir", e -> FilesUtils.openFileNoError(Utils.APP_DATA_DIR.toFile())),
 				menuitem("create FileTree", this::createFileTree)
 				);
 		return new MenuBar(file);
@@ -172,7 +160,7 @@ public class App extends Application {
 			
 			ft.walkCompleted();
 			Path p = root.resolveSibling(root.getFileName()+".txt");
-			Utils.saveToFile(ft.toTreeString(), p);
+			Utils.saveToFile2(new FileTreeString(ft), p);
 			FxPopupShop.showHidePopup(p.getFileName()+" saved", 1500);
 			LOGGER.info("saved: {}", p);
 		} catch (IOException e) {
@@ -181,114 +169,10 @@ public class App extends Application {
 		}
 	}
 
-	private void processLists() {
-		Path listPath = RootConfig.backupDriveFound() ? root.getFullBackupRoot().resolve("lists") : null ;
-
-		IStartOnComplete<ListingView> action = new IStartOnComplete<ListingView>() {
-			@Override
-			public void start(ListingView e) {
-				Config c = e.getConfig();
-
-				if(c.getDepth() <= 0) {
-					showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getDepth(), null);
-					return;
-				}
-				try {
-					FileTree f = Utils.readFiletree(c);
-					c.setFileTree(f != null ? f : new FileTree(c.getSource()));
-				} catch (IOException e1) {
-					showErrorDialog(null, "failed to read TreeFile: ", e1);
-					LOGGER.error("failed to read TreeFile	", e1);
-					return;
-				}
-				Utils.run(new WalkTask(c, WalkMode.SOURCE, e, e));
-			}
-			@Override
-			public void onComplete(ListingView e) {
-				backupLastPerformed.put("list:"+e.getConfig().getSource(), System.currentTimeMillis());
-				backupLastPerformedModified = true;
-			}
-		};
-
-		List<ListingView> list = Stream.of(root.getLists())
-				.map(c -> new ListingView(c,listPath,backupLastPerformed.get("list:"+c.getSource()), action))
-				.collect(Collectors.toList());
-
-		stoppableTasks.addAll(list);
-		runLater(() -> centerView.addAllListView(list));
-	}
-
-	private void processConfigs() {
-		IStartOnComplete<TransferView> transferAction = new IStartOnComplete<TransferView>() {
-			@Override
-			public void start(TransferView view) {
-				Utils.run(view);
-				statusView.addSummery(view.getSummery());
-			}
-			@Override
-			public void onComplete(TransferView view) {
-				statusView.removeSummery(view.getSummery());
-				backupLastPerformed.put("backup:"+view.getConfigView().getConfig().getSource(), System.currentTimeMillis());
-				backupLastPerformedModified = true;
-				rootView.refreshSize();
-				try {
-					Utils.saveFiletree(view.getConfigView().getConfig());
-				} catch (IOException e) {
-					showErrorDialog(null, "failed to save TreeFile: ", e);	
-				}
-			}
-		};
-
-		IStartOnComplete<ConfigView> configAction = new IStartOnComplete<ConfigView>() {
-			@Override
-			public void start(ConfigView view) {
-				if(!view.getConfig().isDisabled()) {
-					Config c = view.getConfig();
-
-					if(c.getDepth() <= 0) {
-						runLater(() -> view.finish("Walk failed: \nbad value for depth: "+c.getDepth(), true));
-						return;
-					}
-					if(c.getFileTree() == null) {
-						FileTree ft;
-						try {
-							ft = Utils.readFiletree(c);
-						} catch (IOException e) {
-							showErrorDialog(null, "failed to read TreeFile: ", e);
-							LOGGER.error("failed to read TreeFile: ", e);
-							return;
-						}
-						if(ft == null) {
-							ft = new FileTree(c.getSource()); 
-							c.setFileTree(ft);	
-						} else {
-							c.setFileTree(ft);
-						} 
-					}
-					Utils.run(new WalkTask(c, WalkMode.BOTH, view, view));
-				}
-			}
-			@Override
-			public void onComplete(ConfigView view) {
-				if(view.hashBackups())
-					runLater(() -> centerView.add(new TransferView(view, statusView, transferAction)));
-				else {
-					backupLastPerformed.put("backup:"+view.getConfig().getSource(), System.currentTimeMillis());
-					backupLastPerformedModified = true;
-				}
-			}
-		};
-
-		runLater(() -> Stream.of(root.getBackups())
-				.map(c -> new ConfigView(c, configAction, backupLastPerformed.get("backup:"+c.getSource())))
-				.peek(stoppableTasks::add).forEach(centerView::add)
-				);
-	}
-
 	@Override
 	public void stop() throws Exception {
-		if(backupLastPerformedModified)
-			Utils.saveBackupLastPerformedPathTimeMap(backupLastPerformed);
-		System.exit(0);
+		stoppableTasks.forEach(IStopStart::stop);
+		Utils.stop();
+		stage.hide();
 	}
 }

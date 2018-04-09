@@ -2,38 +2,51 @@ package sam.backup.manager.file;
 
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.zip.GZIPInputStream;
 
-class FileTreeReader implements AutoCloseable {
-	private final DataInputStream dis;
+import sam.backup.manager.config.Config;
 
-	FileTreeReader(DataInputStream dis) {
-		this.dis = dis;
-	}
-	Values next() throws IOException {
-		return new Values(); 
-	}
-	public final class Values {
-		private final boolean directory;
-		private final String filename;
-		private final Attrs src;
-		private final Attrs backup;
-		private final int size;
-
-		private Values() throws IOException {
-			this.directory = dis.readBoolean();
-			this.filename = dis.readUTF();
-			this.src = new Attrs(dis.readLong(), dis.readLong());
-			this.backup = new Attrs(dis.readLong(), dis.readLong());
-			this.size = directory ? dis.readInt() : -1;
+public class FileTreeReader {
+	private DataInputStream dis;
+	
+	public FileTree read(Path fileTreePath, Config config) throws IOException {
+		try(InputStream is = Files.newInputStream(fileTreePath, StandardOpenOption.READ);
+				GZIPInputStream gis = new GZIPInputStream(is);
+				DataInputStream dis = new DataInputStream(gis);) {
+			this.dis = dis;
+			return readFileTree(config); 
 		}
-		public boolean isDirectory() { return directory; }
-		public String getFilenameString() { return filename; }
-		public Attrs getSrcAttrs() { return src; }
-		public Attrs getBackupAttrs() { return backup; }
-		public int size() { return size; }
 	}
-	@Override
-	public void close() throws IOException {
-		dis.close();
+	
+	private FileTree readFileTree(Config config) throws IOException {
+		dis.readBoolean();
+		FileTree ft = new FileTree(config, dis.readUTF(), readAttr(), readAttr());
+		readChildren(ft);
+		return ft;
+		
+	}
+	private DirEntity readDir(DirEntity parent) throws IOException {
+		DirEntity dir = new DirEntity(dis.readUTF(), parent, readAttr(), readAttr());
+		readChildren(dir);
+		return dir;
+	}
+	private void readChildren(DirEntity parent) throws IOException {
+		int size = dis.readInt();
+		if(size == 0)
+			return;
+		
+		FileTreeEntity[] fts = new FileTreeEntity[size];
+		
+		for (int i = 0; i < fts.length; i++)
+			fts[i] = dis.readBoolean() ? readDir(parent) : new FileEntity(dis.readUTF(), parent, readAttr(), readAttr());
+			
+		parent.setChildren(fts);
+	}
+	private Attrs readAttr() throws IOException {
+		return new Attrs(dis.readLong(), dis.readLong());
 	}
 }

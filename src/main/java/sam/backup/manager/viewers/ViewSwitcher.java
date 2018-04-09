@@ -15,7 +15,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import sam.backup.manager.config.view.ConfigView;
 import sam.backup.manager.config.view.ListingView;
-import sam.backup.manager.view.TransferView;
+import sam.backup.manager.transfer.TransferView;
+import sam.backup.manager.view.IUpdatable;
 import sam.backup.manager.view.ViewType;
 
 public class ViewSwitcher extends BorderPane implements EventHandler<ActionEvent> {
@@ -41,31 +42,32 @@ public class ViewSwitcher extends BorderPane implements EventHandler<ActionEvent
 		removeClass(ACTIVE_CLASS, backupBtn, transferBtn, listingBtn);
 
 		addClass(b, ACTIVE_CLASS);
-		setCenter(b, backupBtn, ConfigViewer.getInstance());
-		setCenter(b, transferBtn, TransferViewer.getInstance());
-		setCenter(b, listingBtn,ListViewer.getInstance());
+		setCenter(b, backupBtn, config());
+		setCenter(b, transferBtn, transfer());
+		setCenter(b, listingBtn,list());
 	}
 
 	private void setCenter(Button source, Button expected, Node node) {
 		if(source == expected) { 
 			setCenter(node.isDisabled() ? ((Viewer)node).disabledView() : node);
+
+			if(node instanceof IUpdatable)
+				((IUpdatable)node).update();
+
 			activeBtn = source;
 		}
 	}
-	public void add(Node c) {
-		if(c == null)
-			return;
-
-		if(c instanceof ConfigView) 
-			ConfigViewer.getInstance().add((ConfigView) c);
-		else if(c instanceof  ListingView) 
-			ListViewer.getInstance().add((ListingView) c);
-		else 
-			TransferViewer.getInstance().add((TransferView) c);
+	public void add(ConfigView c) {
+		config().add((ConfigView) c);
 	}
-
+	public void add(ListingView c) {
+		list().add(c);
+	}
+	public void add(TransferView c) {
+		transfer().add(c);
+	}
 	public void addAllListView(List<ListingView> list) {
-		ListViewer.getInstance().addAll(list);
+		list().addAll(list);
 	}
 	private Button button(String s) {
 		Button b = new Button(s);
@@ -84,16 +86,29 @@ public class ViewSwitcher extends BorderPane implements EventHandler<ActionEvent
 	public void setStatus(ViewType type, boolean disable) {
 		switch (type) {
 			case BACKUP:
-				ConfigViewer.getInstance().setDisable(disable);
+				config().setDisable(disable);
 				break;
 			case TRANSFER:
-				TransferViewer.getInstance().setDisable(disable);
+				transfer().setDisable(disable);
 				break;
 			case LIST:
-				ListViewer.getInstance().setDisable(disable);
+				list().setDisable(disable);
 				break;
 		}
 		if(activeBtn != null)
 			activeBtn.fire();
+	}
+	
+	private ListViewer list;
+	private ListViewer list() {
+		return list != null ? list : (list = ListViewer.getInstance());
+	}
+	private TransferViewer transfer;
+	private TransferViewer transfer() {
+		return transfer != null ? transfer : (transfer = TransferViewer.getInstance());
+	}
+	private ConfigViewer config;
+	private ConfigViewer config() {
+		return config != null ? config : (config = ConfigViewer.getInstance());
 	}
 }

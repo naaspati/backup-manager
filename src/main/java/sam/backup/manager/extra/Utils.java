@@ -4,29 +4,28 @@ import static javafx.application.Platform.runLater;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Reader;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
-import java.util.HashMap;
+import java.util.Formatter;
 import java.util.Map;
 import java.util.Objects;
+import java.util.ResourceBundle;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import com.google.gson.Gson;
 
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -37,19 +36,39 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
-import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.FileTreeReader;
+import sam.backup.manager.file.FileTreeWriter;
 import sam.fileutils.FilesUtils;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
+import sam.tsv.TsvMap;
 
 public class Utils {
-	public static final Path APP_DATA = Paths.get("app_data");
+	public static final Path APP_DATA_DIR = getAppDir();
+	public static final Path TEMPS_DIR = APP_DATA_DIR.resolve("temps");
 	public static final ExecutorService threadPool = Executors.newSingleThreadExecutor();
 	private static final Logger LOGGER =  LogManager.getLogger(Utils.class);
 
 	private Utils() {}
-
+	
+	static {
+		ResourceBundle rb = ResourceBundle.getBundle("app-config");
+		rb.keySet().forEach(s -> System.setProperty(s, rb.getString(s))); 
+	}
+	private static Path getAppDir() {
+		String s = System.getenv("APP_DATA_DIR");
+		if(s == null)
+			s = System.getProperty("APP_DATA_DIR");
+		if(s == null)
+			s = System.getProperty("app_data_dir");
+		if(s == null)
+			s = System.getProperty("app.data.dir");
+		if(s == null)
+			s = "app_data";
+		
+		return Paths.get(s);
+	}
 	public static void run(Runnable r) {
 		threadPool.execute(r);
 	}
@@ -137,7 +156,7 @@ public class Utils {
 	private static void waitUntil(AtomicBoolean stopper) {
 		while(!stopper.get()) {}
 	}
-	private static void showErrorAndWait(Object text, Object header, Exception e) {
+	public static void showErrorAndWait(Object text, Object header, Exception e) {
 		AtomicBoolean b = new AtomicBoolean();
 		runLater(() -> {
 			FxAlert.showErrorDialog(text, header, e);
@@ -145,82 +164,67 @@ public class Utils {
 		});
 		waitUntil(b);
 	}
-	public static  Path getConfigPath() {
-		return APP_DATA.resolve("config.json");
-	} 
-	public static RootConfig readConfigJson() {
-		try(Reader r = Files.newBufferedReader(getConfigPath());) {
-			RootConfig root;
-			root = new Gson().fromJson(r, RootConfig.class);
-			return root;
-		} catch (IOException e) {
-			showErrorAndWait(Utils.getConfigPath().toAbsolutePath(), "Error reading config file", e);
-			System.exit(0);
-		}
-		return null;
+	private static Path getTreePath(Config config, boolean isBackups) {
+		return APP_DATA_DIR.resolve("trees/"+(isBackups ? "" : "lists/")+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
 	}
-	private static Path getTreePath(Config config) {
-		return APP_DATA.resolve("trees/"+config.getSource().getFileName()+"-"+config.getSource().hashCode()+".filetree");
-	}
-	public static FileTree readFiletree(Config config) throws IOException {
-		Path p = getTreePath(config); 
+	public static FileTree readFiletree(Config config, boolean isBackups) throws IOException {
+		Path p = getTreePath(config, isBackups); 
 
 		if(Files.exists(p))
-			return FileTree.read(p);
-		
+			return new FileTreeReader().read(p, config);
+
 		LOGGER.warn("treeFile file not found: {}", p);
 
 		return null;
 	}
-	public static void saveFiletree(Config config) throws IOException {
+	public static void saveFiletree(Config config, boolean isBackups) throws IOException {
 		Objects.requireNonNull(config.getFileTree(), "config does not have a filetree: "+config.getSource());
 
-		Path p = getTreePath(config);
+		Path p = getTreePath(config, isBackups);
 		Files.createDirectories(p.getParent());
-		config.getFileTree().write(p);
+		new FileTreeWriter().write(p, config.getFileTree());
 		LOGGER.info("file-tree saved: {}", p.getFileName());
 	}
 	public static Path getBackupLastPerformedPathTimeMapPath() {
-		return APP_DATA.resolve("backup-last-performed.txt");
+		return APP_DATA_DIR.resolve("backup-last-performed.tsv");
 	}
 	public static void saveBackupLastPerformedPathTimeMap(Map<String, Long>  map) {
 		try {
-			StringBuilder sb = new StringBuilder();
-			map.forEach((s,t) -> sb.append(s).append('\t').append(t).append('\n'));
-			Files.write(getBackupLastPerformedPathTimeMapPath(), sb.toString().getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+			((TsvMap<String, Long>)map).save(getBackupLastPerformedPathTimeMapPath());
 		} catch (IOException e) {
 			LOGGER.warn("failed to save: {}", getBackupLastPerformedPathTimeMapPath(), e);
 		}
 	}
-
-	public static Map<String, Long> readBackupLastPerformedPathTimeMap() {
-		HashMap<String, Long> map = new HashMap<>();
+	private static TsvMap<String, Long> backupLastPerformed ;
+	private static volatile boolean backupLastPerformedModified = false;
+	
+	public static void readBackupLastPerformedPathTimeMap() {
+		if(backupLastPerformed != null)
+			return;
 		Path p = getBackupLastPerformedPathTimeMapPath();
 		try {
-			if(Files.exists(p)) {
-				Files.lines(p)
-				.map(s -> s.split("\t"))
-				.filter(s -> s.length == 2)
-				.forEach(s -> {
-					try {
-						map.put(s[0], Long.parseLong(s[1]));
-					} catch (NumberFormatException e) {
-						LOGGER.warn("bad number: {} in {}", s[1], p, e);
-					}
-				});
-			}
+			backupLastPerformed =  TsvMap.parse(p, Long::parseLong, false);
 		} catch (IOException e) {
 			LOGGER.warn("failed to read: {}", p, e);
+			backupLastPerformed = new TsvMap<>();
 		}
-		return map;
 	}
 
-	public static Stage showStage(Parent ta) {
+	public static Long getBackupLastPerformed(String key) {
+		readBackupLastPerformedPathTimeMap();
+		return backupLastPerformed.get(key);
+	}
+	public static void putBackupLastPerformed(String key, long time) {
+		readBackupLastPerformedPathTimeMap();
+		backupLastPerformed.put(key, time);
+		backupLastPerformedModified = true;
+	}
+	public static Stage showStage(Parent content) {
 		Stage stg = new Stage();
 		stg.initModality(Modality.WINDOW_MODAL);
 		stg.initStyle(StageStyle.UTILITY);
 		stg.initOwner(App.getStage());
-		stg.setScene(new Scene(ta));
+		stg.setScene(new Scene(content));
 		stg.getScene().getStylesheets().setAll(App.getStage().getScene().getStylesheets());
 		stg.setWidth(300);
 		stg.setHeight(400);
@@ -251,17 +255,54 @@ public class Utils {
 		return fc.showSaveDialog(App.getStage());
 	}
 
-	public static boolean saveToFile(String text, Path expectedPath) {
-		File file = selectFile(expectedPath.toFile(), "save filetree");
+	public static boolean saveToFile2(CharSequence text, Path expectedPath) {
+		File file = selectFile(expectedPath == null ? null : expectedPath.toFile(), "save filetree");
 
 		if(file == null)
 			return false;
 		try {
-			Files.write(file.toPath(), text.getBytes(StandardCharsets.UTF_16), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+			write(file.toPath(), text);
 			return true;
 		} catch (IOException e) {
 			showErrorDialog("target: "+file, "failed to save" , e);
 		}
 		return false;
+	}
+
+	private static final StringBuilder sb2 = new StringBuilder();
+	private static final Formatter fm = new Formatter(sb2);
+
+	public static String format(String format, Object...args) {
+		synchronized(sb2) {
+			sb2.setLength(0);
+			fm.format(format, args);
+			return sb2.toString();
+		}
+	}
+	public static Path subpath(Path child, Path parent) {
+		if(parent == null)
+			return child;
+
+		return child == null || 
+				child.getNameCount() < parent.getNameCount() || 
+				!child.startsWith(parent) || 
+				child.equals(parent) ? child : child.subpath(parent.getNameCount(), child.getNameCount()) ;
+	}
+
+	public static String hashedName(Path p, String ext) {
+		return p.getFileName()+"-"+p.hashCode()+ext;
+	}
+
+	public static void write(Path path, CharSequence data) throws IOException {
+		FilesUtils.write(path, data, StandardCharsets.UTF_8,false, CodingErrorAction.REPLACE,CodingErrorAction.REPLACE);
+	}
+
+	public static void stop() throws InterruptedException {
+		if(backupLastPerformedModified)
+			Utils.saveBackupLastPerformedPathTimeMap(backupLastPerformed);
+		
+		threadPool.shutdownNow();
+		System.out.println("waiting thread to die");
+		threadPool.awaitTermination(2, TimeUnit.SECONDS);
 	}
 }

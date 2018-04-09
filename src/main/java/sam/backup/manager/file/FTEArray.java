@@ -10,10 +10,13 @@ import java.util.stream.Stream;
  * @author Sameer
  *
  */
-public class FTEArray implements Iterable<FileTreeEntity> {
+class FTEArray implements Iterable<FileTreeEntity> {
 	private FileTreeEntity[] array; 
 	private int index = 0;
 
+	public FTEArray(FileTreeEntity[] values) {
+		array = values;
+	}
 	public FTEArray(int size) {
 		array = new FileTreeEntity[size];
 	}
@@ -42,7 +45,7 @@ public class FTEArray implements Iterable<FileTreeEntity> {
 	}
 	public void add(FileTreeEntity f) {
 		if(index == array.length)
-			array = Arrays.copyOf(array, index * 2);
+			array = Arrays.copyOf(array, (int)(index * 1.5));
 
 		array[index++] = f;  
 	}
@@ -79,5 +82,9 @@ public class FTEArray implements Iterable<FileTreeEntity> {
 		}
 		
 		return -1;
+	}
+	void setAll(FileTreeEntity[] array) {
+		this.array = array;
+		this.index = array.length;
 	}
 }

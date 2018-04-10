@@ -13,7 +13,7 @@ public class Main  {
 			System.exit(0);
 		}
 		if(args.length == 1 && args[0].equals("-v")) {
-			System.out.println("1.02");
+			System.out.println("1.03");
 			System.exit(0);
 		}
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> LogManager.getLogger(Main.class).fatal("thread: {}", thread.getName(), exception));

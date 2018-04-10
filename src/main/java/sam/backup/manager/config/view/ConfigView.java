@@ -7,6 +7,8 @@ import static javafx.scene.layout.GridPane.REMAINING;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
+import static sam.backup.manager.extra.Utils.readFiletree;
+import static sam.backup.manager.extra.Utils.showErrorDialog;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.removeClass;
 
@@ -17,6 +19,10 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
@@ -28,13 +34,13 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
-import sam.backup.manager.config.view.FilesView.FilesViewMode;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
+import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeEntity;
 import sam.backup.manager.file.FilteredFileTree;
 import sam.backup.manager.file.SimpleFileTreeWalker;
@@ -47,6 +53,8 @@ import sam.fx.helpers.FxHelpers;
 import sam.fx.popup.FxPopupShop;
 
 public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler, WalkListener {
+	private static final Logger LOGGER = LogManager.getLogger(ConfigView.class);
+
 	private final Config config;
 	private final GridPane container = new GridPane();
 	private final CustomButton button; 
@@ -61,7 +69,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	public ConfigView(Config config, IStartOnComplete<ConfigView> startEndAction, Long lastUpdated) {
 		this.config = config;
 		addClass(this, "config-view");
-		addClass(container, "container");
+		addClass(container, "grid");
 		setContextMenu();
 
 		this.startEndAction = startEndAction;
@@ -119,14 +127,12 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 			container.add(button, 0, row++, REMAINING, 2);
 			row++;
 		}
-
 		container.add(bottomText, 1, row++, REMAINING, REMAINING);
 	}
 	private void setContextMenu() {
 		setOnContextMenuRequested(e -> {
-			if(filteredFileTree == null)
-				return;
 			MenuItem setAsLetest = new MenuItem("Set as letest");
+			setAsLetest.disableProperty().bind(filteredFileTree.isNull());
 			setAsLetest.setOnAction(e_e -> {
 				config.getFileTree().forcedMarkUpdated();
 				try {
@@ -136,8 +142,16 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 					e1.printStackTrace();
 				}
 			});
-			
-			ContextMenu menu = new ContextMenu(setAsLetest);
+
+			MenuItem allfiles = new MenuItem("All files");
+			allfiles.setOnAction(e_e -> {
+				if(filteredFileTree.get() == null)
+					if(!loadFileTree())
+						return;
+				FilesView.open(config, config.getFileTree(), FilesViewMode.ALL);
+			});
+
+			ContextMenu menu = new ContextMenu(setAsLetest, allfiles);
 			menu.show(App.getStage(), e.getScreenX(), e.getScreenY());
 		});
 	}
@@ -151,7 +165,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	public void handle(ButtonType type) {
 		switch (type) {
 			case FILES:
-				FilesView.open(config, filteredFileTree, FilesViewMode.BACKUP);
+				FilesView.open(config, filteredFileTree.get(), FilesViewMode.BACKUP);
 				break;
 			case WALK:
 				button.setType(ButtonType.LOADING);
@@ -237,32 +251,38 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		});
 	}
 
-	private volatile FilteredFileTree filteredFileTree;
+	private final SimpleObjectProperty<FilteredFileTree>  filteredFileTree = new SimpleObjectProperty<>();
 
 	@Override
 	public void walkCompleted() {
-		runLater(() -> {
-			 filteredFileTree = config.getFileTree().getFilteredView(FileTreeEntity::isBackupable);
 
-			if(filteredFileTree.isEmpty()) {
+		FilteredFileTree ft =  new FilteredFileTree(config.getFileTree(), FileTreeEntity::isBackupable);
+
+		runLater(() -> {
+			filteredFileTree.set(ft);
+			if(ft.isEmpty()) {
 				finish("Nothing to backup/delete", false);
 				startEndAction.onComplete(this);
-				return;
 			}
+		});
 
-			button.setType(ButtonType.FILES);
-			
-			long[] l = {0,0};
-			
-			filteredFileTree.walk(new SimpleFileTreeWalker() {
-				@Override
-				public FileVisitResult file(FileEntity ft) {
-					l[0]++;
-					l[1] += ft.getSourceSize();
-					return FileVisitResult.CONTINUE;
-				}
-			});
+		if(ft.isEmpty()) 
+			return;
 
+		runLater(() -> button.setType(ButtonType.FILES));
+
+		long[] l = {0,0};
+
+		ft.walk(new SimpleFileTreeWalker() {
+			@Override
+			public FileVisitResult file(FileEntity ft) {
+				l[0]++;
+				l[1] += ft.getSourceSize();
+				return FileVisitResult.CONTINUE;
+			}
+		});
+
+		runLater(() -> {
 			backupSizeT.setText(bytesToString(l[1]));
 			backupFileCountT.setText(String.valueOf(l[0]));
 			startEndAction.onComplete(this);
@@ -283,9 +303,35 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		bottomText.setText(msg);
 	}
 	public boolean hashBackups() {
-		return filteredFileTree != null && !filteredFileTree.isEmpty();
+		return filteredFileTree.get() != null && !filteredFileTree.get().isEmpty();
 	}
 	public FilteredFileTree getFilteredFileTree() {
-		return filteredFileTree;
+		return filteredFileTree.get();
+	}
+	public boolean loadFileTree() {
+		if(config.getFileTree() != null)
+			return true;
+
+		if(config.getDepth() <= 0) {
+			runLater(() -> finish("Walk failed: \nbad value for depth: "+config.getDepth(), true));
+			return false;
+		}
+		if(config.getFileTree() == null) {
+			FileTree ft;
+			try {
+				ft = readFiletree(config, true);
+			} catch (IOException e) {
+				showErrorDialog(null, "failed to read TreeFile: ", e);
+				LOGGER.error("failed to read TreeFile: ", e);
+				return false;
+			}
+			if(ft == null) {
+				ft = new FileTree(config); 
+				config.setFileTree(ft);	
+			} else
+				config.setFileTree(ft);
+			return true;
+		}
+		return false;
 	}
 }

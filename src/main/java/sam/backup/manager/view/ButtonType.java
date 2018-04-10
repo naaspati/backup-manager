@@ -1,6 +1,7 @@
 package sam.backup.manager.view;
 
 public enum ButtonType {
+	OK,
 	CANCEL, 
 	WALK, 
 	UPLOAD, 

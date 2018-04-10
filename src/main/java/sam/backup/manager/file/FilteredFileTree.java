@@ -9,7 +9,7 @@ import sam.backup.manager.walk.WalkMode;
 public class FilteredFileTree extends FilteredDirEntity {
 	private final FileTree ft;
 
-	FilteredFileTree(FileTree ft, Predicate<FileTreeEntity> filter) {
+	public FilteredFileTree(FileTree ft, Predicate<FileTreeEntity> filter) {
 		super(ft, null, filter);
 		this.ft = ft;
 		

@@ -3,9 +3,10 @@ package sam.backup.manager.file;
 import java.nio.file.Path;
 
 public class AttrsKeeper {
+	private Path path;
 	private Attrs old;
 	private Attrs current;
-	private Path path;
+	
 
 	AttrsKeeper() {}
 	AttrsKeeper(Attrs old) {
@@ -42,5 +43,26 @@ public class AttrsKeeper {
 	void set(Attrs current, Path fullpath) {
 		this.current = current;
 		this.path = fullpath;
+	}
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("AttrsKeeper [");
+		if (path != null) {
+			sb.append("path=");
+			sb.append(path);
+			sb.append(", ");
+		}
+		if (old != null) {
+			sb.append("old=");
+			sb.append(old);
+			sb.append(", ");
+		}
+		if (current != null) {
+			sb.append("current=");
+			sb.append(current);
+		}
+		sb.append("]");
+		return sb.toString();
 	}
 }

@@ -2,7 +2,6 @@ package sam.backup.manager.file;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.IdentityHashMap;
 import java.util.function.Predicate;
 
 import sam.myutils.MyUtils;
@@ -24,23 +23,7 @@ public class FileTreeString implements CharSequence {
 		this(dir, (Predicate<FileTreeEntity>)null);
 	}
 	public FileTreeString(DirEntity dir, Collection<? extends FileTreeEntity> containsIn) {
-		this(dir, filter(containsIn));
-	}
-	
-	private static Predicate<FileTreeEntity> filter(Collection<? extends FileTreeEntity> containsIn) {
-		if(containsIn.isEmpty())
-			return (p -> false);
-		
-		IdentityHashMap<FileTreeEntity, Void> map = new IdentityHashMap<>();
-		for (FileTreeEntity f : containsIn) {
-			map.put(f, null);
-			while((f = f.getParent()) != null) map.put(f, null);
-		}
-		return f -> {
-			if(f instanceof FilteredDirEntity && map.containsKey(((FilteredDirEntity)f).getDir()))
-				return true;
-			return map.containsKey(f);
-		};
+		this(dir, new ContainsInFilter(containsIn));
 	}
 	private void walk(final char[] separator, DirEntity dir) {
 		dir.sort((f1, f2) -> {

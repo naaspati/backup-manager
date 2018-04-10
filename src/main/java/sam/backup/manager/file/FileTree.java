@@ -6,9 +6,9 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Predicate;
 
 import sam.backup.manager.config.Config;
+import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.walk.WalkMode;
 
@@ -143,26 +143,8 @@ public class FileTree extends DirEntity {
 	}
 	@Override
 	public Path getBackupPath() {
-		return config == null ? null : config.getTarget();
+		return config == null || !RootConfig.backupDriveFound() ? null : config.getTarget();
 	}
-	@Override
-	public AttrsKeeper getSourceAttrs() {
-		if(super.getSourceAttrs().getPath() != getFileName())
-			super.getSourceAttrs().setPath(getFileName());
-		
-		return super.getSourceAttrs();
-	}
-	@Override
-	public AttrsKeeper getBackupAttrs() {
-		if(config != null && super.getBackupAttrs().getPath() != config.getTarget())
-			super.getBackupAttrs().setPath(config.getTarget());
-		
-		return super.getBackupAttrs();
-	}
-	public FilteredFileTree getFilteredView(Predicate<FileTreeEntity> filter) {
-		return new FilteredFileTree(this, filter); 
-	}
-
 	public void setAttr(Attrs attr, WalkMode walkType, Path fullpath) {
 		super.setAttrs(attr, walkType, fullpath);
 	}

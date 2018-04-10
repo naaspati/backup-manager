@@ -27,7 +27,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.view.FilesView;
-import sam.backup.manager.config.view.FilesView.FilesViewMode;
+import sam.backup.manager.config.view.FilesViewMode;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;

@@ -123,16 +123,32 @@ public abstract class FileTreeEntity {
 		return sourceAttrs.getSize();
 	}
 	public Path getSourcePath() {
-		return sourceAttrs.getPath();
+		Path  p = sourceAttrs.getPath();
+		if(p == null) {
+			p = parent.getSourcePath();
+			if(p != null)
+				p = p.resolve(getFileName());
+		}
+		return p;
 	}
 	public Path getBackupPath() {
 		Path  p = backupAttrs.getPath();
-		if(p == null)
-			p = parent.getBackupPath().resolve(getFileName());
+		if(p == null) {
+			p = parent.getBackupPath();
+			if(p != null)
+				p = p.resolve(getFileName());
+		}
 		return p;
 	}
 	protected void markUpdated() {
 		sourceAttrs.setUpdated();
 		backupAttrs.setUpdated();
+	}
+	/**
+	 * remove from parent
+	 */
+	public void remove() {
+		if(parent != null)
+			parent.remove(this);
 	}
 }

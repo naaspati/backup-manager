@@ -134,7 +134,7 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 	public Iterator<FileTreeEntity> iterator() {
 		return children.iterator();
 	}
-	public boolean remove(FileTreeEntity ft) {
+	boolean remove(FileTreeEntity ft) {
 		return children.remove(ft);
 	}
 	public boolean hasDeletable() {

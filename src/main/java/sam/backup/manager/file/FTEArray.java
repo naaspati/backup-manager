@@ -1,14 +1,16 @@
 package sam.backup.manager.file;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.stream.Stream;
 
 /**
- * FileTreeEntityArray
+ * too reduce array copies,
+ * I DONT REMEMER why i using this, instead of a {@link ArrayList}
+ * FileTreeEntityArray 
  * @author Sameer
- *
  */
 class FTEArray implements Iterable<FileTreeEntity> {
 	private FileTreeEntity[] array; 

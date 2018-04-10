@@ -8,6 +8,7 @@ public enum Options {
 	/**
 	 * dont list files (only dirs)
 	 */
-	SKIP_FILES
+	SKIP_FILES,
+	
 
 }

@@ -8,6 +8,7 @@ import static java.nio.file.FileVisitResult.TERMINATE;
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.stream.Stream;
@@ -15,25 +16,25 @@ import java.util.stream.Stream;
 import sam.backup.manager.walk.WalkMode;
 
 public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntity>  {
-	private final FTEArray children;
+	private final ArrayList<FileTreeEntity> children;
 	private boolean walked;
-	
+
 	public DirEntity(DirEntity e, DirEntity parent) {
 		super(e, parent);
 		this.walked = e.walked;
-		children = new FTEArray(0);
+		children = new ArrayList<>(e.children.size());
 	}
 	DirEntity(Path path, DirEntity parent) {
 		super(path, parent);
-		children = new FTEArray();
+		children = new ArrayList<>(0);
 	}
-	
+
 	public DirEntity(String fileNameString, DirEntity parent, Attrs sourceAttr, Attrs backupAttr) {
 		super(fileNameString, parent, sourceAttr, backupAttr);
-		this.children = new FTEArray(0);
+		children = new ArrayList<>(0);
 	}
-	protected void setChildren(FileTreeEntity[] children) {
-		this.children.setAll(children);
+	protected void add(FileTreeEntity file) {
+		children.add(file);
 	}
 	@Override
 	public boolean isDirectory() {
@@ -77,11 +78,11 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 		}
 		return CONTINUE;
 	}
-	
+
 	long computeSize(WalkMode w) {
 		if(!walked)
 			return 0;
-		
+
 		if(isEmpty()) {
 			atrk(w, this).setCurrentSize(0);
 			return 0;
@@ -90,8 +91,8 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 		for (FileTreeEntity f : this) 
 			size += f.isDirectory() ? f.asDir().computeSize(w) : size(atrk(w,f));			
 
-		atrk(w, this).setCurrentSize(size);
-		return size;
+			atrk(w, this).setCurrentSize(size);
+			return size;
 	}
 	private long size(AttrsKeeper atrk) {
 		return atrk.getCurrent() == null && atrk.getOld() == null ? 0 : atrk.getCurrent() == null ? atrk.getOld().size : atrk.getCurrent().size;
@@ -155,6 +156,9 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 	}
 	void sort(Comparator<FileTreeEntity> comparator) {
 		children.sort(comparator);
+	}
+	void setSize(int size) {
+		children.ensureCapacity(size);	
 	}
 }
 

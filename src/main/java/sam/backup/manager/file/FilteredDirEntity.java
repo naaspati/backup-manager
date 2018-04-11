@@ -9,11 +9,11 @@ public class FilteredDirEntity extends DirEntity {
 	FilteredDirEntity(DirEntity dir, FilteredDirEntity parent, Predicate<FileTreeEntity> filter) {
 		super(dir, parent);
 
-		setChildren(dir.stream()
-				.filter(filter)
-				.map(f -> f.isDirectory() ? new FilteredDirEntity(f.asDir(), this, filter) : f)
-				.filter(f -> f.isDirectory() ? !((FilteredDirEntity)f).isEmpty() : true)
-				.toArray(FileTreeEntity[]::new));
+		dir.stream()
+		.filter(filter)
+		.map(f -> f.isDirectory() ? new FilteredDirEntity(f.asDir(), this, filter) : f)
+		.filter(f -> f.isDirectory() ? !((FilteredDirEntity)f).isEmpty() : true)
+		.forEach(this::add);
 
 		this.dir = dir;
 		this.filter = filter;

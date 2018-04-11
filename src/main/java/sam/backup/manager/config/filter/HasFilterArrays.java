@@ -11,9 +11,9 @@ public interface HasFilterArrays {
 		StringBuilder2 sb = new StringBuilder2();
 		
 		getArrays().forEach((s,t) -> {
-			sb.a(s).a("  ").a('[')
-			.aJoined(", ", t)
-			.a("]\n");
+			sb.append(s).append("  ").append('[')
+			.appendJoined(", ", t)
+			.append("]\n");
 		});
 		
 		return sb.toString();

@@ -38,13 +38,10 @@ public class FileTreeReader {
 		int size = dis.readInt();
 		if(size == 0)
 			return;
+		parent.setSize(size);
 		
-		FileTreeEntity[] fts = new FileTreeEntity[size];
-		
-		for (int i = 0; i < fts.length; i++)
-			fts[i] = dis.readBoolean() ? readDir(parent) : new FileEntity(dis.readUTF(), parent, readAttr(), readAttr());
-			
-		parent.setChildren(fts);
+		for (int i = 0; i < size; i++)
+			parent.add(dis.readBoolean() ? readDir(parent) : new FileEntity(dis.readUTF(), parent, readAttr(), readAttr()));
 	}
 	private Attrs readAttr() throws IOException {
 		return new Attrs(dis.readLong(), dis.readLong());

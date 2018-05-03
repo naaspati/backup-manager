@@ -54,10 +54,10 @@ import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.SimpleFileTreeWalker;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.collection.WeakStore;
 import sam.fileutils.FilesUtils;
 import sam.fx.alert.FxAlert;
-import sam.fx.helpers.FxHelpers;
+import sam.fx.helpers.FxGridPane;
+import sam.weak.WeakStore;
 
 public class FilesView extends BorderPane {
 	private static WeakStore<FilesView> views = new WeakStore<>(); 
@@ -80,10 +80,10 @@ public class FilesView extends BorderPane {
 		}
 		return stage;
 	}
-	public static Stage open(Config config, DirEntity root, FilesViewMode mode, Button...buttons) {
-		return open(config, root, mode, null, buttons);
+	public static Stage open(String title, Config config, DirEntity root, FilesViewMode mode, Button...buttons) {
+		return open(title, config, root, mode, null, buttons);
 	}
-	public static Stage open(Config config, DirEntity root, FilesViewMode mode,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
+	public static Stage open(String title, Config config, DirEntity root, FilesViewMode mode,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
 		Stage stage = getStage();
 		FilesView v = views.stream().filter(f -> f.fileTree == root && f.mode == mode).findFirst().orElse(null);
 		if(v == null) {
@@ -92,6 +92,7 @@ public class FilesView extends BorderPane {
 		}
 
 		stage.getScene().setRoot(v);
+		stage.setTitle(title);
 		if(onCloseRequest != null)
 			stage.setOnCloseRequest(onCloseRequest);
 		stage.show();
@@ -234,7 +235,7 @@ public class FilesView extends BorderPane {
 		final Hyperlink trgtLink = new Hyperlink();
 		final TextArea about = new TextArea();
 		final StringBuilder sb = new StringBuilder();
-		final GridPane grid = FxHelpers.gridPane(5);
+		final GridPane grid = FxGridPane.gridPane(5);
 
 		AboutPane() {
 			super(10);

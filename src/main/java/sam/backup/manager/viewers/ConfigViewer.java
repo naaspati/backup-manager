@@ -2,7 +2,7 @@ package sam.backup.manager.viewers;
 
 import javafx.scene.Node;
 import sam.backup.manager.config.view.ConfigView;
-import sam.fx.helpers.FxHelpers;
+import sam.fx.helpers.FxText;
 
 public class ConfigViewer extends ScrollPane2<ConfigView> implements Viewer {
 	private static volatile ConfigViewer instance;
@@ -22,6 +22,6 @@ public class ConfigViewer extends ScrollPane2<ConfigView> implements Viewer {
 	}
 	@Override
 	public Node disabledView() {
-		return FxHelpers.text("No Backup Tasks Found", DISABLE_TEXT_CLASS);
+		return FxText.of("No Backup Tasks Found", DISABLE_TEXT_CLASS);
 	}
 }

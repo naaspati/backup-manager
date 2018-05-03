@@ -57,8 +57,6 @@ class Walker implements FileVisitor<Path>{
 		this.config = config;
 		this.listener = listener;
 	}
-
-
 	void walk(Path start, IFilter excluder, WalkMode mode) throws IOException {
 		this.excluder = excluder;
 		this.walkMode = mode;

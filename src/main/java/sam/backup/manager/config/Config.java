@@ -35,8 +35,8 @@ public class Config extends ConfigBase implements Serializable {
 		return sourceP != null ? sourceP :  (sourceP = _getSource());
 	}
 	private Path _getSource() {
-		if(source.startsWith("%root%") || source.startsWith("%ROOT%"))
-			return Paths.get((root.getFullBackupRoot() == null ? "G:/Sameer" : root.getFullBackupRoot().toString()) + source.substring(6)); 
+		if(source.startsWith("%backupRoot%"))
+			return Paths.get((root.getFullBackupRoot() == null ? "G:/Sameer" : root.getFullBackupRoot().toString()) + source.substring("%backupRoot%".length())); 
 
 		return Paths.get(source);
 	}

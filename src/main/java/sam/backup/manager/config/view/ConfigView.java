@@ -23,17 +23,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.event.ActionEvent;
 import javafx.geometry.HPos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
-import javafx.scene.control.MenuItem;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
+import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
@@ -49,7 +50,9 @@ import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
-import sam.fx.helpers.FxHelpers;
+import sam.fx.helpers.FxLabel;
+import sam.fx.helpers.FxMenu;
+import sam.fx.helpers.FxText;
 import sam.fx.popup.FxPopupShop;
 
 public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler, WalkListener {
@@ -74,7 +77,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 
 		this.startEndAction = startEndAction;
 
-		Label l = FxHelpers.label(String.valueOf(config.getSource()),"title");
+		Label l = FxLabel.label(String.valueOf(config.getSource()),"title");
 		l.setMaxWidth(Double.MAX_VALUE);
 		setTop(l);
 		l.setOnMouseClicked(e -> {
@@ -105,7 +108,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		container.addRow(row, text("Last updated: "));
 		container.add(text(lastUpdated == null ? "N/A" : millsToTimeString(lastUpdated)), 1, row++, REMAINING, 1);
 
-		Label t = FxHelpers.label("SUMMERY", "summery");
+		Label t = FxLabel.label("SUMMERY", "summery");
 		container.add(t, 0, row++, REMAINING, 2);
 		GridPane.setHalignment(t, HPos.CENTER);
 		GridPane.setValignment(t, VPos.BOTTOM);
@@ -130,42 +133,44 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		container.add(bottomText, 1, row++, REMAINING, REMAINING);
 	}
 	private void setContextMenu() {
+		if(!RootConfig.backupDriveFound())
+			return;
+		
 		setOnContextMenuRequested(e -> {
-			MenuItem setAsLetest = new MenuItem("Set as letest");
-			setAsLetest.disableProperty().bind(filteredFileTree.isNull());
-			setAsLetest.setOnAction(e_e -> {
-				config.getFileTree().forcedMarkUpdated();
-				try {
-					Utils.saveFiletree(config, true);
-					FxPopupShop.showHidePopup("marked as letest", 1500);
-				} catch (IOException e1) {
-					e1.printStackTrace();
-				}
-			});
-
-			MenuItem allfiles = new MenuItem("All files");
-			allfiles.setOnAction(e_e -> {
-				if(filteredFileTree.get() == null)
-					if(!loadFileTree())
-						return;
-				FilesView.open(config, config.getFileTree(), FilesViewMode.ALL);
-			});
-
-			ContextMenu menu = new ContextMenu(setAsLetest, allfiles);
+			ContextMenu menu = new ContextMenu( 
+					FxMenu.menuitem("Set as latest", this::setAsLatestAction, filteredFileTree.isNull()),
+					FxMenu.menuitem("All files", this::allfilesAction),
+					FxMenu.menuitem("clean backup", e1 -> new BackupCleanup(config))
+					) ;
 			menu.show(App.getStage(), e.getScreenX(), e.getScreenY());
 		});
 	}
+	private void allfilesAction(ActionEvent e) {
+		if(filteredFileTree.get() == null)
+			if(!loadFileTree())
+				return;
+		FilesView.open("all files",config, config.getFileTree(), FilesViewMode.ALL);
+	}
+	private void setAsLatestAction(ActionEvent e) {
+		config.getFileTree().forcedMarkUpdated();
+		try {
+			Utils.saveFiletree(config, true);
+			FxPopupShop.showHidePopup("marked as letest", 1500);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+	};
 	private Node header(String string) {
 		return addClass(new Label(string), "text", "header");
 	}
 	private Text text(String str) {
-		return FxHelpers.text(str, "text");
+		return FxText.of(str, "text");
 	}
 	@Override
 	public void handle(ButtonType type) {
 		switch (type) {
 			case FILES:
-				FilesView.open(config, filteredFileTree.get(), FilesViewMode.BACKUP);
+				FilesView.open("select files to backup", config, filteredFileTree.get(), FilesViewMode.BACKUP);
 				break;
 			case WALK:
 				button.setType(ButtonType.LOADING);

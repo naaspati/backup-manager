@@ -11,7 +11,6 @@ public class ContainsInFilter implements Predicate<FileTreeEntity> {
 		if(containsIn.isEmpty())
 			return;
 		
-		IdentityHashMap<FileTreeEntity, Void> map = new IdentityHashMap<>();
 		for (FileTreeEntity f : containsIn) {
 			map.put(f, null);
 			while((f = f.getParent()) != null) map.put(f, null);

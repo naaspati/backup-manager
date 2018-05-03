@@ -10,7 +10,6 @@ import static sam.backup.manager.extra.Utils.format;
 import static sam.backup.manager.extra.Utils.millisToString;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
-import static sam.fx.helpers.FxHelpers.button;
 
 import java.nio.file.Path;
 
@@ -39,6 +38,7 @@ import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.view.IUpdatable;
 import sam.backup.manager.view.StatusView;
+import sam.fx.helpers.FxButton;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.MyUtils;
 
@@ -120,7 +120,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 				stop();	
 				break;
 			case FILES:
-				FilesView.open(config, fileTree, FilesViewMode.BACKUP).setOnCloseRequest(e -> update());	
+				FilesView.open("select files to backup", config, fileTree, FilesViewMode.BACKUP).setOnCloseRequest(e -> update());	
 				break;
 			default:
 				throw new IllegalStateException("unknown action: "+type);
@@ -214,7 +214,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		Pane p = new Pane();
 		p.setMaxWidth(Double.MAX_VALUE);
 		HBox.setHgrow(p, Priority.ALWAYS);
-		HBox top = new HBox(getHeaderText(), p, button("close", "Delete_10px.png", e -> ((Pane)getParent()).getChildren().remove(this)));
+		HBox top = new HBox(getHeaderText(), p, FxButton.button("close", "Delete_10px.png", e -> ((Pane)getParent()).getChildren().remove(this)));
 
 		Text  t = new Text(
 				new StringBuilder("COMPLETED")

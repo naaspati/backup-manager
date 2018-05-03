@@ -1,11 +1,5 @@
 package sam.backup.manager.walk;
 
-import static sam.backup.manager.extra.Utils.TEMPS_DIR;
-import static sam.backup.manager.extra.Utils.hashedName;
-import static sam.backup.manager.extra.Utils.subpath;
-
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -14,8 +8,7 @@ import java.time.format.FormatStyle;
 import org.apache.logging.log4j.LogManager;
 
 import sam.backup.manager.config.Config;
-import sam.fileutils.FilesUtils;
-import sam.fx.popup.FxPopupShop;
+import sam.backup.manager.extra.Utils;
 
 class SaveExcludeFilesList {
 	public SaveExcludeFilesList(WalkMode initialWalkMode, Config config, Walker walker) {
@@ -35,14 +28,6 @@ class SaveExcludeFilesList {
 		}
 		sb.append("\n\n-------------------------------------------------\n\n");
 
-		Path p = TEMPS_DIR.resolve("excluded-files/"+initialWalkMode).resolve(hashedName(config.getSource(), ".txt"));
-		try {
-			Files.createDirectories(p.getParent());
-			FilesUtils.appendFileAtTop(sb.toString().getBytes(), p);
-			LogManager.getLogger(getClass()).info("created: {}", subpath(p, TEMPS_DIR));
-		} catch (IOException e) {
-			LogManager.getLogger(getClass()).error("error occured while saving: "+p, e);
-			FxPopupShop.showHidePopup("error occured", 1500);
-		}
+		Utils.writeInTempDir("excluded-files/"+initialWalkMode, config.getSource(), ".txt", sb, LogManager.getLogger(SaveExcludeFilesList.class));
 	}
 }

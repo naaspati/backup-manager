@@ -6,7 +6,7 @@ import sam.backup.manager.transfer.TransferView;
 import sam.backup.manager.view.IUpdatable;
 import sam.backup.manager.view.StatusView;
 import sam.fx.helpers.FxClassHelper;
-import sam.fx.helpers.FxHelpers;
+import sam.fx.helpers.FxText;
 
 public class TransferViewer extends BorderPane implements Viewer, IUpdatable {
 	
@@ -33,7 +33,7 @@ public class TransferViewer extends BorderPane implements Viewer, IUpdatable {
 	}
 	@Override
 	public Node disabledView() {
-		return FxHelpers.text("Nothing To Transfer", DISABLE_TEXT_CLASS);
+		return FxText.of("Nothing To Transfer", DISABLE_TEXT_CLASS);
 	}
 	public void setStatusView(StatusView statusView) {
 		setBottom(statusView);

@@ -62,6 +62,9 @@ public class WalkTask implements Runnable {
 				} else 
 					logger.debug("source walk skipped: {}", root);
 			}
+			
+			if(canceler.isCancelled())
+				return; //TODO feed cancel event to listener
 
 			sourceWalkFailed = false;
 

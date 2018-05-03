@@ -10,7 +10,6 @@ import static sam.backup.manager.extra.Utils.showErrorDialog;
 import static sam.backup.manager.extra.Utils.showStage;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
-import static sam.fx.helpers.FxHelpers.text;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -41,6 +40,7 @@ import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.console.ANSI;
+import sam.fx.helpers.FxText;
 import sam.fx.popup.FxPopupShop;
 import sam.string.StringUtils;
 
@@ -66,17 +66,17 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 		if(src == null || Files.notExists(src)) {
 			Hyperlink h = new Hyperlink(String.valueOf(src));
 			addClass(h, "header");
-			getChildren().addAll(h, text("Last updated: "+millsToTimeString(lastUpdated)));
+			getChildren().addAll(h, FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)));
 			setDisable(true);
 		} else {
 			button = new CustomButton(ButtonType.WALK, this);
 
 			Hyperlink header = hyperlink(src);
 			addClass(header, "header");
-			fileCountT = text("  Files: --", "count-text");
-			dirCountT = text("  Dirs: --", "count-text");
+			fileCountT = FxText.of("  Files: --", "count-text");
+			dirCountT = FxText.of("  Dirs: --", "count-text");
 
-			getChildren().addAll(header, new HBox(10, fileCountT, dirCountT), text("Last updated: "+millsToTimeString(lastUpdated)), button);
+			getChildren().addAll(header, new HBox(10, fileCountT, dirCountT), FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)), button);
 		}
 
 

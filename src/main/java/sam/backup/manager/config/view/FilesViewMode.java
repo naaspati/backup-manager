@@ -8,12 +8,6 @@ public interface FilesViewMode {
 		@Override public boolean isSelectable() { return true; }
 		@Override public boolean get(FileTreeEntity file) {return file.isBackupable();}
 	}; 
-	public static FilesViewMode DELETE = new FilesViewMode() {
-		@Override public void set(FileTreeEntity ft, boolean value) { ft.setDeletable(value); }
-		@Override public boolean isSelectable() { return true; }
-		@Override public boolean get(FileTreeEntity file) {return file.isDeletable();}
-		
-	};;
 	public static FilesViewMode ALL = new FilesViewMode() {
 		@Override public void set(FileTreeEntity ft, boolean value) { }
 		@Override public boolean isSelectable() { return false; }

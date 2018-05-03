@@ -4,6 +4,7 @@ import static javafx.application.Platform.runLater;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -43,20 +44,21 @@ import sam.fileutils.FilesUtils;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.tsv.TsvMap;
+import sam.tsv.tsvmap.TsvMapFactory;
 
 public class Utils {
-	public static final Path APP_DATA_DIR = getAppDir();
-	public static final Path TEMPS_DIR = APP_DATA_DIR.resolve("temps");
-	public static final ExecutorService threadPool = Executors.newSingleThreadExecutor();
 	private static final Logger LOGGER =  LogManager.getLogger(Utils.class);
+	
+	public static final Path APP_DATA_DIR;
+	public static final Path TEMPS_DIR;
+	public static final ExecutorService threadPool = Executors.newSingleThreadExecutor();
 
 	private Utils() {}
 	
 	static {
 		ResourceBundle rb = ResourceBundle.getBundle("app-config");
-		rb.keySet().forEach(s -> System.setProperty(s, rb.getString(s))); 
-	}
-	private static Path getAppDir() {
+		rb.keySet().forEach(s -> System.setProperty(s, rb.getString(s)));
+		
 		String s = System.getenv("APP_DATA_DIR");
 		if(s == null)
 			s = System.getProperty("APP_DATA_DIR");
@@ -67,8 +69,12 @@ public class Utils {
 		if(s == null)
 			s = "app_data";
 		
-		return Paths.get(s);
+		APP_DATA_DIR = Paths.get(s);
+		TEMPS_DIR = APP_DATA_DIR.resolve("temps");
+		
+		LOGGER.debug("\n  app_dir: {}\n  temp_dir: {}", APP_DATA_DIR.toAbsolutePath().normalize(), TEMPS_DIR.toAbsolutePath().normalize());
 	}
+	
 	public static void run(Runnable r) {
 		threadPool.execute(r);
 	}
@@ -202,8 +208,8 @@ public class Utils {
 		if(backupLastPerformed != null)
 			return;
 		Path p = getBackupLastPerformedPathTimeMapPath();
-		try {
-			backupLastPerformed =  TsvMap.parse(p, Long::parseLong, false);
+		try(InputStream is = Files.newInputStream(p)) {
+			backupLastPerformed =  TsvMapFactory.builder(false, s -> s, Long::parseLong).parse(is);
 		} catch (IOException e) {
 			LOGGER.warn("failed to read: {}", p, e);
 			backupLastPerformed = new TsvMap<>();
@@ -294,9 +300,21 @@ public class Utils {
 	}
 
 	public static void write(Path path, CharSequence data) throws IOException {
+		Files.createDirectories(path.getParent());
 		FilesUtils.write(path, data, StandardCharsets.UTF_8,false, CodingErrorAction.REPLACE,CodingErrorAction.REPLACE);
 	}
-
+	public static void writeInTempDir(String dir, Path parent, String ext, CharSequence data, Logger logger) {
+		Path path  = Utils.TEMPS_DIR.resolve(dir).resolve(hashedName(parent, ext));
+		
+		try {
+			write(path, data);
+			logger.info("created: %temp%\\"+ subpath(path, parent));
+		} catch (IOException e) {
+			logger.info("failed to write: %temp%\\"+subpath(path, parent));
+			FxPopupShop.showHidePopup("error occured", 1500);
+		}
+	}
+	
 	public static void stop() throws InterruptedException {
 		if(backupLastPerformedModified)
 			Utils.saveBackupLastPerformedPathTimeMap(backupLastPerformed);

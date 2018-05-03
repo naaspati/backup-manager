@@ -1,7 +1,7 @@
 
 package sam.backup.manager;
 import static javafx.application.Platform.runLater;
-import static sam.fx.helpers.FxManuItemMaker.menuitem;
+import static sam.fx.helpers.FxMenu.menuitem;
 
 import java.io.File;
 import java.io.IOException;

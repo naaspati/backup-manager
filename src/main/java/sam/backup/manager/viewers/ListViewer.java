@@ -16,7 +16,7 @@ import javafx.stage.Stage;
 import sam.backup.manager.config.view.ListingView;
 import sam.backup.manager.extra.Utils;
 import sam.fx.helpers.FxClassHelper;
-import sam.fx.helpers.FxHelpers;
+import sam.fx.helpers.FxText;
 
 public class ListViewer extends BorderPane implements Viewer {
 	private static volatile ListViewer instance;
@@ -35,7 +35,7 @@ public class ListViewer extends BorderPane implements Viewer {
 
 	@Override
 	public Node disabledView() {
-		return FxHelpers.text("No Listing tasks Found", DISABLE_TEXT_CLASS);
+		return FxText.of("No Listing tasks Found", DISABLE_TEXT_CLASS);
 	}
 	private ListViewer() {
 		FxClassHelper.setClass(this, "list-viewer");

@@ -6,9 +6,6 @@ import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 import static sam.backup.manager.extra.State.CANCELLED;
 import static sam.backup.manager.extra.State.COMPLETED;
-import static sam.backup.manager.extra.Utils.TEMPS_DIR;
-import static sam.backup.manager.extra.Utils.hashedName;
-import static sam.backup.manager.extra.Utils.write;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +35,7 @@ import sam.backup.manager.config.StoringSetting;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.State;
+import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTreeEntity;
@@ -46,8 +44,8 @@ import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.file.FilteredDirEntity;
 import sam.backup.manager.file.FilteredFileTree;
 import sam.backup.manager.file.SimpleFileTreeWalker;
-import sam.collection.WeakStore;
 import sam.myutils.MyUtils;
+import sam.weak.WeakStore;
 
 class Transferer implements Callable<State> {
 	// https://en.wikipedia.org/wiki/Zip_(file_format)
@@ -78,6 +76,9 @@ class Transferer implements Callable<State> {
 
 	private volatile long currentBytesRead;
 	private volatile long currentFileSize;
+	
+	private byte[] bytes;
+	private List<FileTreeEntity> toBeRemoved;
 
 	public Transferer(Config config, FilteredFileTree filesTree, ICanceler canceler, TransferListener listener) {
 		this.filesTree = filesTree;
@@ -149,33 +150,13 @@ class Transferer implements Callable<State> {
 				return FileVisitResult.CONTINUE;
 			}
 		});
-		log();
-	}
-	private void log() {
-		Path p = TEMPS_DIR.resolve("transfer-log");
-		try {
-			Files.createDirectories(p);
-			
-			save(zips, "-zips-save.txt");
-			save(files, "-files-save.txt");
-		} catch (Exception e) {
-			LOGGER.warn("failed to create dir: {}",p, e);
-		}
+		
+		save(zips, "-zips-save.txt");
+		save(files, "-files-save.txt");
 	}
 	private <E extends FileTreeEntity> void save(List<E> files, String ext) {
-		Path path = TEMPS_DIR.resolve("transfer-log/"+hashedName(filesTree.getSourcePath(), ext));
-		try { // TODO
-			if(!files.isEmpty()) {
-				write(path, new FileTreeString(filesTree, files));
-				LOGGER.info("created: {}", path);
-			}  else {
-				Files.deleteIfExists(path);
-			}
-		} catch (IOException e) {
-			LOGGER.warn("failed to save: {}", path, e);
-		}
+		Utils.writeInTempDir("transfer-log", filesTree.getSourcePath(), ext, new FileTreeString(filesTree, files), LOGGER);
 	}
-
 	private ByteBuffer buffer;
 
 	@Override
@@ -186,6 +167,8 @@ class Transferer implements Callable<State> {
 					return CANCELLED;
 			}
 			State state = startCopy();
+			if(toBeRemoved != null)
+				toBeRemoved.forEach(FileTreeEntity::remove);
 			filesTree.updateDirAttrs();
 			return state;
 		} finally {
@@ -228,11 +211,12 @@ class Transferer implements Callable<State> {
 		filesCopied++;
 		listener.copyCompleted(src, target);
 	}
-
-	private byte[] bytes;
-
 	private State zipDir(FilteredDirEntity fdir) {
 		DirEntity dir = fdir.getDir();
+		
+		if(removeFromFileTree(dir))
+			return State.COMPLETED;
+		
 		newTask(dir);
 		if(dir.getSourceSize() > MAX_ZIP_SIZE)
 			throw new RuntimeException(String.format("zipfile size (%s) exceeds max allows size (%s)", MyUtils.bytesToHumanReadableUnits(dir.getSourceSize(), false), MyUtils.bytesToHumanReadableUnits(MAX_ZIP_SIZE, false)));
@@ -264,11 +248,18 @@ class Transferer implements Callable<State> {
 				dir.walk(new SimpleFileTreeWalker() {
 					@Override
 					public FileVisitResult file(FileEntity ft) {
+						if(removeFromFileTree(ft))
+							return FileVisitResult.CONTINUE;
+						
 						if(canceler.isCancelled()) {
 							cancel();
 							return FileVisitResult.TERMINATE;
 						}
 						src = ft.getSourcePath();
+						if(Files.notExists(src)) {
+							LOGGER.warn("file not found: {}", src);
+							return FileVisitResult.CONTINUE;
+						}
 						copyStart(ft);
 						
 						try {
@@ -284,6 +275,19 @@ class Transferer implements Callable<State> {
 						copyEnd(fdir);
 						return FileVisitResult.CONTINUE;
 					}
+					
+					@Override
+					public FileVisitResult dir(DirEntity ft) {
+						if(removeFromFileTree(dir))
+							return FileVisitResult.SKIP_SUBTREE;
+						
+						if(Files.notExists(ft.getSourcePath())) {
+							LOGGER.warn("file not found: {}", src);
+							return FileVisitResult.SKIP_SUBTREE;
+						}
+						return FileVisitResult.CONTINUE;
+					}
+					
 					private void cancel() {
 						delete[0] = true;
 						state[0] = State.CANCELLED;
@@ -307,6 +311,18 @@ class Transferer implements Callable<State> {
 			}
 		}
 		return state[0];
+	}
+
+	private boolean removeFromFileTree(FileTreeEntity dir) {
+		if(dir.getSourceAttrs().getCurrent() == null) {
+			LOGGER.debug("removed from filetree: {}", dir.getSourcePath());
+			if(toBeRemoved == null)
+				toBeRemoved = new ArrayList<>();
+			toBeRemoved.add(dir);
+			return true;
+		}
+		return false;
+			
 	}
 
 	private static Path renamePath(Path p, String end) {

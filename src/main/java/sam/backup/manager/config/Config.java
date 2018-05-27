@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.stream.Stream;
 
+import sam.backup.manager.Drive;
 import sam.backup.manager.config.filter.Filter;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.file.FileTree;
@@ -47,7 +48,7 @@ public class Config extends ConfigBase implements Serializable {
 		return target;	
 	}
 	public Path getTarget() {
-		if(targetP == null && RootConfig.backupDriveFound()) {
+		if(targetP == null && Drive.exists()) {
 			Path t = null;
 			if(target != null && (t = Paths.get(target)).getRoot() != null)
 				targetP = t;

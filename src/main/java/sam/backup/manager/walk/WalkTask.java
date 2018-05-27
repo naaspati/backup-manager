@@ -9,8 +9,8 @@ import java.util.IdentityHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import sam.backup.manager.Drive;
 import sam.backup.manager.config.Config;
-import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.file.FileTree;
 
@@ -68,7 +68,7 @@ public class WalkTask implements Runnable {
 
 			sourceWalkFailed = false;
 
-			boolean walk = !(config.isNoBackupWalk() || !RootConfig.backupDriveFound());
+			boolean walk = !(config.isNoBackupWalk() || !Drive.exists());
 
 			if(walk && initialWalkMode.isBackup()){
 				if(!backupWalkCompleted.containsKey(rootTree)) {

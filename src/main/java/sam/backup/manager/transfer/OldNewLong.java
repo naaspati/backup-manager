@@ -3,7 +3,7 @@ package sam.backup.manager.transfer;
 public class OldNewLong {
 	private final long old, _new;
 
-	OldNewLong(long old, long _new) {
+	public OldNewLong(long old, long _new) {
 		super();
 		this.old = old;
 		this._new = _new;

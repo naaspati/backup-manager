@@ -25,6 +25,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import sam.backup.manager.Drive;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.ICanceler;
@@ -217,7 +218,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	}
 	private Path toPath(String s, Path name) {
 		if(s.contains("%backupRoot%"))
-			return RootConfig.backupDriveFound() ? Paths.get(s.replace("%backupRoot%", RootConfig.fullBackupRoot().toString())).resolve(name) : null;
+			return Drive.exists() ? Paths.get(s.replace("%backupRoot%", RootConfig.fullBackupRoot().toString())).resolve(name) : null;
 		return Paths.get(s).resolve(name);
 	}
 

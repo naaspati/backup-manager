@@ -33,8 +33,8 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 import sam.backup.manager.App;
+import sam.backup.manager.Drive;
 import sam.backup.manager.config.Config;
-import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
@@ -133,7 +133,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		container.add(bottomText, 1, row++, REMAINING, REMAINING);
 	}
 	private void setContextMenu() {
-		if(!RootConfig.backupDriveFound())
+		if(!Drive.exists())
 			return;
 		
 		setOnContextMenuRequested(e -> {

@@ -5,7 +5,6 @@ import static sam.fx.helpers.FxMenu.menuitem;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,6 +45,7 @@ import sam.fx.popup.FxPopupShop;
 
 public class App extends Application {
 	private static final Logger LOGGER =  LogManager.getLogger(App.class);
+	
 	
 	private static Stage stage;
 	private static HostServices hs;
@@ -90,15 +90,8 @@ public class App extends Application {
 	}
 	private void secondStart() {
 		root = new ConfigReader().read();
-
-		Path drive = null;
-		for (Path p : FileSystems.getDefault().getRootDirectories()) {
-			if(Files.exists(p.resolve(".iambackup"))) {
-				drive = p;
-				break;
-			}
-		}
-		root.init(drive);
+		root.init();
+		
 		runLater(() -> {
 			aboutDriveView = new AboutDriveView(this.root);
 			rootContainer.setTop(new BorderPane(aboutDriveView, getMenubar(), null, null, null));

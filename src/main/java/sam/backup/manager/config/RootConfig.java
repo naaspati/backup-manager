@@ -14,20 +14,12 @@ import java.util.stream.Collectors;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import sam.backup.manager.Drive;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.Options;
 
 public class RootConfig extends ConfigBase {
 	private static final long serialVersionUID = 1L;
-
-	private static boolean backupDriveExists;
-
-	public static boolean backupDriveFound() {
-		return backupDriveExists;
-	}
-	public static Path fullBackupRoot() {
-		return fullBackupRoot;
-	}
 
 	private String backupRoot;
 	private Config[] backups;
@@ -37,10 +29,13 @@ public class RootConfig extends ConfigBase {
 	private transient Config[] _lists;
 
 	private static transient Path fullBackupRoot;
-
-	public void init(Path drive) {
+	
+	public void init() {
+		Path drive = Drive.DRIVE_LETTER;
 		fullBackupRoot = drive == null ? null : backupRoot == null ? drive : drive.resolve(backupRoot);
-		backupDriveExists = fullBackupRoot != null;
+	}
+	public static Path fullBackupRoot() {
+		return fullBackupRoot;
 	}
 
 	public Config findConfig(String name) {

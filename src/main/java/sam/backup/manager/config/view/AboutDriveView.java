@@ -11,6 +11,7 @@ import java.nio.file.Files;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import sam.backup.manager.Drive;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.extra.Utils;
 import sam.fx.helpers.FxText;
@@ -24,7 +25,7 @@ public class AboutDriveView extends VBox {
 		setClass(this, "root-view");
 		this.root = root;
 
-		if(!RootConfig.backupDriveFound()) {
+		if(!Drive.exists()) {
 			sizeText = null;
 			Text t = FxText.of("Drive Not Found", "full-path-text");
 			Text t2 = FxText.of("Drive must contain file ", "drive-warning-text-1");
@@ -45,7 +46,7 @@ public class AboutDriveView extends VBox {
 	}
 
 	public void refreshSize() {
-		if(!RootConfig.backupDriveFound())
+		if(!Drive.exists())
 			return;
 		try {
 			FileStore fs = Files.getFileStore(root.getFullBackupRoot().getRoot());

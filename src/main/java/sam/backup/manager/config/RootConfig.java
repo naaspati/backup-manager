@@ -1,42 +1,39 @@
 package sam.backup.manager.config;
 
+import static sam.backup.manager.extra.VariablesKeys.DETECTED_DRIVE;
+import static sam.backup.manager.extra.VariablesKeys.DETECTED_DRIVE_ID;
+
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import sam.backup.manager.Drive;
 import sam.backup.manager.config.filter.IFilter;
-import sam.backup.manager.extra.Options;
+import sam.myutils.MyUtilsDebug;
+import sam.myutils.MyUtilsExtra;
+import sam.myutils.MyUtilsSystem;
+import sam.string.StringUtils;
+import sam.weak.LazyAndWeak;
 
 public class RootConfig extends ConfigBase {
 	private static final long serialVersionUID = 1L;
 
-	private String backupRoot;
 	private Config[] backups;
-	private Config[] lists;
+	private Config[]  lists;
+	private Map<String, String> variables;
 
 	private transient Config[] _backups;
 	private transient Config[] _lists;
 
-	private static transient Path fullBackupRoot;
-	
-	public void init() {
-		Path drive = Drive.DRIVE_LETTER;
-		fullBackupRoot = drive == null ? null : backupRoot == null ? drive : drive.resolve(backupRoot);
-	}
-	public static Path fullBackupRoot() {
-		return fullBackupRoot;
-	}
+	RootConfig() {}
 
 	public Config findConfig(String name) {
 		return find(name, getBackups());
@@ -47,25 +44,6 @@ public class RootConfig extends ConfigBase {
 	private Config find(String name, Config[] cnf) {
 		Objects.requireNonNull(name, "name cannot be null");
 		return Arrays.stream(cnf).filter(c -> name.equals(c.getName())).findFirst().orElseThrow(() -> new NoSuchElementException("no config found for name: "+name)); 
-	}
-	@Override
-	public Set<Options> getOptions() {
-		if(_options != null) return _options;
-
-		EnumSet<Options> temp = EnumSet.noneOf(Options.class);
-		fill(this, temp);
-
-		_options = Collections.unmodifiableSet(temp);
-
-		return _options;
-	}
-
-	@Override
-	public boolean isModified() {
-		return super.isModified() || (getBackups() != null && Arrays.stream(getBackups()).anyMatch(Config::isModified));
-	}
-	public Path getFullBackupRoot() {
-		return fullBackupRoot;
 	}
 	public boolean hasLists() {
 		return getLists() != null && getLists().length != 0;
@@ -92,14 +70,14 @@ public class RootConfig extends ConfigBase {
 
 		map.values().removeIf(l -> l.size() < 2);
 		if(!map.isEmpty()) {
-			Logger l = LogManager.getLogger(Config.class);
+			Logger l = LoggerFactory.getLogger(Config.class);
 			StringBuilder sb = new StringBuilder();
 			sb.append("-------- conflicting config.name --------\n");
 			map.forEach((name, cnfs) -> {
 				sb.append(name).append('\n');
 				cnfs.forEach(c -> sb.append("    ").append(c.getSource()).append('\n'));
 			});
-			l.error(sb);
+			l.error(sb.toString());
 			System.exit(0);
 		}
 		return cnf;
@@ -122,4 +100,53 @@ public class RootConfig extends ConfigBase {
 	protected RootConfig getRoot() {
 		return this;
 	}
+	private LazyAndWeak<Pattern> pattern = new LazyAndWeak<>(() -> Pattern.compile("%(.+?)%"));
+
+	public String resolve(String variable) {
+		if(!StringUtils.contains(variable, '%'))
+			return variable;
+
+		StringBuffer sb = new StringBuffer();
+		sb.setLength(0);
+		Matcher m = this.pattern.get().matcher(variable);
+
+		while(m.find()) {
+			String s = getVariable(m.group(1));
+			if(s == null) return null;
+			m.appendReplacement(sb, Matcher.quoteReplacement(s));
+		}
+		m.appendTail(sb);
+		
+		return sb.toString();
+	}
+
+	public String getVariable(final String variable) {
+		String result = MyUtilsSystem.lookup(variable);
+		result = result != null ? result : variables.get(variable);
+
+		if(result == null) {
+			if(variable.equals(DETECTED_DRIVE) || variable.equals(DETECTED_DRIVE_ID)) {
+				DetectDrive detectDrive = new DetectDrive();
+				variables.put(DETECTED_DRIVE, MyUtilsExtra.ifNotNull(detectDrive.getDrive(), Path::toString));
+				variables.put(DETECTED_DRIVE_ID, detectDrive.getId());
+			}
+			
+			result = variables.get(variable);
+
+			if(result == null) {
+				logger().error("value not found for variable: "+variable);
+				return null;
+			}
+		}
+		if(StringUtils.contains(result, '%')) {
+			result = resolve(result);
+			variables.put(variable, result);
+		}
+		return result;
+	}
+
+	public void print() {
+		MyUtilsDebug.print(variables);
+	}
 }
+

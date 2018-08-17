@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import sam.backup.manager.Drive;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.walk.WalkMode;
@@ -143,7 +142,7 @@ public class FileTree extends DirEntity {
 	}
 	@Override
 	public Path getBackupPath() {
-		return config == null || !Drive.exists() ? null : config.getTarget();
+		return config == null ? null : config.getTarget();
 	}
 	public void setAttr(Attrs attr, WalkMode walkType, Path fullpath) {
 		super.setAttrs(attr, walkType, fullpath);

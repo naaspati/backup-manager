@@ -40,7 +40,7 @@ import sam.backup.manager.view.IUpdatable;
 import sam.backup.manager.view.StatusView;
 import sam.fx.helpers.FxButton;
 import sam.fx.popup.FxPopupShop;
-import sam.myutils.MyUtils;
+import sam.myutils.MyUtilsCmd;
 
 
 public class TransferView extends VBox implements Runnable, IStopStart, ButtonAction, ICanceler, IUpdatable, TransferListener {
@@ -228,7 +228,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		setClass(t, "completed-text");
 		getChildren().addAll(top, t);
 
-		MyUtils.beep(4);
+		MyUtilsCmd.beep(4);
 		runLater(() -> FxPopupShop.showHidePopup("transfer completed", 1500));
 		startEndAction.onComplete(this);
 

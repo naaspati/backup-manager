@@ -18,6 +18,7 @@ import sam.backup.manager.config.view.ConfigView;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.State;
+import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.transfer.TransferView;
 import sam.backup.manager.view.StatusView;
 import sam.backup.manager.viewers.ViewSwitcher;
@@ -25,11 +26,11 @@ import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
 
 public class ConfigManager implements IStartOnComplete<ConfigView> {
-//	private static final Logger LOGGER = LogManager.getLogger(ConfigManager.class);
+//	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigManager.class);
 	
 	private final ViewSwitcher centerView;
 	private final StatusView statusView;
-	private final AboutDriveView aboutDriveView;
+	// private final AboutDriveView aboutDriveView;
 
 	private static volatile ConfigManager instance;
 
@@ -42,7 +43,7 @@ public class ConfigManager implements IStartOnComplete<ConfigView> {
 	private ConfigManager(StatusView statusView, AboutDriveView aboutDriveView, ViewSwitcher centerView, RootConfig root, Collection<IStopStart> stoppableTasks) {
 		this.centerView = centerView;
 		this.statusView = statusView;
-		this.aboutDriveView = aboutDriveView;
+		// this.aboutDriveView = aboutDriveView;
 
 		runLater(() -> Arrays.stream(root.getBackups())
 				.map(c -> new ConfigView(c, this, getBackupLastPerformed("backup:"+c.getSource())))
@@ -60,9 +61,10 @@ public class ConfigManager implements IStartOnComplete<ConfigView> {
 		public void onComplete(TransferView view) {
 			statusView.removeSummery(view.getSummery());
 			putBackupLastPerformed("backup:"+view.getConfig().getSource(), System.currentTimeMillis());
-			aboutDriveView.refreshSize();
+			// aboutDriveView.updateDetectedDrive();
+			
 			try {
-				saveFiletree(view.getConfig(), true);
+				saveFiletree(view.getConfig(), TreeType.BACKUP);
 			} catch (IOException e) {
 				showErrorDialog(null, "failed to save TreeFile: ", e);	
 			}

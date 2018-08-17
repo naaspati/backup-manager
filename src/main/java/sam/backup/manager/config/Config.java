@@ -2,13 +2,11 @@ package sam.backup.manager.config;
 
 import java.io.Serializable;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.stream.Stream;
 
-import sam.backup.manager.Drive;
 import sam.backup.manager.config.filter.Filter;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.file.FileTree;
+import sam.myutils.MyUtilsExtra;
 
 public class Config extends ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;
@@ -16,7 +14,6 @@ public class Config extends ConfigBase implements Serializable {
 	private String source;
 	private String target;
 	private boolean disable;
-	private Integer depth; 
 	private StoringSetting storingMethod;
 	private String name;
 	
@@ -24,6 +21,8 @@ public class Config extends ConfigBase implements Serializable {
 	private transient Path sourceP;
 	private transient Path targetP;
 	private transient FileTree fileTree;
+	
+	public Config() {}
 
 	public Config(RootConfig root, Path source, Path target) {
 		this.root = root;
@@ -33,39 +32,38 @@ public class Config extends ConfigBase implements Serializable {
 		this.target = target.toString();
 	}
 	public Path getSource() {
-		return sourceP != null ? sourceP :  (sourceP = _getSource());
-	}
-	private Path _getSource() {
-		if(source.startsWith("%backupRoot%"))
-			return Paths.get((root.getFullBackupRoot() == null ? "G:/Sameer" : root.getFullBackupRoot().toString()) + source.substring("%backupRoot%".length())); 
-
-		return Paths.get(source);
+		return sourceP != null ? sourceP :  (sourceP = pathResolve(root.resolve(source)));
 	}
 	public String getName() {
 		return name;
 	}
-	public String getTargetString() {
-		return target;	
-	}
 	public Path getTarget() {
-		if(targetP == null && Drive.exists()) {
-			Path t = null;
-			if(target != null && (t = Paths.get(target)).getRoot() != null)
+		if(targetP == null) {
+			targetP = target == null ? null : pathResolve(root.resolve(target));
+			
+			/*
+			 * if(targetP == null)
+				return null;
+			
+			 * if(t.getRoot() != null)
 				targetP = t;
 			else {
-				Path s = target != null  ?  Paths.get(target) : getSource();
-				targetP = root.getFullBackupRoot().resolve(s.getRoot() == null ? s : s.subpath(0, s.getNameCount())).normalize().toAbsolutePath();	
+				Path s = target != null ?  pathResolve(root.resolve(target)) : getSource();
+				targetP = root.getBackupRoot().resolve(s.getRoot() == null ? s : s.subpath(0, s.getNameCount())).normalize().toAbsolutePath();	
 			}
+			 */
 		}
 		return targetP;
 	}
 	public void init(RootConfig root) {
 		this.root = root;
+			
 		if(storingMethod != null) {
 			IFilter f = this.storingMethod.getSelecter();
 			if(f instanceof Filter)
 				((Filter)f).setConfig(this);	
 		}
+		
 		super.init();
 	}
 	@Override
@@ -88,16 +86,17 @@ public class Config extends ConfigBase implements Serializable {
 	public void setFileTree(FileTree filetree) {
 		this.fileTree = filetree;
 	}
-	public boolean is1DepthWalk() {
-		return getDepth() == 1 && Stream.of(excludes, targetExcludes, options).allMatch(t -> t == null);
-	}
-	public int getDepth() {
-		return depth == null ? Integer.MAX_VALUE : depth;
-	}
 	public boolean isDisabled() {
 		return disable;
 	}
 	public StoringSetting getStoringMethod() {
-		return storingMethod == null ? StoringSetting.DIRECT_COPY : storingMethod;
+		return MyUtilsExtra.nullSafe(storingMethod, StoringSetting.DIRECT_COPY);
+	}
+
+	public String getSourceRaw() {
+		return source;
+	}
+	public String getTargetRaw() {
+		return target;
 	}
 }

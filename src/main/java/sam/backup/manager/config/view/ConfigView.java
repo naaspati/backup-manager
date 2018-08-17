@@ -11,6 +11,7 @@ import static sam.backup.manager.extra.Utils.readFiletree;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.removeClass;
+import static sam.fx.helpers.FxMenu.menuitem;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -19,8 +20,8 @@ import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
@@ -33,11 +34,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.text.Text;
 import sam.backup.manager.App;
-import sam.backup.manager.Drive;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
+import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
@@ -51,12 +52,12 @@ import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.fx.helpers.FxLabel;
-import sam.fx.helpers.FxMenu;
 import sam.fx.helpers.FxText;
 import sam.fx.popup.FxPopupShop;
 
+//FIXME 
 public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler, WalkListener {
-	private static final Logger LOGGER = LogManager.getLogger(ConfigView.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigView.class);
 
 	private final Config config;
 	private final GridPane container = new GridPane();
@@ -91,7 +92,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		sourceFileCountT = text("---");
 		sourceDirCountT = text("---"); 
 
-		String st = config.isNoBackupWalk() ? "N/A" : "--";
+		String st = config.getBackupConfig().walkBackup() ? "--" : "N/A";
 		targetSizeT = text(st); 
 		targetFileCountT = text(st); 
 		targetDirCountT = text(st);
@@ -133,14 +134,11 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		container.add(bottomText, 1, row++, REMAINING, REMAINING);
 	}
 	private void setContextMenu() {
-		if(!Drive.exists())
-			return;
-		
 		setOnContextMenuRequested(e -> {
 			ContextMenu menu = new ContextMenu( 
-					FxMenu.menuitem("Set as latest", this::setAsLatestAction, filteredFileTree.isNull()),
-					FxMenu.menuitem("All files", this::allfilesAction),
-					FxMenu.menuitem("clean backup", e1 -> new BackupCleanup(config))
+					menuitem("Set as latest", this::setAsLatestAction, filteredFileTree.isNull()),
+					menuitem("All files", this::allfilesAction),
+					menuitem("clean backup", e1 -> new BackupCleanup(config))
 					) ;
 			menu.show(App.getStage(), e.getScreenX(), e.getScreenY());
 		});
@@ -154,7 +152,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	private void setAsLatestAction(ActionEvent e) {
 		config.getFileTree().forcedMarkUpdated();
 		try {
-			Utils.saveFiletree(config, true);
+			Utils.saveFiletree(config, TreeType.BACKUP);
 			FxPopupShop.showHidePopup("marked as letest", 1500);
 		} catch (IOException e1) {
 			e1.printStackTrace();
@@ -164,7 +162,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		return addClass(new Label(string), "text", "header");
 	}
 	private Text text(String str) {
-		return FxText.of(str, "text");
+		return FxText.text(str, "text");
 	}
 	@Override
 	public void handle(ButtonType type) {
@@ -317,14 +315,14 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		if(config.getFileTree() != null)
 			return true;
 
-		if(config.getDepth() <= 0) {
-			runLater(() -> finish("Walk failed: \nbad value for depth: "+config.getDepth(), true));
+		if(config.getBackupConfig().getDepth() <= 0) {
+			runLater(() -> finish("Walk failed: \nbad value for depth: "+config.getBackupConfig().getDepth(), true));
 			return false;
 		}
 		if(config.getFileTree() == null) {
 			FileTree ft;
 			try {
-				ft = readFiletree(config, true);
+				ft = readFiletree(config, TreeType.BACKUP);
 			} catch (IOException e) {
 				showErrorDialog(null, "failed to read TreeFile: ", e);
 				LOGGER.error("failed to read TreeFile: ", e);

@@ -22,6 +22,6 @@ public class ConfigViewer extends ScrollPane2<ConfigView> implements Viewer {
 	}
 	@Override
 	public Node disabledView() {
-		return FxText.of("No Backup Tasks Found", DISABLE_TEXT_CLASS);
+		return FxText.text("No Backup Tasks Found", DISABLE_TEXT_CLASS);
 	}
 }

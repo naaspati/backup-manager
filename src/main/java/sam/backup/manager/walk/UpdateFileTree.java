@@ -7,7 +7,7 @@ import java.nio.file.FileVisitResult;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
+import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.Utils;
@@ -22,19 +22,19 @@ import sam.backup.manager.file.FileTreeWalker;
 
 public class UpdateFileTree implements FileTreeWalker {
 	private final BackupNeeded backupNeeded = new BackupNeeded();
-	private final boolean skipModifiedCheck;
+	private final boolean checkModified;
 	private final boolean backupWalked;
 	private final List<FileTreeEntity> toRemove = new ArrayList<>();
 
-	public UpdateFileTree(Config config, boolean skipModifiedCheck,
+	public UpdateFileTree(Config config, boolean checkModified,
 			boolean backupWalked) {
-		this.skipModifiedCheck = skipModifiedCheck;
+		this.checkModified = checkModified;
 		this.backupWalked = backupWalked;
 
 		config.getFileTree().walk(this);
 		
 		if(!toRemove.isEmpty())
-			Utils.writeInTempDir("tree-clean-up", config.getSource(), ".txt", new FileTreeString(config.getFileTree(), new ContainsInFilter(toRemove)), LogManager.getLogger(getClass()));
+			Utils.writeInTempDir("tree-clean-up", config.getSource(), ".txt", new FileTreeString(config.getFileTree(), new ContainsInFilter(toRemove)), LoggerFactory.getLogger(getClass()));
 	}
 	
 	@Override
@@ -47,7 +47,7 @@ public class UpdateFileTree implements FileTreeWalker {
 		if(source != null) {
 			backupNeeded
 			.test(isNew(ft), "(1) new File")
-			.test(!skipModifiedCheck && sourceK.isModified(), "(2) File Modified");
+			.test(checkModified && sourceK.isModified(), "(2) File Modified");
 		}
 
 		if(backupNeeded.isNeeded()) 

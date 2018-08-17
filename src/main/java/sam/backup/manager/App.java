@@ -13,8 +13,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.application.Application;
 import javafx.application.HostServices;
@@ -26,6 +26,7 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
+import sam.backup.manager.cleanup.Cleanup;
 import sam.backup.manager.config.ConfigReader;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.config.view.AboutDriveView;
@@ -39,13 +40,12 @@ import sam.backup.manager.view.ViewType;
 import sam.backup.manager.viewers.TransferViewer;
 import sam.backup.manager.viewers.ViewSwitcher;
 import sam.backup.manager.walk.WalkMode;
-import sam.fileutils.FilesUtils;
+import sam.fileutils.FileOpener;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 
 public class App extends Application {
-	private static final Logger LOGGER =  LogManager.getLogger(App.class);
-	
+	private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
 	
 	private static Stage stage;
 	private static HostServices hs;
@@ -56,7 +56,7 @@ public class App extends Application {
 	public static HostServices getHostService() {
 		return hs;
 	}
-	private RootConfig root;
+	private static RootConfig rootConfig;
 	private AboutDriveView aboutDriveView;
 	private StatusView statusView;
 	private final BorderPane rootContainer = new BorderPane();
@@ -89,27 +89,32 @@ public class App extends Application {
 		t.start();
 	}
 	private void secondStart() {
-		root = new ConfigReader().read();
-		root.init();
+		Path path;
+		try {
+			path = Files.list(Utils.APP_DATA_DIR.resolve("configs")).filter(p -> p.getFileName().toString().endsWith(".json")).findFirst().orElse(null);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+		rootConfig = new ConfigReader().read(path);
 		
 		runLater(() -> {
-			aboutDriveView = new AboutDriveView(this.root);
+			aboutDriveView = new AboutDriveView(rootConfig);
 			rootContainer.setTop(new BorderPane(aboutDriveView, getMenubar(), null, null, null));
 		});
 
 		centerView = new ViewSwitcher();
 		runLater(() -> rootContainer.setCenter(centerView));
 
-		if(root.hasBackups()) {
+		if(rootConfig.hasBackups()) {
 			statusView = new StatusView();
 			runLater(() -> TransferViewer.getInstance().setStatusView(statusView));
-			ConfigManager.init(statusView, aboutDriveView, centerView, root, stoppableTasks);
+			ConfigManager.init(statusView, aboutDriveView, centerView, rootConfig, stoppableTasks);
 		}
 		else 
 			centerView.setStatus(ViewType.BACKUP, true);
 
-		if(root.hasLists())
-			 ListsManager.init(root, stoppableTasks, centerView);
+		if(rootConfig.hasLists())
+			 ListsManager.init(rootConfig, stoppableTasks, centerView);
 
 		runLater(centerView::firstClick);
 	}
@@ -117,8 +122,9 @@ public class App extends Application {
 	private Node getMenubar() {
 		Menu  file = new Menu("_File",
 				null,
-				menuitem("open app dir", e -> FilesUtils.openFileNoError(Utils.APP_DATA_DIR.toFile())),
-				menuitem("create FileTree", this::createFileTree)
+				menuitem("open app dir", e -> FileOpener.getInstance().openFileNoError(Utils.APP_DATA_DIR.toFile())),
+				menuitem("create FileTree", this::createFileTree),
+				menuitem("cleanup", e -> new Cleanup())
 				);
 		return new MenuBar(file);
 	}
@@ -166,5 +172,8 @@ public class App extends Application {
 		stoppableTasks.forEach(IStopStart::stop);
 		Utils.stop();
 		stage.hide();
+	}
+	public static RootConfig getRootConfig() {
+		return rootConfig;
 	}
 }

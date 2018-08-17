@@ -54,7 +54,7 @@ import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.SimpleFileTreeWalker;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.fileutils.FilesUtils;
+import sam.fileutils.FileOpener;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxGridPane;
 import sam.weak.WeakStore;
@@ -244,7 +244,7 @@ public class FilesView extends BorderPane {
 			EventHandler<ActionEvent> handler = e -> {
 				Path p = (Path) ((Hyperlink)e.getSource()).getUserData();
 				try {
-					FilesUtils.openFileLocationInExplorer(p.toFile());
+					FileOpener.getInstance().openFileLocationInExplorer(p.toFile());
 				} catch (IOException e1) {
 					FxAlert.showErrorDialog(p, "failed to open location", e);
 				}

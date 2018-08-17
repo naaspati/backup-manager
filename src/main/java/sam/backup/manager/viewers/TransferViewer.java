@@ -33,7 +33,7 @@ public class TransferViewer extends BorderPane implements Viewer, IUpdatable {
 	}
 	@Override
 	public Node disabledView() {
-		return FxText.of("Nothing To Transfer", DISABLE_TEXT_CLASS);
+		return FxText.text("Nothing To Transfer", DISABLE_TEXT_CLASS);
 	}
 	public void setStatusView(StatusView statusView) {
 		setBottom(statusView);

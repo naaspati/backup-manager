@@ -35,7 +35,7 @@ public class ListViewer extends BorderPane implements Viewer {
 
 	@Override
 	public Node disabledView() {
-		return FxText.of("No Listing tasks Found", DISABLE_TEXT_CLASS);
+		return FxText.text("No Listing tasks Found", DISABLE_TEXT_CLASS);
 	}
 	private ListViewer() {
 		FxClassHelper.setClass(this, "list-viewer");

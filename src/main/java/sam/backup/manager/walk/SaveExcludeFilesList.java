@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 
-import org.apache.logging.log4j.LogManager;
+import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.Utils;
@@ -28,6 +28,6 @@ class SaveExcludeFilesList {
 		}
 		sb.append("\n\n-------------------------------------------------\n\n");
 
-		Utils.writeInTempDir("excluded-files/"+initialWalkMode, config.getSource(), ".txt", sb, LogManager.getLogger(SaveExcludeFilesList.class));
+		Utils.writeInTempDir("excluded-files/"+initialWalkMode, config.getSource(), ".txt", sb, LoggerFactory.getLogger(SaveExcludeFilesList.class));
 	}
 }

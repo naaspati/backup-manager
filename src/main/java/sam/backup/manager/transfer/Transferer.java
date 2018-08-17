@@ -26,8 +26,8 @@ import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.StoringMethod;
@@ -44,7 +44,7 @@ import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.file.FilteredDirEntity;
 import sam.backup.manager.file.FilteredFileTree;
 import sam.backup.manager.file.SimpleFileTreeWalker;
-import sam.myutils.MyUtils;
+import sam.myutils.MyUtilsBytes;
 import sam.weak.WeakStore;
 
 class Transferer implements Callable<State> {
@@ -57,7 +57,7 @@ class Transferer implements Callable<State> {
 	private static final WeakStore<ByteBuffer> buffers = new WeakStore<>(() -> ByteBuffer.allocateDirect(BUFFER_SIZE), true);
 	private static final WeakStore<byte[]> byteBuffers = new WeakStore<>(() -> new byte[BUFFER_SIZE], true);
 
-	private static final Logger LOGGER =  LogManager.getLogger(Transferer.class);
+	private static final Logger LOGGER =  LoggerFactory.getLogger(Transferer.class);
 
 	private final StoringSetting storingSetting;
 	private final StoringMethod storingMethod;
@@ -219,7 +219,7 @@ class Transferer implements Callable<State> {
 		
 		newTask(dir);
 		if(dir.getSourceSize() > MAX_ZIP_SIZE)
-			throw new RuntimeException(String.format("zipfile size (%s) exceeds max allows size (%s)", MyUtils.bytesToHumanReadableUnits(dir.getSourceSize(), false), MyUtils.bytesToHumanReadableUnits(MAX_ZIP_SIZE, false)));
+			throw new RuntimeException(String.format("zipfile size (%s) exceeds max allows size (%s)", MyUtilsBytes.bytesToHumanReadableUnits(dir.getSourceSize(), false), MyUtilsBytes.bytesToHumanReadableUnits(MAX_ZIP_SIZE, false)));
 		
 		boolean rename = false;
 		final int nameCount = dir.getSourcePath().getNameCount();

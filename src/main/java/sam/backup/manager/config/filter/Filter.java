@@ -18,14 +18,14 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import sam.backup.manager.config.Config;
 import sam.string.StringUtils;
 
 public class Filter implements IFilter, HasFilterArrays {
-	private transient static final Logger LOGGER = LogManager.getLogger(Filter.class);
+	private transient static final Logger LOGGER = LoggerFactory.getLogger(Filter.class);
 
 	private String[] name, glob, regex, path, startsWith, endsWith, classes;
 	private Filter invert;

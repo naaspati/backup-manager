@@ -14,15 +14,14 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
+import sam.backup.manager.config.BackupConfig;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.ICanceler;
-import sam.backup.manager.extra.Options;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.AttrsKeeper;
 import sam.backup.manager.file.DirEntity;
@@ -31,7 +30,7 @@ import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeEntity;
 
 class Walker implements FileVisitor<Path>{
-	private static final Logger LOGGER = LogManager.getLogger(Walker.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(Walker.class);
 	
 	
 	private final boolean skipDirNotModified;
@@ -48,9 +47,9 @@ class Walker implements FileVisitor<Path>{
 	
 
 	public Walker(Config config, WalkListener listener, ICanceler canceler) {
-		Set<Options> options = config.getOptions();
-		this.skipDirNotModified = options.contains(Options.SKIP_DIR_NOT_MODIFIED);
-		this.skipFiles = options.contains(Options.SKIP_FILES);
+		BackupConfig c = config.getBackupConfig();
+		this.skipDirNotModified = c.skipDirNotModified();
+		this.skipFiles = c.skipFiles();
 
 		this.rootTree = config.getFileTree();
 		this.canceler = canceler;
@@ -70,7 +69,7 @@ class Walker implements FileVisitor<Path>{
 		 */
 
 		rootTree.walkStarted(start);
-		Files.walkFileTree(start, EnumSet.noneOf(FileVisitOption.class), config.getDepth(), this);
+		Files.walkFileTree(start, EnumSet.noneOf(FileVisitOption.class), config.getBackupConfig().getDepth(), this);
 	}
 
 

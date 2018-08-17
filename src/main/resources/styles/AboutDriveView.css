@@ -1,15 +1,15 @@
-.root-view * {
+.AboutDriveView * {
 	-fx-font-family: 'Arial Rounded MT';
 	-fx-fill: white;
 }
-.root-view .full-path-text {
+.AboutDriveView .full-path-text {
 	-fx-font-size: 3em;
 }
-.root-view .size-text {
+.AboutDriveView .size-text {
 	-fx-font-size: 0.85em;
 	-fx-font-family: 'Consolas';
 }
-.root-view .drive-warning-text-2 {
+.AboutDriveView .drive-warning-text-2 {
 -fx-font-size: 0.95em;
 -fx-fill:yellow;
 }

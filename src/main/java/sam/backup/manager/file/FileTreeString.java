@@ -4,7 +4,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Predicate;
 
-import sam.myutils.MyUtils;
+import sam.myutils.MyUtilsBytes;
 import se.sawano.java.text.AlphanumericComparator;
 
 public class FileTreeString implements CharSequence {
@@ -72,7 +72,7 @@ public class FileTreeString implements CharSequence {
 			.append('(');
 
 			if(size > 0)
-				MyUtils.bytesToHumanReadableUnits(size, false, sb);
+				MyUtilsBytes.bytesToHumanReadableUnits(size, false, sb);
 
 			if(f.isDirectory() && !f.asDir().isEmpty())
 				sb.append(' ').append(f.asDir().count()).append(" files");

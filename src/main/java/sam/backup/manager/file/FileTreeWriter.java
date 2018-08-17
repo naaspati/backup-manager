@@ -6,14 +6,13 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.zip.GZIPOutputStream;
 
 public class FileTreeWriter  {
 	private DataOutputStream dos;
 
 	public void write(Path path, FileTree tree) throws IOException {
-		try (OutputStream os = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-				GZIPOutputStream gos = new GZIPOutputStream(os);
+		try (OutputStream gos = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
+				// GZIPOutputStream gos = new GZIPOutputStream(os);
 				DataOutputStream dos = new DataOutputStream(gos);
 				){
 			this.dos = dos;

@@ -26,8 +26,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -38,7 +38,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sam.backup.manager.App;
-import sam.backup.manager.Drive;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeReader;
@@ -52,7 +51,7 @@ import sam.tsv.tsvmap.TsvMapFactory;
 import sam.weak.LazyAndWeak;
 
 public class Utils {
-	private static final Logger LOGGER = LogManager.getLogger(Utils.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
 
 	public static final Path APP_DATA_DIR;
 	public static final Path TEMPS_DIR;
@@ -180,13 +179,12 @@ public class Utils {
 		waitUntil(b);
 	}
 
-	private static Path getTreePath(Config config, boolean isBackups) {
-		return APP_DATA_DIR.resolve("trees/"+Drive.ID+"/" + (isBackups ? "" : "lists/") + config.getSource().getFileName() + "-"
-				+ config.getSource().hashCode() + ".filetree");
+	private static Path getTreePath(Config config, TreeType treeType) {
+		return APP_DATA_DIR.resolve(String.format("trees/%s-%s-%s.filetree", treeType, config.getSourceRaw(), config.getTargetRaw()));
 	}
 
-	public static FileTree readFiletree(Config config, boolean isBackups) throws IOException {
-		Path p = getTreePath(config, isBackups);
+	public static FileTree readFiletree(Config config, TreeType treeType) throws IOException {
+		Path p = getTreePath(config, treeType);
 
 		if (Files.exists(p))
 			return new FileTreeReader().read(p, config);
@@ -196,10 +194,10 @@ public class Utils {
 		return null;
 	}
 
-	public static void saveFiletree(Config config, boolean isBackups) throws IOException {
+	public static void saveFiletree(Config config, TreeType treeType) throws IOException {
 		Objects.requireNonNull(config.getFileTree(), "config does not have a filetree: " + config.getSource());
 
-		Path p = getTreePath(config, isBackups);
+		Path p = getTreePath(config, treeType);
 		
 		Files.createDirectories(p.getParent());
 		new FileTreeWriter().write(p, config.getFileTree());

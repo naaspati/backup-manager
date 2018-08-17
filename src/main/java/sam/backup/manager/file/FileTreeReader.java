@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.zip.GZIPInputStream;
 
 import sam.backup.manager.config.Config;
 
@@ -14,8 +13,8 @@ public class FileTreeReader {
 	private DataInputStream dis;
 	
 	public FileTree read(Path fileTreePath, Config config) throws IOException {
-		try(InputStream is = Files.newInputStream(fileTreePath, StandardOpenOption.READ);
-				GZIPInputStream gis = new GZIPInputStream(is);
+		try(InputStream gis = Files.newInputStream(fileTreePath, StandardOpenOption.READ);
+				// GZIPInputStream gis = new GZIPInputStream(is);
 				DataInputStream dis = new DataInputStream(gis);) {
 			this.dis = dis;
 			return readFileTree(config); 

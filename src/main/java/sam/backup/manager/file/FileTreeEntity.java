@@ -6,14 +6,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Objects;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import sam.backup.manager.walk.WalkMode;
 
 public abstract class FileTreeEntity {
 	private String fileNameString;
-	protected static final Logger LOGGER =  LogManager.getLogger(FileTreeEntity.class);
+	protected static final Logger LOGGER =  LoggerFactory.getLogger(FileTreeEntity.class);
 
 	private Path fileName; // lazy initiated  
 	private final DirEntity parent;

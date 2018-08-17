@@ -16,6 +16,7 @@ import javafx.stage.StageStyle;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
+import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
@@ -27,7 +28,7 @@ import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
-import sam.myutils.MyUtils;
+import static sam.myutils.MyUtilsExtra.*;
 
 public class BackupCleanup extends Stage implements ICanceler, WalkListener, ButtonAction { 
 
@@ -48,7 +49,7 @@ public class BackupCleanup extends Stage implements ICanceler, WalkListener, But
 
 		if(config.getFileTree() == null)
 			try {
-				config.setFileTree(Utils.readFiletree(config, true));
+				config.setFileTree(Utils.readFiletree(config, TreeType.BACKUP));
 			} catch (IOException e1) {
 				e1.printStackTrace();
 				text.setText("error\n"+e1);
@@ -102,7 +103,7 @@ public class BackupCleanup extends Stage implements ICanceler, WalkListener, But
 
 	private void setCount() {
 		Map<Boolean, Long> count = map.entrySet().stream().filter(Entry::getValue).map(Entry::getKey).collect(Collectors.partitioningBy(FileTreeEntity::isDirectory, Collectors.counting()));
-		text.setText("To delete:\n  Files: "+MyUtils.nullSafe(count.get(false), 0) +"\n  Dirs: "+MyUtils.nullSafe(count.get(true), 0));
+		text.setText("To delete:\n  Files: "+nullSafe(count.get(false), 0) +"\n  Dirs: "+nullSafe(count.get(true), 0));
 	}
 
 	@Override

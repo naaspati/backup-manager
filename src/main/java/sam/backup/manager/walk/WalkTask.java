@@ -6,21 +6,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.IdentityHashMap;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import sam.backup.manager.Drive;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.file.FileTree;
 
 public class WalkTask implements Runnable {
-	public static final Logger logger = LogManager.getLogger(WalkTask.class); 
+	public static final Logger logger = LoggerFactory.getLogger(WalkTask.class); 
 
 	private final Config config;
 	private final ICanceler canceler;
 	private final FileTree rootTree;
-	private final boolean skipModifiedCheck;
+	private final boolean checkModified;
 
 	private final WalkMode initialWalkMode;
 	private final WalkListener listener;
@@ -32,7 +31,7 @@ public class WalkTask implements Runnable {
 		this.initialWalkMode = walkMode;
 		this.listener = listener;
 
-		this.skipModifiedCheck = config.isNoModifiedCheck();
+		this.checkModified = config.getBackupConfig().checkModified();
 		this.canceler = canceler;
 		 walker = new Walker(config, listener, canceler);
 	}
@@ -68,9 +67,7 @@ public class WalkTask implements Runnable {
 
 			sourceWalkFailed = false;
 
-			boolean walk = !(config.isNoBackupWalk() || !Drive.exists());
-
-			if(walk && initialWalkMode.isBackup()){
+			if(config.getTarget() != null && config.getBackupConfig().walkBackup()  && initialWalkMode.isBackup()){
 				if(!backupWalkCompleted.containsKey(rootTree)) {
 					walker.walk(config.getTarget(), config.getTargetFilter(), WalkMode.BACKUP);
 					backupWalkCompleted.put(rootTree, null);
@@ -88,7 +85,7 @@ public class WalkTask implements Runnable {
 
 		rootTree.walkCompleted();
 		new SaveExcludeFilesList(initialWalkMode, config, walker);
-		new UpdateFileTree(config, skipModifiedCheck, backupWalked);
+		new UpdateFileTree(config, checkModified, backupWalked);
 
 		listener.walkCompleted();
 	}

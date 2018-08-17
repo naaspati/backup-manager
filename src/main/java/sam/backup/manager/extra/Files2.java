@@ -10,11 +10,12 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.util.Optional;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
 
 import sam.fileutils.FilesUtils;
-import sam.myutils.MyUtils;
+import sam.myutils.MyUtilsThread;
+
 
 public final class Files2 {
 	private static final boolean DRY_RUN;
@@ -31,8 +32,8 @@ public final class Files2 {
 			} catch (IOException e) {
 				throw new RuntimeException("failed to create temp_dir (backup_maneger_dry_run)", e);
 			}
-			LOGGER = LogManager.getLogger("DRY_RUN");
-			MyUtils.addShutdownHook(() -> {
+			LOGGER = LoggerFactory.getLogger("DRY_RUN");
+			MyUtilsThread.addShutdownHook(() -> {
 				try {
 					FilesUtils.deleteDir(TEMP_DIR);
 				} catch (IOException e) {

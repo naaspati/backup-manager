@@ -60,10 +60,9 @@ public class FileTreeString implements CharSequence {
 	private void appendDetails(FileTreeEntity f, char[] separator) {
 		sb.append(separator)
 		.append(f.getfileNameString());
-
 		
 		AttrsKeeper ak = f.getSourceAttrs();
-		long size = (ak.getCurrent() != null ? ak.getCurrent() : ak.getOld()).getSize();
+		long size = ak.getCurrent() == null && ak.getOld() == null ? -1 : (ak.getCurrent() != null ? ak.getCurrent() : ak.getOld()).getSize();
 
 		if(!f.isDirectory() ? size <= 0 : ( f.isDirectory() && f.asDir().isEmpty())) 
 			sb.append('\n');

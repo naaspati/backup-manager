@@ -10,22 +10,16 @@ repositories {
 dependencies {
    compile 'com.google.code.gson:gson:2.8.2'
    compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
-   compile files('myutils.jar')
+  compile files('myutils.jar')
    compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.8.0-beta2'
-   
 }
  
-version = 1.075
+version = 1.08
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
 mainClassName = 'Main'
-
-task toast {
- doLast {
- installDist.properties.each{println it.key}
-     }
-}
+ext.appdir = file(System.env.SAM_PROGRAMS+'/backup/bin')
 	
 task combineCss {
   def rsrc = sourceSets.main.resources.srcDirs[0].toString() 
@@ -55,39 +49,28 @@ run.mustRunAfter combineCss
 run {
  environment('custom.filter.dir', 'custom.filters')
  main 'Main'
- workingDir "$rootDir/compiled"
+ workingDir appdir.parent
 }
 
-installDist.destinationDir = file("$rootDir/compiled/app")
-
-task loggingCopy {
-  def name = 'logging.properties'
-  ext.src = file(name)
-  ext.target = file(new File(installDist.destinationDir, name))
-  
-  inputs.file  src
-  outputs.file target
+task install(type: Copy, dependsOn:installDist) {
+  def libdir = file(new File(installDist.destinationDir, 'lib')) 
+  from libdir
+  into appdir
   
   doLast {
-     Files.copy(src.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
-  }
+     new File(appdir, 'run.cmd').text = """
+  @echo off
+  setlocal 
+  
+  java %JAVA_OPTS% -cp \"%~dp0${String.join(';%~dp0', libdir.list())}\" ${mainClassName} %*
+  
+  """.stripIndent()
+  } 
 }
-
-// TODO installDist.finalizedBy loggingCopy
- 
-/*
-task copy(type: Copy, dependsOn:'installDist') {
-  from(fileTree("$buildDir/install/${distributions.main.baseName}"))
-  into("$rootDir/compiled")
-}
-*/
 
 jar {
-  manifest {
-        attributes('Manifest-Version': '1.0',
-                   'Implementation-Version': version,
-                   'Main-Class':"$mainClassName",	
-                   'Class-Path':'.'
-                   )
-    }
+  exclude '*.fxgraph'
+  exclude 'styles'
 }
+
+defaultTasks 'install'

@@ -19,7 +19,6 @@ public class WalkTask implements Runnable {
 	private final Config config;
 	private final ICanceler canceler;
 	private final FileTree rootTree;
-	private final boolean checkModified;
 
 	private final WalkMode initialWalkMode;
 	private final WalkListener listener;
@@ -31,9 +30,8 @@ public class WalkTask implements Runnable {
 		this.initialWalkMode = walkMode;
 		this.listener = listener;
 
-		this.checkModified = config.getBackupConfig().checkModified();
 		this.canceler = canceler;
-		 walker = new Walker(config, listener, canceler);
+		walker = new Walker(config, listener, canceler);
 	}
 
 	private static final IdentityHashMap<FileTree, Void> sourceWalkCompleted = new IdentityHashMap<>();
@@ -61,13 +59,16 @@ public class WalkTask implements Runnable {
 				} else 
 					logger.debug("source walk skipped: {}", root);
 			}
-			
+
 			if(canceler.isCancelled())
 				return; //TODO feed cancel event to listener
 
 			sourceWalkFailed = false;
 
-			if(config.getTarget() != null && config.getBackupConfig().walkBackup()  && initialWalkMode.isBackup()){
+			if(config.getWalkConfig().walkBackup() 
+					&& initialWalkMode.isBackup() 
+					&& config.getTarget() != null 
+					&& Files.exists(config.getTarget()) ){
 				if(!backupWalkCompleted.containsKey(rootTree)) {
 					walker.walk(config.getTarget(), config.getTargetFilter(), WalkMode.BACKUP);
 					backupWalkCompleted.put(rootTree, null);
@@ -84,9 +85,10 @@ public class WalkTask implements Runnable {
 		}
 
 		rootTree.walkCompleted();
-		new SaveExcludeFilesList(initialWalkMode, config, walker);
-		new UpdateFileTree(config, checkModified, backupWalked);
-
+		if(config.getWalkConfig().saveExcludeList())
+			new SaveExcludeFilesList(initialWalkMode, config, walker);
+		
+		new ProcessFileTree(config, backupWalked);
 		listener.walkCompleted();
 	}
 }

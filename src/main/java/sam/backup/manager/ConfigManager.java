@@ -5,9 +5,7 @@ import static sam.backup.manager.extra.Utils.getBackupLastPerformed;
 import static sam.backup.manager.extra.Utils.putBackupLastPerformed;
 import static sam.backup.manager.extra.Utils.run;
 import static sam.backup.manager.extra.Utils.saveFiletree;
-import static sam.backup.manager.extra.Utils.showErrorDialog;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -61,13 +59,7 @@ public class ConfigManager implements IStartOnComplete<ConfigView> {
 		public void onComplete(TransferView view) {
 			statusView.removeSummery(view.getSummery());
 			putBackupLastPerformed("backup:"+view.getConfig().getSource(), System.currentTimeMillis());
-			// aboutDriveView.updateDetectedDrive();
-			
-			try {
-				saveFiletree(view.getConfig(), TreeType.BACKUP);
-			} catch (IOException e) {
-				showErrorDialog(null, "failed to save TreeFile: ", e);	
-			}
+			saveFiletree(view.getConfig(), TreeType.BACKUP);
 		}
 	};
 
@@ -83,7 +75,7 @@ public class ConfigManager implements IStartOnComplete<ConfigView> {
 	public void onComplete(ConfigView view) {
 		if(view.hashBackups())
 			runLater(() -> {
-				TransferView v = new TransferView(view.getConfig(), view.getFilteredFileTree(), statusView, transferAction);
+				TransferView v = new TransferView(view.getConfig(), view.getBackupFileTree(), statusView, transferAction);
 				centerView.add(v);
 				v.stateProperty().addListener((p, o, n) -> {
 					view.setDisable(n == State.QUEUED || n == State.UPLOADING);

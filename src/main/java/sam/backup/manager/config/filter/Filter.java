@@ -18,10 +18,11 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
+import sam.myutils.System2;
 import sam.string.StringUtils;
 
 public class Filter implements IFilter, HasFilterArrays {
@@ -89,7 +90,7 @@ public class Filter implements IFilter, HasFilterArrays {
 			return false;
 
 		if(isNull(clss)) {
-			String path = System.getenv("custom.filter.dir");
+			String path = System2.lookup("custom.filter.dir");
 			if(path == null)
 				LOGGER.warn("no value set for custom.filter.dir");
 

@@ -12,7 +12,6 @@ public class FileTreeWriter  {
 
 	public void write(Path path, FileTree tree) throws IOException {
 		try (OutputStream gos = Files.newOutputStream(path, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-				// GZIPOutputStream gos = new GZIPOutputStream(os);
 				DataOutputStream dos = new DataOutputStream(gos);
 				){
 			this.dos = dos;

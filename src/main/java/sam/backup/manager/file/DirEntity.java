@@ -80,19 +80,25 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 	}
 
 	long computeSize(WalkMode w) {
-		if(!walked)
-			return 0;
+		try {
+			if(!walked)
+				return 0;
 
-		if(isEmpty()) {
-			atrk(w, this).setCurrentSize(0);
-			return 0;
+			if(isEmpty()) {
+				atrk(w, this).setCurrentSize(0);
+				return 0;
+			}
+			long size = 0;
+			for (FileTreeEntity f : this) 
+				size += f.isDirectory() ? f.asDir().computeSize(w) : size(atrk(w,f));			
+
+				atrk(w, this).setCurrentSize(size);
+				return size;
+		} catch (Exception e) {
+			System.out.println(atrk(w, this));
+			System.out.println(w+"  "+getfileNameString()+"  "+isBackupable()+"  "+isBackupDeletable()+"  "+e);
+			throw e;
 		}
-		long size = 0;
-		for (FileTreeEntity f : this) 
-			size += f.isDirectory() ? f.asDir().computeSize(w) : size(atrk(w,f));			
-
-			atrk(w, this).setCurrentSize(size);
-			return size;
 	}
 	private long size(AttrsKeeper atrk) {
 		return atrk.getCurrent() == null && atrk.getOld() == null ? 0 : atrk.getCurrent() == null ? atrk.getOld().size : atrk.getCurrent().size;
@@ -121,6 +127,21 @@ public class DirEntity extends FileTreeEntity  implements Iterable<FileTreeEntit
 	public boolean isBackupable() {
 		for (int i = 0; i < count(); i++) {
 			if(children.get(i).isBackupable())
+				return true;
+		}
+		return false;
+	}
+	@Override
+	public void setBackupDeletable(boolean b) {
+		super.setBackupDeletable(b);
+		for (FileTreeEntity f : children) 
+			f.setBackupDeletable(b);
+	}
+	
+	@Override
+	public boolean isBackupDeletable() {
+		for (int i = 0; i < count(); i++) {
+			if(children.get(i).isBackupDeletable())
 				return true;
 		}
 		return false;

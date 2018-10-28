@@ -4,14 +4,19 @@ import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.State.CANCELLED;
 import static sam.backup.manager.extra.State.COMPLETED;
 import static sam.backup.manager.extra.State.QUEUED;
+import static sam.backup.manager.extra.Utils.button;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.divide;
-import static sam.backup.manager.extra.Utils.format;
 import static sam.backup.manager.extra.Utils.millisToString;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
 import java.nio.file.Path;
+import java.util.function.Function;
+import java.util.function.LongConsumer;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -26,7 +31,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.view.FilesView;
-import sam.backup.manager.config.view.FilesViewMode;
+import sam.backup.manager.config.view.FilesViewSelector;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
@@ -38,12 +43,15 @@ import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.view.IUpdatable;
 import sam.backup.manager.view.StatusView;
-import sam.fx.helpers.FxButton;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.MyUtilsCmd;
+import sam.myutils.MyUtilsPath;
+import sam.string.BasicFormat;
 
 
 public class TransferView extends VBox implements Runnable, IStopStart, ButtonAction, ICanceler, IUpdatable, TransferListener {
+	private static final Logger LOGGER = LoggerFactory.getLogger(TransferView.class);
+
 	private TextArea sourceTargetTa ;
 	private Text currentProgressT ;
 	private Text totalProgressT ;
@@ -61,6 +69,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 	private final Config config;
 	private final Text filesStats = new Text();
 	private final Path source, target;
+	private final Function<Path, Path> sourceSubpather, targetSubpather;
 	private Transferer transferer;
 	private final FilteredFileTree fileTree;
 
@@ -71,17 +80,18 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		this.config = config;
 		this.source = config.getSource();
 		this.target = config.getTarget();
+		sourceSubpather = MyUtilsPath.subpather(source);
+		targetSubpather = MyUtilsPath.subpather(target);
 		this.fileTree = filesTree;
-		
+
 		uploadCancelBtn = new CustomButton(ButtonType.UPLOAD, this);
 		filesBtn = new CustomButton(ButtonType.FILES, this);
 
 		getChildren().addAll(getHeaderText(), filesStats, new HBox(5, uploadCancelBtn, filesBtn));
-		
+
 		this.transferer = new Transferer(config, filesTree, this, this);
 		update();
 	}
-	
 	public Config getConfig() {
 		return config;
 	}
@@ -92,15 +102,15 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 	public void update() {
 		if(state == null || isState(State.UPLOADING))
 			return;
-	
+
 		transferer.update();
-		
+
 		uploadCancelBtn.setDisable(selectedCount()  - copiedCount() <= 0);
-		if(copiedCount() == 0) filesStats.setText(format("files: %s (%s files)", bts(filesSelectedSize()), selectedCount()));
-		else filesStats.setText(format("remaining: %d (%d files), total: %d (%d files)", bts(filesSelectedSize() - copiedSize()), selectedCount() - copiedCount(),  bts(filesSelectedSize()), selectedCount()));
+		if(copiedCount() == 0) filesStats.setText(String.format("files: %s (%s files)", bts(filesSelectedSize()), selectedCount()));
+		else filesStats.setText(String.format("remaining: %d (%d files), total: %d (%d files)", bts(filesSelectedSize() - copiedSize()), selectedCount() - copiedCount(),  bts(filesSelectedSize()), selectedCount()));
 		summery.set(transferer.getFilesSelectedSize(), transferer.getFilesCopiedSize());
-		
-		totalProgressFormat = "Total Progress: %s/"+bts(summery.getTotalSize())+"  | %s/%s/"+selectedCount()+" (%s)";
+
+		totalProgressFormat = new BasicFormat("Total Progress: {}/"+bts(summery.getTotalSize())+"  | {}/{}/"+selectedCount()+" ({})");
 	}
 	private Node getHeaderText() {
 		Text header = new Text(String.valueOf(config.getSource()));
@@ -120,7 +130,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 				stop();	
 				break;
 			case FILES:
-				FilesView.open("select files to backup", config, fileTree, FilesViewMode.BACKUP).setOnCloseRequest(e -> update());	
+				FilesView.open("select files to backup", config, fileTree, FilesViewSelector.backup()).setOnCloseRequest(e -> update());	
 				break;
 			default:
 				throw new IllegalStateException("unknown action: "+type);
@@ -152,6 +162,8 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 			currentProgressBar.setMaxWidth(Double.MAX_VALUE);
 		}
 
+		sourceTargetTa.appendText("sourceDir: "+source+"\ntargetDir: "+target+"\n\n");
+
 		setState(QUEUED);
 		startEndAction.start(this);
 		uploadCancelBtn.setType(ButtonType.CANCEL);
@@ -171,7 +183,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		setState(State.UPLOADING);
 		setState(run2());
 	}
-	
+
 	public State run2() {
 		runLater(() -> getChildren().setAll(getHeaderText(),sourceTargetTa, currentProgressT, currentProgressBar, totalProgressT, totalProgressBar, uploadCancelBtn));
 
@@ -185,7 +197,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-		
+
 		summery.stop();
 		return COMPLETED;
 	}
@@ -214,7 +226,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		Pane p = new Pane();
 		p.setMaxWidth(Double.MAX_VALUE);
 		HBox.setHgrow(p, Priority.ALWAYS);
-		HBox top = new HBox(getHeaderText(), p, FxButton.button("close", "Delete_10px.png", e -> ((Pane)getParent()).getChildren().remove(this)));
+		HBox top = new HBox(getHeaderText(), p, button("close", "Delete_10px.png", e -> ((Pane)getParent()).getChildren().remove(this)));
 
 		Text  t = new Text(
 				new StringBuilder("COMPLETED")
@@ -232,6 +244,9 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		runLater(() -> FxPopupShop.showHidePopup("transfer completed", 1500));
 		startEndAction.onComplete(this);
 
+		if(sourceTargetTa != null)
+			Utils.writeInTempDir(config, "transfer-log", null, sourceTargetTa.getText(), LOGGER);
+
 		sourceTargetTa = null;
 		currentProgressT = null;
 		totalProgressT = null;
@@ -244,10 +259,9 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		startEndAction = null;
 		stateText = null;
 	}
-
 	@Override
 	public void copyStarted(Path src, Path target) {
-		runLater(() -> sourceTargetTa.appendText(format("src: %%source%%\\%s\ntarget: %%target%%\\%s\n---------\n", Utils.subpath(src, this.source), Utils.subpath(target, this.target))));
+		runLater(() -> sourceTargetTa.appendText("src: "+sourceSubpather.apply(source)+"\ntarget: "+targetSubpather.apply(target)+"\n---------\n"));
 	}
 	@Override
 	public void copyCompleted(Path src, Path target) { }
@@ -259,26 +273,26 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 		summery.update(n);
 		updateProgress();
 	}
-	
-	private volatile String totalProgressFormat;
-	private volatile String currentProgressFormat;
-	
+
+	private volatile BasicFormat totalProgressFormat;
+	private volatile LongConsumer currentProgressFormat;
+
 	private void updateProgress() {
 		runLater(() -> {
 			setProgressBar(currentProgressBar, bytesRead(), currentSize());
 			setProgressBar(totalProgressBar, summery.getBytesRead(), summery.getTotalSize());
-			currentProgressT.setText(format(currentProgressFormat, bts(bytesRead())));
-			totalProgressT.setText(format(totalProgressFormat, bts(copiedSize()), copiedCount(), selectedCount() - copiedCount(), speed()));
+			currentProgressFormat.accept(bytesRead());
+			totalProgressT.setText(totalProgressFormat.format(bts(copiedSize()), copiedCount(), selectedCount() - copiedCount(), speed()));
 		});
 	}
 
 	private void setProgressBar(ProgressBar bar, long current, long total) {
 		bar.setProgress(divide(current, total));
 	}
-	
 	@Override
 	public void newTask() {
-		currentProgressFormat = "%s/"+bts(currentSize());
+		String s = "/"+bts(currentSize());
+		currentProgressFormat = bytes -> currentProgressT.setText(bts(bytes)+s);
 		updateProgress();
 	}
 

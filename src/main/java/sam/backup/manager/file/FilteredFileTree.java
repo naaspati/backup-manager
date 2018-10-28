@@ -9,12 +9,13 @@ import sam.backup.manager.walk.WalkMode;
 public class FilteredFileTree extends FilteredDirEntity {
 	private final FileTree ft;
 
-	public FilteredFileTree(FileTree ft, Predicate<FileTreeEntity> filter) {
+	public FilteredFileTree(FileTree ft, WalkMode mode, Predicate<FileTreeEntity> filter) {
 		super(ft, null, filter);
 		this.ft = ft;
 		
-		ft.computeSize(WalkMode.SOURCE);
-		computeSize(WalkMode.SOURCE);
+		// FIXME
+	//	ft.computeSize(mode);
+	//	computeSize(mode);
 	}
 	@Override
 	public Path getBackupPath() {

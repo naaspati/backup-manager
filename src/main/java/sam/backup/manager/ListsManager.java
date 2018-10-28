@@ -9,8 +9,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
@@ -49,8 +49,8 @@ public class ListsManager implements IStartOnComplete<ListingView> {
 	public void start(ListingView e) {
 		Config c = e.getConfig();
 
-		if(c.getBackupConfig().getDepth() <= 0) {
-			showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getBackupConfig().getDepth(), null);
+		if(c.getWalkConfig().getDepth() <= 0) {
+			showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getWalkConfig().getDepth(), null);
 			return;
 		}
 		try {

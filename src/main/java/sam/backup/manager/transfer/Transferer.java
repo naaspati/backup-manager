@@ -6,6 +6,7 @@ import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 import static sam.backup.manager.extra.State.CANCELLED;
 import static sam.backup.manager.extra.State.COMPLETED;
+import static sam.backup.manager.extra.Utils.writeInTempDir;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,15 +20,15 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.StoringMethod;
@@ -35,7 +36,6 @@ import sam.backup.manager.config.StoringSetting;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.State;
-import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTreeEntity;
@@ -44,24 +44,29 @@ import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.file.FilteredDirEntity;
 import sam.backup.manager.file.FilteredFileTree;
 import sam.backup.manager.file.SimpleFileTreeWalker;
+import sam.io.BufferSize;
 import sam.myutils.MyUtilsBytes;
-import sam.weak.WeakStore;
+import sam.myutils.MyUtilsException;
+import sam.reference.WeakList;
 
 class Transferer implements Callable<State> {
 	// https://en.wikipedia.org/wiki/Zip_(file_format)
 	private static final long MAX_ZIP_SIZE = Integer.MAX_VALUE; // max is 4gb, but i am limit it to 2gb
+	@SuppressWarnings("unused")
 	private static final long MAX_ZIP_ENTRIES_COUNT = 65535;
-	
-	public static final int BUFFER_SIZE = Optional.ofNullable(System.getenv("BUFFER_SIZE")).map(Integer::parseInt).orElse(2*1024*1024);
+	private static final long FILENAME_MAX = 260;
 
-	private static final WeakStore<ByteBuffer> buffers = new WeakStore<>(() -> ByteBuffer.allocateDirect(BUFFER_SIZE), true);
-	private static final WeakStore<byte[]> byteBuffers = new WeakStore<>(() -> new byte[BUFFER_SIZE], true);
+	public static final int BUFFER_SIZE = BufferSize.DEFAULT_BUFFER_SIZE;
+
+	private static final WeakList<ByteBuffer> byteBuffers = new WeakList<>(true, () -> ByteBuffer.allocate(BUFFER_SIZE));
+	private static final WeakList<byte[]> buffers = new WeakList<>(true, () -> new byte[BUFFER_SIZE]);
 
 	private static final Logger LOGGER =  LoggerFactory.getLogger(Transferer.class);
 
 	private final StoringSetting storingSetting;
 	private final StoringMethod storingMethod;
 	private final IFilter storingIncluder;
+	private final List<Path> failed = new ArrayList<>();
 
 	private final FilteredFileTree filesTree;
 	private final ICanceler canceler;
@@ -76,11 +81,13 @@ class Transferer implements Callable<State> {
 
 	private volatile long currentBytesRead;
 	private volatile long currentFileSize;
-	
+
 	private byte[] bytes;
 	private List<FileTreeEntity> toBeRemoved;
+	private final Config config;
 
 	public Transferer(Config config, FilteredFileTree filesTree, ICanceler canceler, TransferListener listener) {
+		this.config = config;
 		this.filesTree = filesTree;
 		this.canceler = canceler;
 		this.listener = listener;
@@ -150,12 +157,14 @@ class Transferer implements Callable<State> {
 				return FileVisitResult.CONTINUE;
 			}
 		});
-		
-		save(zips, "-zips-save.txt");
-		save(files, "-files-save.txt");
+
+		save(zips, "zips-save");
+		save(files, "files-save");
+		if(!failed.isEmpty())
+			writeInTempDir(config, "transfer-failed", null, failed.stream().map(String::valueOf).collect(Collectors.joining("\n")), LOGGER);
 	}
-	private <E extends FileTreeEntity> void save(List<E> files, String ext) {
-		Utils.writeInTempDir("transfer-log", filesTree.getSourcePath(), ext, new FileTreeString(filesTree, files), LOGGER);
+	private <E extends FileTreeEntity> void save(List<E> files, String suffix) {
+		writeInTempDir(config, "transfer-log-", suffix, new FileTreeString(filesTree, files), LOGGER);
 	}
 	private ByteBuffer buffer;
 
@@ -173,9 +182,9 @@ class Transferer implements Callable<State> {
 			return state;
 		} finally {
 			if(buffer != null)
-				buffers.add(buffer);
+				byteBuffers.add(buffer);
 			if(bytes != null)
-				byteBuffers.add(bytes);
+				buffers.add(bytes);
 		}
 	}
 
@@ -198,6 +207,8 @@ class Transferer implements Callable<State> {
 
 			if(copy())
 				f.setCopied(true);
+			else
+				failed.add(target);
 			copyEnd(f);
 
 		}
@@ -213,44 +224,48 @@ class Transferer implements Callable<State> {
 	}
 	private State zipDir(FilteredDirEntity fdir) {
 		DirEntity dir = fdir.getDir();
-		
+
 		if(removeFromFileTree(dir))
 			return State.COMPLETED;
-		
+
 		newTask(dir);
 		if(dir.getSourceSize() > MAX_ZIP_SIZE)
 			throw new RuntimeException(String.format("zipfile size (%s) exceeds max allows size (%s)", MyUtilsBytes.bytesToHumanReadableUnits(dir.getSourceSize(), false), MyUtilsBytes.bytesToHumanReadableUnits(MAX_ZIP_SIZE, false)));
-		
-		boolean rename = false;
-		final int nameCount = dir.getSourcePath().getNameCount();
-		target = renamePath(dir.getBackupPath(), ".zip");
 
-		if(Files.exists(target)) {
-			rename = true;
-			target = renamePath(dir.getBackupPath(), ".zip.tmp");
-		}
-		if(!createDir(target.getParent()))
+		final int nameCount = dir.getSourcePath().getNameCount();
+		target = dir.getBackupPath();
+
+		if(target.toString().length() > FILENAME_MAX){
+			LOGGER.error("FILENAME_MAX exceeded", new IOException("filepath length exceeds FILENAME_MAX ("+FILENAME_MAX+"): "+target));
+			failed.add(target);
 			return State.COMPLETED;
-		
+		}
+
+		if(!createDir(dir.getBackupPath().getParent()))
+			return State.COMPLETED;
+
 		if(bytes == null)
-			bytes = byteBuffers.poll();
+			bytes = buffers.poll();
 
 		boolean[] delete = {false};
 		State[] state = {State.COMPLETED};
 		IOException[] error = {null};
+		Path tempfile = null;
 
 		try {
-			try(OutputStream os = Files.newOutputStream(target, WRITE, CREATE, TRUNCATE_EXISTING);
+			tempfile = Files.createTempFile(target.getFileName().toString(), null);
+
+			try(OutputStream os = Files.newOutputStream(tempfile);
 					ZipOutputStream zos = new ZipOutputStream(os);
 					) {
 				zos.setLevel(Deflater.BEST_SPEED);
-				
+
 				dir.walk(new SimpleFileTreeWalker() {
 					@Override
 					public FileVisitResult file(FileEntity ft) {
 						if(removeFromFileTree(ft))
 							return FileVisitResult.CONTINUE;
-						
+
 						if(canceler.isCancelled()) {
 							cancel();
 							return FileVisitResult.TERMINATE;
@@ -261,7 +276,7 @@ class Transferer implements Callable<State> {
 							return FileVisitResult.CONTINUE;
 						}
 						copyStart(ft);
-						
+
 						try {
 							zipPipe(zos, nameCount);
 						} catch (IOException e) {
@@ -275,19 +290,18 @@ class Transferer implements Callable<State> {
 						copyEnd(fdir);
 						return FileVisitResult.CONTINUE;
 					}
-					
+
 					@Override
 					public FileVisitResult dir(DirEntity ft) {
 						if(removeFromFileTree(dir))
 							return FileVisitResult.SKIP_SUBTREE;
-						
+
 						if(Files.notExists(ft.getSourcePath())) {
 							LOGGER.warn("file not found: {}", src);
 							return FileVisitResult.SKIP_SUBTREE;
 						}
 						return FileVisitResult.CONTINUE;
 					}
-					
 					private void cancel() {
 						delete[0] = true;
 						state[0] = State.CANCELLED;
@@ -295,22 +309,45 @@ class Transferer implements Callable<State> {
 				});
 				if(error[0] != null)
 					throw error[0]; 
-			} catch (IOException e) {
-				LOGGER.error("failed to zip dir: {}", nameCount, e);
-				fdir.setCopied(false);
-				delete[0] = true;
 			}
+		} catch (Exception e) {
+			failed.add(target);
+			LOGGER.error("failed to zip dir: {}", nameCount, e);
+			fdir.setCopied(false);
+			delete[0] = true;
 		} finally {
-			if(delete[0]) delete(target, "temp zip");
+			if(delete[0]) delete(tempfile, "temp zip");
 			else {
-				if(rename)
-					rename(target, renamePath(dir.getBackupPath(), ".zip"), "zip file");
-
+				move(tempfile, target.resolveSibling(target.getFileName()+".zip"), "zip file");
 				fdir.setCopied(true);
 				zipsCopied.add(fdir);
 			}
 		}
 		return state[0];
+	}
+
+	private static final long ONE_MB = 1048576;
+
+	private void move(Path src, Path target, String msg) {
+		if(MyUtilsException.noError(() -> Files.size(src)) < ONE_MB)
+			rename(src, target, "zip file");
+		else {
+			Path temp = siblingTemp(target);
+			rename(src, temp, null);
+			rename(temp, target, "zip file");	
+		}
+	}
+	private static void rename(Path src, Path target, String msg) {
+		try {
+			Files.move(src, target, StandardCopyOption.REPLACE_EXISTING);
+			if(msg != null)
+				LOGGER.debug("file renamed: {} -> {}", src, target);
+		} catch (IOException e) {
+			LOGGER.error("failed to rename {}:{} -> {}", msg, src, target, e);
+		}
+	}
+	private Path siblingTemp(Path p) {
+		return p.resolveSibling(p.getFileName()+".tmp");
 	}
 
 	private boolean removeFromFileTree(FileTreeEntity dir) {
@@ -322,29 +359,18 @@ class Transferer implements Callable<State> {
 			return true;
 		}
 		return false;
-			
-	}
-
-	private static Path renamePath(Path p, String end) {
-		return p.resolveSibling(p.getFileName()+end);
-	}
-
-	private static void rename(Path src, Path target, String msg) {
-		try {
-			Files.move(src, target, StandardCopyOption.REPLACE_EXISTING);
-			LOGGER.debug("file renamed: {} -> {}", src, target);
-		} catch (IOException e) {
-			LOGGER.error("failed to rename {}:{} -> {}", msg, src, target, e);
-		}
 
 	}
-
 	private void zipPipe(ZipOutputStream zos, int rootNameCount) throws IOException {
 		boolean entryPut = false;
 		int n = 0;
 
 		try {
-			zos.putNextEntry(new ZipEntry(src.subpath(rootNameCount, src.getNameCount()).toString().replace('\\', '/')));
+			String name = src.subpath(rootNameCount, src.getNameCount()).toString().replace('\\', '/');
+			if(name.length() > FILENAME_MAX)
+				throw new IOException("name length exceeds FILENAME_MAX ("+FILENAME_MAX+"): "+name);
+
+			zos.putNextEntry(new ZipEntry(name));
 			entryPut = true;
 
 			try(InputStream strm = Files.newInputStream(src, READ);) {
@@ -355,15 +381,15 @@ class Transferer implements Callable<State> {
 					addBytesRead(n);
 				}
 			}
-		} catch (Exception e) {
+		} catch (IOException e) {
 			LOGGER.error("failed to zip file: {}", src, e);
 		} finally {
 			if(entryPut)
 				zos.closeEntry();
 		}
 	}
-
 	private static void delete(Path p, String msg) {
+		if(p == null) return;
 		try {
 			Files.deleteIfExists(p);
 			LOGGER.debug("file deleted: {}", p);
@@ -386,29 +412,30 @@ class Transferer implements Callable<State> {
 	private boolean copy() {
 		if(canceler.isCancelled()) return false;
 
+		if(target.toString().length() > FILENAME_MAX){
+			LOGGER.error("FILENAME_MAX exceeded", new IOException("filepath length exceeds FILENAME_MAX ("+FILENAME_MAX+"): "+target));
+			return false;
+		}
+
 		if(!createDir(target.getParent()))
 			return false;
 
 		if(canceler.isCancelled()) return false;
 
 		if(buffer == null)
-			buffer = buffers.poll();
+			buffer = byteBuffers.poll();
 
 		buffer.clear();
 
-		boolean rename = false;
-		final Path temp;
-		if(Files.exists(target)) {
-			rename = true;
-			temp = target.resolveSibling(target.getFileName()+".tmp");
-		} else 
-			temp = target;
+		final Path temp = target.resolveSibling(target.getFileName()+".tmp");
 
 		try(FileChannel in = FileChannel.open(src, READ);
 				FileChannel out = FileChannel.open(temp, CREATE, TRUNCATE_EXISTING, WRITE)) {
 
-			if(in.size() < BUFFER_SIZE) {
-				in.transferTo(0, in.size(), out);
+			long size = in.size(); 
+
+			if(size < BUFFER_SIZE) {
+				in.transferTo(0, size, out);
 				addBytesRead(in.size());
 			} else {
 				int n = 0;
@@ -427,8 +454,7 @@ class Transferer implements Callable<State> {
 			delete(temp, "failed to copy file");
 			return false;
 		}
-		if(rename)
-			rename(temp, target, "copied file");
+		rename(temp, target, "copied file");
 		return true;
 	}
 

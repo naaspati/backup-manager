@@ -12,16 +12,17 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.filter.IFilter;
-import sam.myutils.MyUtilsDebug;
+import sam.myutils.MyUtilsCheck;
 import sam.myutils.MyUtilsExtra;
-import sam.myutils.MyUtilsSystem;
+import sam.myutils.System2;
+import sam.reference.WeakAndLazy;
 import sam.string.StringUtils;
-import sam.weak.LazyAndWeak;
 
 public class RootConfig extends ConfigBase {
 	private static final long serialVersionUID = 1L;
@@ -34,6 +35,22 @@ public class RootConfig extends ConfigBase {
 	private transient Config[] _lists;
 
 	RootConfig() {}
+	
+	@Override
+	protected void init() {
+		Map<String, List<Config>> string =  Stream.concat(backups == null ? Stream.empty() : Arrays.stream(backups), lists  == null ? Stream.empty() : Arrays.stream(lists))
+				.peek(c -> {
+					if(MyUtilsCheck.isEmptyTrimmed(c.getName()))
+						throw new NullPointerException("name not specified: "+c);
+				})
+				.collect(Collectors.groupingBy(Config::getName));
+		
+		string.values().removeIf(l -> l.size() < 2);
+		
+		if(!string.isEmpty()) 
+			new IllegalStateException("config.name conflict: "+string);
+		
+	}
 
 	public Config findConfig(String name) {
 		return find(name, getBackups());
@@ -100,7 +117,7 @@ public class RootConfig extends ConfigBase {
 	protected RootConfig getRoot() {
 		return this;
 	}
-	private LazyAndWeak<Pattern> pattern = new LazyAndWeak<>(() -> Pattern.compile("%(.+?)%"));
+	private WeakAndLazy<Pattern> pattern = new WeakAndLazy<>(() -> Pattern.compile("%(.+?)%"));
 
 	public String resolve(String variable) {
 		if(!StringUtils.contains(variable, '%'))
@@ -121,7 +138,7 @@ public class RootConfig extends ConfigBase {
 	}
 
 	public String getVariable(final String variable) {
-		String result = MyUtilsSystem.lookup(variable);
+		String result = System2.lookup(variable);
 		result = result != null ? result : variables.get(variable);
 
 		if(result == null) {
@@ -143,10 +160,6 @@ public class RootConfig extends ConfigBase {
 			variables.put(variable, result);
 		}
 		return result;
-	}
-
-	public void print() {
-		MyUtilsDebug.print(variables);
 	}
 }
 

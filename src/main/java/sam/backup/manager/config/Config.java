@@ -11,11 +11,11 @@ import sam.myutils.MyUtilsExtra;
 public class Config extends ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;
 
+	private String name;
 	private String source;
 	private String target;
 	private boolean disable;
 	private StoringSetting storingMethod;
-	private String name;
 	
 	private transient RootConfig root;
 	private transient Path sourceP;
@@ -99,4 +99,9 @@ public class Config extends ConfigBase implements Serializable {
 	public String getTargetRaw() {
 		return target;
 	}
+	@Override
+	public String toString() {
+		return "Config [name=" + name + ", source=" + source + ", target=" + target + ", disable=" + disable + "]";
+	}
+	
 }

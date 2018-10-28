@@ -12,7 +12,7 @@ public enum ButtonType {
 	TREE_VIEW, 
 	SET_MODIFIED,
 	LOADING, 
-	DELETE;
+	DELETE, ;
 
 	private ButtonType() {
 		this(null);

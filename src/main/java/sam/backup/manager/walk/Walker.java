@@ -15,11 +15,11 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import sam.backup.manager.config.BackupConfig;
 import sam.backup.manager.config.Config;
+import sam.backup.manager.config.WalkConfig;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.file.Attrs;
@@ -47,7 +47,7 @@ class Walker implements FileVisitor<Path>{
 	
 
 	public Walker(Config config, WalkListener listener, ICanceler canceler) {
-		BackupConfig c = config.getBackupConfig();
+		WalkConfig c = config.getWalkConfig();
 		this.skipDirNotModified = c.skipDirNotModified();
 		this.skipFiles = c.skipFiles();
 
@@ -60,16 +60,8 @@ class Walker implements FileVisitor<Path>{
 		this.excluder = excluder;
 		this.walkMode = mode;
 
-		/*
-		 * System.out.println("start: "+start);
-	System.out.println("mode: "+mode);
-	System.out.println("skipDirNotModified: "+skipDirNotModified);
-	System.out.println("skipModifiedCheck: "+skipModifiedCheck);
-	System.out.println("skipFiles: "+skipFiles);
-		 */
-
 		rootTree.walkStarted(start);
-		Files.walkFileTree(start, EnumSet.noneOf(FileVisitOption.class), config.getBackupConfig().getDepth(), this);
+		Files.walkFileTree(start, EnumSet.noneOf(FileVisitOption.class), config.getWalkConfig().getDepth(), this);
 	}
 
 
@@ -78,18 +70,19 @@ class Walker implements FileVisitor<Path>{
 		if(canceler.isCancelled())
 			return TERMINATE;
 
-		if(!checkPath(dir)) return SKIP_SUBTREE;
-
 		if(rootTree.isRootPath(dir)) {
 			rootTree.setAttr(new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode, dir);
 		} else if(include(dir)) {
 			DirEntity ft = rootTree.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode);
 			listener.onDirFound(ft, walkMode);
 
-			if(walkMode == WalkMode.BACKUP && !ft.isWalked()) {
-				LOGGER.debug("backup walk skipped: {}", ft.getBackupPath());
+			/**
+			 * if(walkMode == WalkMode.BACKUP && !ft.isWalked()) {
+				LOGGER.info("backup walk skipped: {}", ft.getBackupPath());
 				return SKIP_SUBTREE;
 			}
+			 */
+			
 			if(skipDirNotModified && !atrs(ft).isModified()) {
 				LOGGER.debug("source walk skipped: {}", ft.getSourcePath());
 				return SKIP_SUBTREE;
@@ -99,7 +92,6 @@ class Walker implements FileVisitor<Path>{
 			excludeFilesList.add(dir);
 			return SKIP_SUBTREE;
 		}
-
 		return CONTINUE;
 	}
 	private AttrsKeeper atrs(FileTreeEntity ft) {
@@ -113,7 +105,7 @@ class Walker implements FileVisitor<Path>{
 		if(canceler.isCancelled())
 			return TERMINATE;
 
-		if(skipFiles || !checkPath(file))
+		if(skipFiles)
 			return CONTINUE;
 
 		if(include(file)) {
@@ -132,16 +124,4 @@ class Walker implements FileVisitor<Path>{
 	private boolean include(Path file) {
 		return !excluder.test(file);
 	}
-	public static final int MAX_PATH_LENGTH = 260;
-
-	private boolean checkPath(Path file) {
-		String s = file.toString();
-
-		if(s.length() > MAX_PATH_LENGTH) {
-			LOGGER.error("max path length exceeded {} -> {}", s.length(), s);
-			return false;
-		}
-		return true;
-	}
-
 }

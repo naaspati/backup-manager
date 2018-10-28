@@ -4,14 +4,13 @@ import static sam.backup.manager.walk.WalkMode.BACKUP;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Objects;
 
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.walk.WalkMode;
 
-public abstract class FileTreeEntity {
+public abstract class FileTreeEntity extends FileTreeEntityStatus {
 	private String fileNameString;
 	protected static final Logger LOGGER =  LoggerFactory.getLogger(FileTreeEntity.class);
 
@@ -33,8 +32,7 @@ public abstract class FileTreeEntity {
 		this.backupAttrs = f.backupAttrs;
 		this.backup = f.backup;
 		this.copied = f.copied;
-		this.delete = f.delete;
-		this.reason = f.reason;
+		this.backupReason = f.backupReason;
 	}
 
 	FileTreeEntity(Path path, DirEntity parent) {
@@ -43,7 +41,7 @@ public abstract class FileTreeEntity {
 		this.backupAttrs = new AttrsKeeper();
 		this.parent = parent;
 	}
-	
+
 	public FileTreeEntity(String fileNameString, DirEntity parent, Attrs sourceAttr, Attrs backupAttr) {
 		this.fileNameString = fileNameString;
 		this.parent = parent;
@@ -53,34 +51,6 @@ public abstract class FileTreeEntity {
 
 	public abstract boolean isDirectory();
 
-	private boolean backup, copied, delete;
-	private String reason;
-
-	public boolean isCopied() {
-		return copied;
-	}
-	public boolean isBackupable() {
-		return backup;
-	}
-	public String getBackupReason() {
-		return reason;
-	}
-	public void setCopied(boolean b) {
-		copied = b;
-	}
-	public void setBackupable(boolean b) {
-		backup = b;
-	}
-	public void setBackupable(boolean b, String reason) {
-		backup = b;
-		this.reason = Objects.requireNonNull(reason);
-	}
-	public boolean isDeletable() {
-		return delete;
-	}
-	public void setDeletable(boolean delete) {
-		this.delete = delete;
-	}
 	public DirEntity getParent() {
 		return parent;
 	}

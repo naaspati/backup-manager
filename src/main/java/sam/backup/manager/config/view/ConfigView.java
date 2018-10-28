@@ -8,7 +8,12 @@ import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
 import static sam.backup.manager.extra.Utils.readFiletree;
+import static sam.backup.manager.extra.Utils.saveFiletree;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
+import static sam.backup.manager.extra.Utils.writeInTempDir;
+import static sam.backup.manager.view.ButtonType.DELETE;
+import static sam.backup.manager.view.ButtonType.FILES;
+import static sam.backup.manager.view.ButtonType.WALK;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.removeClass;
 import static sam.fx.helpers.FxMenu.menuitem;
@@ -32,18 +37,20 @@ import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.text.Text;
+import javafx.stage.Stage;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TreeType;
-import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeEntity;
+import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.FilteredFileTree;
 import sam.backup.manager.file.SimpleFileTreeWalker;
 import sam.backup.manager.view.ButtonAction;
@@ -55,13 +62,14 @@ import sam.fx.helpers.FxLabel;
 import sam.fx.helpers.FxText;
 import sam.fx.popup.FxPopupShop;
 
-//FIXME 
 public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler, WalkListener {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigView.class);
 
 	private final Config config;
 	private final GridPane container = new GridPane();
-	private final CustomButton button; 
+	private final CustomButton files = new CustomButton(FILES, this);
+	private final CustomButton delete = new CustomButton(DELETE, this);
+	private final CustomButton walk = new CustomButton(WALK, this); 
 	private final Text sourceSizeT, targetSizeT, sourceFileCountT; 
 	private final Text sourceDirCountT, targetFileCountT, targetDirCountT;
 	private final Text backupSizeT, backupFileCountT;
@@ -92,7 +100,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		sourceFileCountT = text("---");
 		sourceDirCountT = text("---"); 
 
-		String st = config.getBackupConfig().walkBackup() ? "--" : "N/A";
+		String st = config.getWalkConfig().walkBackup() ? "--" : "N/A";
 		targetSizeT = text(st); 
 		targetFileCountT = text(st); 
 		targetDirCountT = text(st);
@@ -103,9 +111,9 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		int row = 0;
 
 		container.addRow(row, text("Source: "));
-		container.add(hyperlink(config.getSource()), 1, row++, REMAINING, 1);
+		container.add(hyperlink(config.getSource(), config.getSourceRaw()), 1, row++, REMAINING, 1);
 		container.addRow(row,text("Target: "));
-		container.add(hyperlink(config.getTarget()), 1, row++, REMAINING, 1);
+		container.add(hyperlink(config.getTarget(), config.getTargetRaw()), 1, row++, REMAINING, 1);
 		container.addRow(row, text("Last updated: "));
 		container.add(text(lastUpdated == null ? "N/A" : millsToTimeString(lastUpdated)), 1, row++, REMAINING, 1);
 
@@ -122,13 +130,13 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 
 		bottomText = new Text();
 
-		if(Files.notExists(config.getSource())) {
-			button = null;
+
+		if(Files.notExists(config.getSource()))
 			finish("Source not found", true);
-		}
 		else {
-			button = new CustomButton(ButtonType.WALK, this);
-			container.add(button, 0, row++, REMAINING, 2);
+			container.add(new HBox(5, walk, files, delete), 0, row++, REMAINING, 2);
+			files.setVisible(false);
+			delete.setVisible(false);
 			row++;
 		}
 		container.add(bottomText, 1, row++, REMAINING, REMAINING);
@@ -136,27 +144,23 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	private void setContextMenu() {
 		setOnContextMenuRequested(e -> {
 			ContextMenu menu = new ContextMenu( 
-					menuitem("Set as latest", this::setAsLatestAction, filteredFileTree.isNull()),
-					menuitem("All files", this::allfilesAction),
-					menuitem("clean backup", e1 -> new BackupCleanup(config))
+					menuitem("Set as latest", this::setAsLatestAction, backupFFT.isNull()),
+					menuitem("All files", this::allfilesAction)
+					// menuitem("clean backup", e1 -> new BackupCleanup(config))
 					) ;
 			menu.show(App.getStage(), e.getScreenX(), e.getScreenY());
 		});
 	}
 	private void allfilesAction(ActionEvent e) {
-		if(filteredFileTree.get() == null)
+		if(backupFFT.get() == null)
 			if(!loadFileTree())
 				return;
-		FilesView.open("all files",config, config.getFileTree(), FilesViewMode.ALL);
+		FilesView.open("all files",config, config.getFileTree(), FilesViewSelector.all());
 	}
 	private void setAsLatestAction(ActionEvent e) {
 		config.getFileTree().forcedMarkUpdated();
-		try {
-			Utils.saveFiletree(config, TreeType.BACKUP);
-			FxPopupShop.showHidePopup("marked as letest", 1500);
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
+		saveFiletree(config, TreeType.BACKUP);
+		FxPopupShop.showHidePopup("marked as letest", 1500);
 	};
 	private Node header(String string) {
 		return addClass(new Label(string), "text", "header");
@@ -167,20 +171,30 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	@Override
 	public void handle(ButtonType type) {
 		switch (type) {
-			case FILES:
-				FilesView.open("select files to backup", config, filteredFileTree.get(), FilesViewMode.BACKUP);
-				break;
-			case WALK:
-				button.setType(ButtonType.LOADING);
-				startEndAction.start(ConfigView.this);
-				button.setType(ButtonType.CANCEL);	
-				break;
-			case SET_MODIFIED:
-				throw new IllegalStateException("not yet implemented");
-			default:
-				throw new IllegalArgumentException("unknown action: "+type);
-
+		case FILES:
+			FilesView.open("select files to backup", config, backupFFT.get(), FilesViewSelector.backup());
+			break;
+		case DELETE:
+			CustomButton b = new CustomButton(DELETE);
+			Stage stage = FilesView.open("select files to delete", config, deleteFFT.get(), FilesViewSelector.delete(), b);
+			b.setOnAction(e -> deleteAction(stage));
+			break;
+		case WALK:
+			walk.setType(ButtonType.LOADING);
+			startEndAction.start(ConfigView.this);
+			walk.setType(ButtonType.CANCEL);	
+			break;
+		case SET_MODIFIED:
+			throw new IllegalStateException("not yet implemented");
+		default:
+			throw new IllegalArgumentException("unknown action: "+type);
 		}
+	}
+	private void deleteAction(Stage stage) {
+		writeInTempDir(config, "delete", null, new FileTreeString(deleteFFT.get()), LOGGER);
+		stage.hide();
+		Deleter.process(deleteFFT.get());
+		saveFiletree(config, TreeType.BACKUP);
 	}
 	@Override
 	public boolean isCancelled() {
@@ -189,7 +203,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	@Override
 	public void stop() {
 		cancel.set(true);
-		button.setType(ButtonType.WALK);
+		walk.setType(ButtonType.WALK);
 	}
 	@Override
 	public void start() {
@@ -197,11 +211,11 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 			return;
 
 		cancel.set(false);
-		button.setType(ButtonType.CANCEL);
+		walk.setType(ButtonType.CANCEL);
 		startEndAction.start(this);
 	}
 	public boolean isCompleted() {
-		return button == null;
+		return walk != null && walk.isDisable();
 	}
 	public Config getConfig() {
 		return config;
@@ -254,29 +268,39 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		});
 	}
 
-	private final SimpleObjectProperty<FilteredFileTree>  filteredFileTree = new SimpleObjectProperty<>();
+	private final SimpleObjectProperty<FilteredFileTree>  backupFFT = new SimpleObjectProperty<>();
+	private final SimpleObjectProperty<FilteredFileTree>  deleteFFT = new SimpleObjectProperty<>();
 
 	@Override
 	public void walkCompleted() {
-
-		FilteredFileTree ft =  new FilteredFileTree(config.getFileTree(), FileTreeEntity::isBackupable);
+		FilteredFileTree backup =  new FilteredFileTree(config.getFileTree(), WalkMode.SOURCE, FileTreeEntity::isBackupable);
+		FilteredFileTree delete = !config.getBackupConfig().hardSync() ? null :  new FilteredFileTree(config.getFileTree(), WalkMode.BACKUP, FileTreeEntity::isBackupDeletable);
 
 		runLater(() -> {
-			filteredFileTree.set(ft);
-			if(ft.isEmpty()) {
-				finish("Nothing to backup/delete", false);
-				startEndAction.onComplete(this);
-			}
+			backupFFT.set(backup);
+			deleteFFT.set(delete);
+			walk.setVisible(false);
 		});
 
-		if(ft.isEmpty()) 
-			return;
+		if(!backup.isEmpty())
+			updateBackupCounts(backup);
+		else
+			finish("Nothing to backup/delete", false);
+		
+		if(delete != null && !delete.isEmpty())
+			updateDeleteCounts(delete);
 
-		runLater(() -> button.setType(ButtonType.FILES));
+		runLater(() -> startEndAction.onComplete(this));
+	}
+	private void updateDeleteCounts(FilteredFileTree deleteFT) {
+		runLater(() -> delete.setVisible(true));
+	}
+	private void updateBackupCounts(FilteredFileTree backup) {
+		runLater(() -> files.setVisible(true));
 
 		long[] l = {0,0};
 
-		ft.walk(new SimpleFileTreeWalker() {
+		backup.walk(new SimpleFileTreeWalker() {
 			@Override
 			public FileVisitResult file(FileEntity ft) {
 				l[0]++;
@@ -284,20 +308,15 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 				return FileVisitResult.CONTINUE;
 			}
 		});
-
 		runLater(() -> {
 			backupSizeT.setText(bytesToString(l[1]));
 			backupFileCountT.setText(String.valueOf(l[0]));
-			startEndAction.onComplete(this);
 		});
-
 	}
 	public void finish(String msg, boolean failed) {
 		if(failed) {
 			config.isDisabled();
-			button.setVisible(false);
 		}
-		button.setType(ButtonType.FILES);
 		removeClass(this, "disable", "completed");
 		removeClass(bottomText, "disable-text", "completed-text");
 		String s = failed ? "disable" : "completed";
@@ -306,17 +325,26 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		bottomText.setText(msg);
 	}
 	public boolean hashBackups() {
-		return filteredFileTree.get() != null && !filteredFileTree.get().isEmpty();
+		return backupFFT.get() != null && !backupFFT.get().isEmpty();
 	}
-	public FilteredFileTree getFilteredFileTree() {
-		return filteredFileTree.get();
+	public FilteredFileTree getBackupFileTree() {
+		return backupFFT.get();
+	}
+	public FilteredFileTree getDeleteFileTree() {
+		return deleteFFT.get();
+	}
+	public boolean hashDeleteBackups() {
+		return deleteFFT.get() != null && !deleteFFT.get().isEmpty();
+	}
+	public FilteredFileTree getDeleteBackups() {
+		return deleteFFT.get();
 	}
 	public boolean loadFileTree() {
 		if(config.getFileTree() != null)
 			return true;
 
-		if(config.getBackupConfig().getDepth() <= 0) {
-			runLater(() -> finish("Walk failed: \nbad value for depth: "+config.getBackupConfig().getDepth(), true));
+		if(config.getWalkConfig().getDepth() <= 0) {
+			runLater(() -> finish("Walk failed: \nbad value for depth: "+config.getWalkConfig().getDepth(), true));
 			return false;
 		}
 		if(config.getFileTree() == null) {

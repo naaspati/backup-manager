@@ -4,10 +4,8 @@ import static javafx.application.Platform.runLater;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,22 +15,28 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
-import java.util.Formatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.ResourceBundle;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.slf4j.LoggerFactory;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
+import javafx.scene.control.Tooltip;
+import javafx.scene.image.ImageView;
+import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -42,50 +46,45 @@ import sam.backup.manager.config.Config;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeReader;
 import sam.backup.manager.file.FileTreeWriter;
-import sam.fileutils.FilesUtils;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxHyperlink;
 import sam.fx.popup.FxPopupShop;
-import sam.tsv.TsvMap;
-import sam.tsv.tsvmap.TsvMapFactory;
-import sam.weak.LazyAndWeak;
+import sam.io.serilizers.ObjectReader;
+import sam.io.serilizers.ObjectWriter;
+import sam.io.serilizers.OneObjectReader;
+import sam.io.serilizers.OneObjectWriter;
+import sam.io.serilizers.StringWriter2;
+import sam.myutils.MyUtilsException;
+import sam.myutils.MyUtilsPath;
+import sam.reference.WeakAndLazy;
 
-public class Utils {
-	private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
+public final class Utils {
+	private static final Logger LOGGER;
+	public static final Path APP_DATA = Paths.get("app_data");
+	public static final Path TEMP_DIR;
 
-	public static final Path APP_DATA_DIR;
-	public static final Path TEMPS_DIR;
+	// public static final Path APP_DATA_DIR;
+	// public static final Path TEMPS_DIR;
 	public static ExecutorService threadPool0;
+	
+	static {
+		TEMP_DIR = MyUtilsPath.resolveToTempDir(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy'T'HH.mm")));
+		MyUtilsException.noError(() -> Files.createDirectories(TEMP_DIR));
 
-	private Utils() {
+		LOGGER = LoggerFactory.getLogger(Utils.class);
+		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> LOGGER.error("thread: {}", thread.getName(), exception));
 	}
+	
+	// does nothing only initiates static block
+	public static void init() {}
+
+	private Utils() {}
 
 	private static ExecutorService threadPool() {
 		if (threadPool0 == null)
 			threadPool0 = Executors.newSingleThreadExecutor();
 
 		return threadPool0;
-	}
-
-	static {
-		ResourceBundle rb = ResourceBundle.getBundle("app-config");
-		rb.keySet().forEach(s -> System.setProperty(s, rb.getString(s)));
-
-		String s = System.getenv("APP_DATA_DIR");
-		if (s == null)
-			s = System.getProperty("APP_DATA_DIR");
-		if (s == null)
-			s = System.getProperty("app_data_dir");
-		if (s == null)
-			s = System.getProperty("app.data.dir");
-		if (s == null)
-			s = "app_data";
-
-		APP_DATA_DIR = Paths.get(s);
-		TEMPS_DIR = APP_DATA_DIR.resolve("temps");
-
-		LOGGER.debug("\n  app_dir: {}\n  temp_dir: {}", APP_DATA_DIR.toAbsolutePath().normalize(),
-				TEMPS_DIR.toAbsolutePath().normalize());
 	}
 
 	public static void run(Runnable r) {
@@ -166,8 +165,7 @@ public class Utils {
 	}
 
 	private static void waitUntil(AtomicBoolean stopper) {
-		while (!stopper.get()) {
-		}
+		while (!stopper.get()) { }
 	}
 
 	public static void showErrorAndWait(Object text, Object header, Exception e) {
@@ -180,54 +178,71 @@ public class Utils {
 	}
 
 	private static Path getTreePath(Config config, TreeType treeType) {
-		return APP_DATA_DIR.resolve(String.format("trees/%s-%s-%s.filetree", treeType, config.getSourceRaw(), config.getTargetRaw()));
+		return APP_DATA.resolve("trees/"+treeType+"-"+config.getName()+".filetree");
 	}
-
 	public static FileTree readFiletree(Config config, TreeType treeType) throws IOException {
 		Path p = getTreePath(config, treeType);
 
+		try {
 		if (Files.exists(p))
 			return new FileTreeReader().read(p, config);
+		} catch (IOException e) {
+			throw new IOException(e.getMessage()+" ("+p+")", e);
+		}
 
 		LOGGER.warn("treeFile file not found: {}", p);
-
 		return null;
 	}
 
-	public static void saveFiletree(Config config, TreeType treeType) throws IOException {
+	public static void saveFiletree0(Config config, TreeType treeType) throws IOException {
 		Objects.requireNonNull(config.getFileTree(), "config does not have a filetree: " + config.getSource());
 
 		Path p = getTreePath(config, treeType);
 		
-		Files.createDirectories(p.getParent());
-		new FileTreeWriter().write(p, config.getFileTree());
-		LOGGER.info("file-tree saved: {}", p.getFileName());
+		try {
+			Files.createDirectories(p.getParent());
+			new FileTreeWriter().write(p, config.getFileTree());
+			LOGGER.info("file-tree saved: {}", p.getFileName());
+		} catch (IOException e) {
+			throw new IOException(e.getMessage()+" ("+p+")", e);
+		}
+	}
+	
+	public static void saveFiletree(Config config, TreeType treeType) {
+		try {
+			saveFiletree0(config, treeType);
+		} catch (IOException e) {
+			FxAlert.showErrorDialog(null, "failed to save filetree", e);
+		}
 	}
 
 	public static Path getBackupLastPerformedPathTimeMapPath() {
-		return APP_DATA_DIR.resolve("backup-last-performed.tsv");
+		return APP_DATA.resolve("backup-last-performed.dat");
 	}
-
 	public static void saveBackupLastPerformedPathTimeMap(Map<String, Long> map) {
 		try {
-			((TsvMap<String, Long>) map).save(getBackupLastPerformedPathTimeMapPath());
+			ObjectWriter.writeMap(getBackupLastPerformedPathTimeMapPath(), map, OneObjectWriter.STRING_WRITER, OneObjectWriter.LONG_WRITER);
 		} catch (IOException e) {
 			LOGGER.warn("failed to save: {}", getBackupLastPerformedPathTimeMapPath(), e);
 		}
 	}
 
-	private static TsvMap<String, Long> backupLastPerformed;
+	private static Map<String, Long> backupLastPerformed;
 	private static volatile boolean backupLastPerformedModified = false;
 
 	public static void readBackupLastPerformedPathTimeMap() {
 		if (backupLastPerformed != null)
 			return;
 		Path p = getBackupLastPerformedPathTimeMapPath();
-		try (InputStream is = Files.newInputStream(p)) {
-			backupLastPerformed = TsvMapFactory.builder(false, s -> s, Long::parseLong).parse(is);
+		if(Files.notExists(p)){
+			backupLastPerformed = new HashMap<>();
+			return; 
+		}
+		try {
+			backupLastPerformed = ObjectReader.readMap(getBackupLastPerformedPathTimeMapPath(), OneObjectReader.STRING_READER, OneObjectReader.LONG_READER);
 		} catch (IOException e) {
 			LOGGER.warn("failed to read: {}", p, e);
-			backupLastPerformed = new TsvMap<>();
+			backupLastPerformed = new HashMap<>();
 		}
 	}
 
@@ -293,44 +308,33 @@ public class Utils {
 		return false;
 	}
 
-	private static final StringBuilder sb2 = new StringBuilder();
-	private static final Formatter fm = new Formatter(sb2);
-
-	public static String format(String format, Object... args) {
-		synchronized (sb2) {
-			sb2.setLength(0);
-			fm.format(format, args);
-			return sb2.toString();
-		}
-	}
-
-	public static Path subpath(Path child, Path parent) {
-		if (parent == null)
-			return child;
-
-		return child == null || child.getNameCount() < parent.getNameCount() || !child.startsWith(parent)
-				|| child.equals(parent) ? child : child.subpath(parent.getNameCount(), child.getNameCount());
-	}
-
 	public static String hashedName(Path p, String ext) {
 		return p.getFileName() + "-" + p.hashCode() + ext;
 	}
 
 	public static void write(Path path, CharSequence data) throws IOException {
 		Files.createDirectories(path.getParent());
-		FilesUtils.write(path, data, StandardCharsets.UTF_8, false, CodingErrorAction.REPLACE,
-				CodingErrorAction.REPLACE);
+		StringWriter2.writer()
+		.onMalformedInput(CodingErrorAction.REPLACE)
+		.onUnmappableCharacter(CodingErrorAction.REPLACE)
+		.write(data);
 	}
-
-	public static void writeInTempDir(String dir, Path parent, String ext, CharSequence data, Logger logger) {
-		Path path = Utils.TEMPS_DIR.resolve(dir).resolve(hashedName(parent, ext));
-
+	public static void writeInTempDir0(Config config, String prefix, String suffix, CharSequence data, Logger logger) throws IOException {
+		Path path = TEMP_DIR.resolve(String.format("%s-%s-%s.txt", prefix == null ? "" : prefix, config.getName(), suffix == null ? "" : suffix));
+		
 		try {
+			Files.createDirectories(path.getParent());
 			write(path, data);
-			logger.info("created: %temp%\\" + subpath(path, parent));
+			logger.info("created: "+path);
+		} catch (Exception e) {
+			throw new IOException(e.getMessage()+" ("+"failed to write: "+path+")", e);
+		}
+	}
+	public static void writeInTempDir(Config config, String prefix, String suffix, CharSequence data, Logger logger) {
+		try {
+			writeInTempDir0(config, prefix, suffix, data, logger);
 		} catch (IOException e) {
-			logger.info("failed to write: %temp%\\" + subpath(path, parent));
-			FxPopupShop.showHidePopup("error occured", 1500);
+			FxAlert.showErrorDialog(null, "failed to save", e);
 		}
 	}
 
@@ -343,7 +347,7 @@ public class Utils {
 		threadPool().awaitTermination(2, TimeUnit.SECONDS);
 	}
 
-	private static final LazyAndWeak<FXMLLoader> fxkeep = new LazyAndWeak<>(FXMLLoader::new);
+	private static final WeakAndLazy<FXMLLoader> fxkeep = new WeakAndLazy<>(FXMLLoader::new);
 
 	public static void fxml(String filename, Object root, Object controller) {
 		try {
@@ -376,10 +380,29 @@ public class Utils {
 		node.getStylesheets().add(url.toExternalForm());
 	}
 	
-	public static Hyperlink hyperlink(Path path) {
-		Hyperlink hyperlink = FxHyperlink.of(path);
-		hyperlink.setMinWidth(400);
-		return hyperlink;
+	public static Node hyperlink(Path path, String alternative) {
+		if(path != null) {
+			Hyperlink hyperlink = FxHyperlink.of(path);
+			hyperlink.setMinWidth(400);
+			return hyperlink;
+		} else {
+			Text t = new Text(alternative);
+			t.setDisable(true);
+			return t;
+		}
+	}
+	public static <T> T either(T t1, T t2, T defaultValue) {
+		if(t1 == null && t2 == null)
+			return defaultValue;
+		return t1 != null ? t1 : t2;
 	}
 
+	public static Node button(String tooltip, String icon, EventHandler<ActionEvent> action) {
+		Button button = new Button();
+		button.getStyleClass().clear();
+		button.setTooltip(new Tooltip(tooltip));
+		button.setGraphic(new ImageView(icon));
+		button.setOnAction(action);
+		return button;
+	}
 }

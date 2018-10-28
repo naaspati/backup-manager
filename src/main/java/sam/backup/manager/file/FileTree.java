@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Objects;
 
 import sam.backup.manager.config.Config;
-import sam.backup.manager.extra.Utils;
 import sam.backup.manager.walk.WalkMode;
 
 public class FileTree extends DirEntity {
@@ -77,7 +76,7 @@ public class FileTree extends DirEntity {
 				dl = map.get(name);
 			}
 			if(dl == null) 
-				throw new IOException(Utils.format("failed to complete walk: subpath:%s, index:%s, isDir:%s ", subpath, index, isDir));
+				throw new IOException(String.format("failed to complete walk: subpath:%s, index:%s, isDir:%s ", subpath, index, isDir));
 
 			return dl.walk2(subpath, index+1, isDir);
 		}

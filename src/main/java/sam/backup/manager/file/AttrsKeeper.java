@@ -6,7 +6,6 @@ public class AttrsKeeper {
 	private Path path;
 	private Attrs old;
 	private Attrs current;
-	
 
 	AttrsKeeper() {}
 	AttrsKeeper(Attrs old) {

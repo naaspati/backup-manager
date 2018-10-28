@@ -37,6 +37,7 @@ import javafx.scene.control.cell.CheckBoxTreeCell;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Modality;
@@ -54,13 +55,13 @@ import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.SimpleFileTreeWalker;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.fileutils.FileOpener;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxGridPane;
-import sam.weak.WeakStore;
+import sam.io.fileutils.FileOpener;
+import sam.reference.WeakList;
 
 public class FilesView extends BorderPane {
-	private static WeakStore<FilesView> views = new WeakStore<>(); 
+	private static WeakList<FilesView> views = new WeakList<>(() -> new FilesView(null, null, null, null)); 
 	private static WeakReference<Stage> weakStage = new WeakReference<Stage>(null);
 
 	private static Stage getStage() {
@@ -80,14 +81,14 @@ public class FilesView extends BorderPane {
 		}
 		return stage;
 	}
-	public static Stage open(String title, Config config, DirEntity root, FilesViewMode mode, Button...buttons) {
-		return open(title, config, root, mode, null, buttons);
+	public static Stage open(String title, Config config, DirEntity treeToDisplay, FilesViewSelector selector, Button...buttons) {
+		return open(title, config, treeToDisplay, selector, null, buttons);
 	}
-	public static Stage open(String title, Config config, DirEntity root, FilesViewMode mode,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
+	public static Stage open(String title, Config config, DirEntity treeToDisplay, FilesViewSelector selector,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
 		Stage stage = getStage();
-		FilesView v = views.stream().filter(f -> f.fileTree == root && f.mode == mode).findFirst().orElse(null);
+		FilesView v = views.stream().filter(f -> f.treeToDisplay == treeToDisplay && f.selector == selector).findFirst().orElse(null);
 		if(v == null) {
-			v = new FilesView(config, root, mode, buttons);
+			v = new FilesView(config, treeToDisplay, selector, buttons);
 			views.add(v);
 		}
 
@@ -107,23 +108,25 @@ public class FilesView extends BorderPane {
 	private final SimpleIntegerProperty totalCount = new SimpleIntegerProperty();
 	private final Path sourceRoot, targetRoot;
 
-	private final DirEntity fileTree;
+	private final DirEntity treeToDisplay;
 	private final AboutPane aboutPane = new AboutPane();
-	private final FilesViewMode mode;
+	private final FilesViewSelector selector;
+	private final Config config;
 
-	private FilesView(Config config, DirEntity root, FilesViewMode mode, Button[] buttons) {
+	private FilesView(Config config, DirEntity treeToDisplay, FilesViewSelector selector, Button[] buttons) {
 		addClass(this, "files-view");
+		this.config = config; 
 		sourceRoot = config.getSource();
 		targetRoot = config.getTarget();
-		this.fileTree = root;
-		this.mode = mode;
+		this.treeToDisplay = treeToDisplay;
+		this.selector = selector;
 
 		treeView = new TreeView<>();
 		treeView.getSelectionModel()
 		.selectedItemProperty()
 		.addListener((p, o, n) -> aboutPane.reset(n == null ? null : n.getValue()));
 
-		if(mode != FilesViewMode.ALL)
+		if(selector.isSelectable())
 			treeView.setCellFactory(CheckBoxTreeCell.forTreeView());
 
 		setClass(expandAll, "expand-toggle");
@@ -172,7 +175,7 @@ public class FilesView extends BorderPane {
 		}
 	}
 	private Node bottom(Button[] buttons) {
-		CustomButton save = new CustomButton(ButtonType.SAVE, e -> saveToFile2(new FileTreeString(fileTree), Paths.get("D:\\Downloads").resolve(sourceRoot.getFileName()+".txt")));
+		CustomButton save = new CustomButton(ButtonType.SAVE, e -> saveToFile2(new FileTreeString(treeToDisplay), Paths.get("D:\\Downloads").resolve(sourceRoot.getFileName()+".txt")));
 		save.disableProperty().bind(selectedCount.isEqualTo(0));
 
 		if(buttons.length == 0) {
@@ -190,9 +193,9 @@ public class FilesView extends BorderPane {
 		}
 	}
 	private void init() {
-		TreeItem<FileTreeEntity> root = item(fileTree);
+		TreeItem<FileTreeEntity> root = item(treeToDisplay);
 		root.setExpanded(true);
-		int total = walk(root, fileTree);
+		int total = walk(root, treeToDisplay);
 
 		selectedCount.set(total);
 		totalCount.set(total);
@@ -201,7 +204,7 @@ public class FilesView extends BorderPane {
 	private class Unit extends CheckBoxTreeItem<FileTreeEntity> {
 		final FileTreeEntity file;
 		public Unit(FileTreeEntity file) {
-			super(file, null, mode.get(file));
+			super(file, null, selector.get(file));
 			this.file = file;
 
 			if(!file.isDirectory())
@@ -209,7 +212,7 @@ public class FilesView extends BorderPane {
 		}
 		public void set(Boolean n) {
 			if(n == null) return;
-			mode.set(file, n);
+			selector.set(file, n);
 			selectedCount.set(selectedCount.get() + (n ? 1 : -1));
 		}
 	} 
@@ -227,7 +230,7 @@ public class FilesView extends BorderPane {
 		return total;
 	}
 	private TreeItem<FileTreeEntity> item(FileTreeEntity f) {
-		return mode.isSelectable() ? new Unit(f) : new TreeItem<FileTreeEntity>(f);
+		return selector.isSelectable() ? new Unit(f) : new TreeItem<FileTreeEntity>(f);
 	}
 	private class AboutPane extends VBox {
 		final Text name = new Text();
@@ -244,7 +247,7 @@ public class FilesView extends BorderPane {
 			EventHandler<ActionEvent> handler = e -> {
 				Path p = (Path) ((Hyperlink)e.getSource()).getUserData();
 				try {
-					FileOpener.getInstance().openFileLocationInExplorer(p.toFile());
+					FileOpener.openFileLocationInExplorer(p.toFile());
 				} catch (IOException e1) {
 					FxAlert.showErrorDialog(p, "failed to open location", e);
 				}
@@ -265,6 +268,7 @@ public class FilesView extends BorderPane {
 			about.setPrefColumnCount(12);
 			about.setMaxWidth(Double.MAX_VALUE);
 			about.setMaxHeight(Double.MAX_VALUE);
+			VBox.setVgrow(about, Priority.ALWAYS);
 
 			RadioMenuItem item = new RadioMenuItem("wrap text");
 			about.wrapTextProperty().bind(item.selectedProperty());
@@ -307,7 +311,7 @@ public class FilesView extends BorderPane {
 					.append("reason: ").append(file.getBackupReason()).append(" ) \n")
 					.append("copied to backup: ").append(file.isCopied() ? "YES" : "NO").append('\n');
 				}
-				if(file.isDeletable()) {
+				if(file.isBackupDeletable()) {
 					sb
 					.append("\n\n-----------------------------\nWILL BE DELETED\n")
 					.append("reason:\n");
@@ -336,7 +340,8 @@ public class FilesView extends BorderPane {
 			List<FileTreeEntity> list = new ArrayList<>();
 			Path name = file.getFileName();
 
-			fileTree.walk(new SimpleFileTreeWalker() {
+			config.getFileTree()
+			.walk(new SimpleFileTreeWalker() {
 				@Override
 				public FileVisitResult file(FileEntity ft) {
 					if(ft != file && name.equals(ft.getFileName()))

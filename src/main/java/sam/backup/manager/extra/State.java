@@ -5,5 +5,6 @@ public enum State {
 	COMPLETED,
 	CANCELLED,
 	WALKING,
-	QUEUED
+	QUEUED,
+	FAILED
 }

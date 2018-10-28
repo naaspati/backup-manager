@@ -40,9 +40,9 @@ import sam.backup.manager.view.ViewType;
 import sam.backup.manager.viewers.TransferViewer;
 import sam.backup.manager.viewers.ViewSwitcher;
 import sam.backup.manager.walk.WalkMode;
-import sam.fileutils.FileOpener;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
+import sam.io.fileutils.FileOpenerNE;
 
 public class App extends Application {
 	private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
@@ -89,13 +89,7 @@ public class App extends Application {
 		t.start();
 	}
 	private void secondStart() {
-		Path path;
-		try {
-			path = Files.list(Utils.APP_DATA_DIR.resolve("configs")).filter(p -> p.getFileName().toString().endsWith(".json")).findFirst().orElse(null);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
-		}
-		rootConfig = new ConfigReader().read(path);
+		rootConfig = new ConfigReader().read(Utils.APP_DATA.resolve("config.json"));
 		
 		runLater(() -> {
 			aboutDriveView = new AboutDriveView(rootConfig);
@@ -122,7 +116,7 @@ public class App extends Application {
 	private Node getMenubar() {
 		Menu  file = new Menu("_File",
 				null,
-				menuitem("open app dir", e -> FileOpener.getInstance().openFileNoError(Utils.APP_DATA_DIR.toFile())),
+				menuitem("open app dir", e -> FileOpenerNE.openFile(new File("."))),
 				menuitem("create FileTree", this::createFileTree),
 				menuitem("cleanup", e -> new Cleanup())
 				);

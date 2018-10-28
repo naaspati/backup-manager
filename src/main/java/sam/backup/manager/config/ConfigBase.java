@@ -14,7 +14,8 @@ abstract class ConfigBase implements Serializable {
 	
 	protected Filter excludes;
 	protected Filter targetExcludes;
-	protected BackupConfig backupConfig; 
+	protected BackupConfig backupConfig;
+	protected WalkConfig walkConfig;
 
 	protected transient IFilter excluder, targetExcluder, includer;
 
@@ -28,6 +29,13 @@ abstract class ConfigBase implements Serializable {
 		
 		backupConfig.setRootConfig(getRoot().backupConfig);
 		return backupConfig;
+	}
+	public WalkConfig getWalkConfig() {
+		if(this.walkConfig == null)
+			walkConfig = new WalkConfig();
+		
+		walkConfig.setRootConfig(getRoot().walkConfig);
+		return walkConfig;
 	}
 	protected void init() {
 		if(excludes != null)

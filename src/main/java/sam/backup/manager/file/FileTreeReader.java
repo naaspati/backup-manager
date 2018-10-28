@@ -14,7 +14,6 @@ public class FileTreeReader {
 	
 	public FileTree read(Path fileTreePath, Config config) throws IOException {
 		try(InputStream gis = Files.newInputStream(fileTreePath, StandardOpenOption.READ);
-				// GZIPInputStream gis = new GZIPInputStream(is);
 				DataInputStream dis = new DataInputStream(gis);) {
 			this.dis = dis;
 			return readFileTree(config); 

@@ -14,7 +14,7 @@ dependencies {
    compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.8.0-beta2'
 }
  
-version = 1.08
+version = 1.11
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
@@ -60,12 +60,29 @@ task install(type: Copy, dependsOn:installDist) {
   doLast {
      new File(appdir, 'run.cmd').text = """
   @echo off
-  setlocal 
+  setlocal
+  
+  ${versionText()}
   
   java %JAVA_OPTS% -cp \"%~dp0${String.join(';%~dp0', libdir.list())}\" ${mainClassName} %*
   
   """.stripIndent()
   } 
+}
+
+def versionText() {
+  if(!version && version == 'unspecified') return '';
+  return """
+  SET APP_VERSION=${version}
+  if [%1]==[-v] (
+    echo version: %APP_VERSION%
+    goto:eof
+  )
+  if [%1]==[--version] (
+    echo version: %APP_VERSION%
+    goto:eof
+  )
+  """;    
 }
 
 jar {

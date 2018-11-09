@@ -15,9 +15,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.filter.IFilter;
+import sam.backup.manager.extra.Utils;
 import sam.myutils.MyUtilsCheck;
 import sam.myutils.MyUtilsExtra;
 import sam.myutils.System2;
@@ -87,7 +87,7 @@ public class RootConfig extends ConfigBase {
 
 		map.values().removeIf(l -> l.size() < 2);
 		if(!map.isEmpty()) {
-			Logger l = LoggerFactory.getLogger(Config.class);
+			Logger l = Utils.getLogger(Config.class);
 			StringBuilder sb = new StringBuilder();
 			sb.append("-------- conflicting config.name --------\n");
 			map.forEach((name, cnfs) -> {

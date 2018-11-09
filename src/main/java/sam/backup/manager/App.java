@@ -14,7 +14,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javafx.application.Application;
 import javafx.application.HostServices;
@@ -45,7 +44,7 @@ import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
 
 public class App extends Application {
-	private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
+	private static final Logger LOGGER = Utils.getLogger(App.class);
 	
 	private static Stage stage;
 	private static HostServices hs;

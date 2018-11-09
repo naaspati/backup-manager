@@ -19,14 +19,14 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
+import sam.backup.manager.extra.Utils;
 import sam.myutils.System2;
 import sam.string.StringUtils;
 
 public class Filter implements IFilter, HasFilterArrays {
-	private transient static final Logger LOGGER = LoggerFactory.getLogger(Filter.class);
+	private transient static final Logger LOGGER = Utils.getLogger(Filter.class);
 
 	private String[] name, glob, regex, path, startsWith, endsWith, classes;
 	private Filter invert;
@@ -39,9 +39,11 @@ public class Filter implements IFilter, HasFilterArrays {
 	}
 	@Override
 	public boolean test(Path p) {
-		if(invert != null && invert.test(p))
+		if(invert != null && invert.test(p)){
+			LOGGER.debug("INVERT FILTER for: "+p);
 			return false;
-
+		}
+		
 		return path(p) ||
 				name(p.getFileName()) ||
 				startsWith(p) ||
@@ -49,6 +51,7 @@ public class Filter implements IFilter, HasFilterArrays {
 				glob(p) ||
 				regex(p) ||
 				classes(p);
+		
 	}
 
 	@Override

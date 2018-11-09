@@ -4,10 +4,9 @@ import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.slf4j.LoggerFactory;
-
 import sam.backup.manager.config.filter.Filter;
 import sam.backup.manager.config.filter.IFilter;
+import sam.backup.manager.extra.Utils;
 
 abstract class ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;
@@ -54,7 +53,7 @@ abstract class ConfigBase implements Serializable {
 		return self.or(root);
 	}
 	protected org.slf4j.Logger logger() {
-		return LoggerFactory.getLogger(getClass());
+		return Utils.getLogger(getClass());
 	}
 	protected Path pathResolve(String s) {
 		return s == null ? null : Paths.get(s);

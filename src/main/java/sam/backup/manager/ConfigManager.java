@@ -24,7 +24,7 @@ import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
 
 public class ConfigManager implements IStartOnComplete<ConfigView> {
-//	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigManager.class);
+//	private static final Logger LOGGER = Utils.getLogger(ConfigManager.class);
 	
 	private final ViewSwitcher centerView;
 	private final StatusView statusView;

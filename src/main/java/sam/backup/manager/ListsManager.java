@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.RootConfig;
@@ -25,7 +24,7 @@ import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
 
 public class ListsManager implements IStartOnComplete<ListingView> {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ListsManager.class);
+	private static final Logger LOGGER = Utils.getLogger(ListsManager.class);
 	
 	private static volatile ListsManager instance;
 

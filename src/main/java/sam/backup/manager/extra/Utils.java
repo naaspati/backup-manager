@@ -2,6 +2,8 @@ package sam.backup.manager.extra;
 
 import static javafx.application.Platform.runLater;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -22,6 +24,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,32 +57,67 @@ import sam.fx.helpers.FxHyperlink;
 import sam.fx.popup.FxPopupShop;
 import sam.io.serilizers.ObjectReader;
 import sam.io.serilizers.ObjectWriter;
-import sam.io.serilizers.OneObjectReader;
-import sam.io.serilizers.OneObjectWriter;
 import sam.io.serilizers.StringWriter2;
-import sam.myutils.MyUtilsException;
 import sam.myutils.MyUtilsPath;
+import sam.nopkg.LazyLoadedData;
 import sam.reference.WeakAndLazy;
 
 public final class Utils {
 	private static final Logger LOGGER;
 	public static final Path APP_DATA = Paths.get("app_data");
 	public static final Path TEMP_DIR;
+	private static final Supplier<String> counter;
 
-	// public static final Path APP_DATA_DIR;
-	// public static final Path TEMPS_DIR;
 	public static ExecutorService threadPool0;
-	
-	static {
-		TEMP_DIR = MyUtilsPath.resolveToTempDir(LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy'T'HH.mm")));
-		MyUtilsException.noError(() -> Files.createDirectories(TEMP_DIR));
 
-		LOGGER = LoggerFactory.getLogger(Utils.class);
+	static {
+		try {
+			String dt = MyUtilsPath.pathFormattedDateTime();
+			String dir = Stream.of(MyUtilsPath.TEMP_DIR.toFile().list())
+					.filter(s -> s.endsWith(dt))
+					.findFirst()
+					.orElse(null);
+
+			if(dir != null) {
+				TEMP_DIR = MyUtilsPath.TEMP_DIR.resolve(dir);
+			} else {
+				int n = number(MyUtilsPath.TEMP_DIR);
+				TEMP_DIR = MyUtilsPath.TEMP_DIR.resolve((n+1)+" - "+MyUtilsPath.pathFormattedDateTime());
+				Files.createDirectories(TEMP_DIR);				
+			}
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		counter = new Supplier<String>() {
+			int n = number(TEMP_DIR);
+
+			@Override
+			public String get() {
+				return (n++)+" - ";
+			}
+		};
+
+		LOGGER = Utils.getLogger(Utils.class);
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> LOGGER.error("thread: {}", thread.getName(), exception));
 	}
-	
+
 	// does nothing only initiates static block
 	public static void init() {}
+
+	private static int number(Path path) {
+		if(Files.notExists(path)) return 0;
+
+		Pattern p = Pattern.compile("^(\\d+) - "); 
+
+		return Stream.of(path.toFile().list())
+				.map(p::matcher)
+				.filter(Matcher::find)
+				.map(m -> m.group(1))
+				.mapToInt(Integer::parseInt)
+				.max()
+				.orElse(0);
+	}
 
 	private Utils() {}
 
@@ -161,7 +202,7 @@ public final class Utils {
 	public static String millsToTimeString(Long d) {
 		return d == null || d <= 0 ? "--"
 				: LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneOffset.of("+05:30"))
-						.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM));
+				.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM));
 	}
 
 	private static void waitUntil(AtomicBoolean stopper) {
@@ -184,8 +225,8 @@ public final class Utils {
 		Path p = getTreePath(config, treeType);
 
 		try {
-		if (Files.exists(p))
-			return new FileTreeReader().read(p, config);
+			if (Files.exists(p))
+				return new FileTreeReader().read(p, config);
 		} catch (IOException e) {
 			throw new IOException(e.getMessage()+" ("+p+")", e);
 		}
@@ -198,7 +239,7 @@ public final class Utils {
 		Objects.requireNonNull(config.getFileTree(), "config does not have a filetree: " + config.getSource());
 
 		Path p = getTreePath(config, treeType);
-		
+
 		try {
 			Files.createDirectories(p.getParent());
 			new FileTreeWriter().write(p, config.getFileTree());
@@ -207,7 +248,7 @@ public final class Utils {
 			throw new IOException(e.getMessage()+" ("+p+")", e);
 		}
 	}
-	
+
 	public static void saveFiletree(Config config, TreeType treeType) {
 		try {
 			saveFiletree0(config, treeType);
@@ -215,48 +256,38 @@ public final class Utils {
 			FxAlert.showErrorDialog(null, "failed to save filetree", e);
 		}
 	}
-
-	public static Path getBackupLastPerformedPathTimeMapPath() {
-		return APP_DATA.resolve("backup-last-performed.dat");
-	}
-	public static void saveBackupLastPerformedPathTimeMap(Map<String, Long> map) {
-		try {
-			ObjectWriter.writeMap(getBackupLastPerformedPathTimeMapPath(), map, OneObjectWriter.STRING_WRITER, OneObjectWriter.LONG_WRITER);
-		} catch (IOException e) {
-			LOGGER.warn("failed to save: {}", getBackupLastPerformedPathTimeMapPath(), e);
+	private static final LazyLoadedData<Map<String, Long>> backupLastPerformed = new LazyLoadedData<Map<String,Long>>() {
+		private final Path path = APP_DATA.resolve("backup-last-performed.dat");
+		
+		@Override
+		public void save() {
+			try {
+				ObjectWriter.writeMap(path, data, DataOutputStream::writeUTF, DataOutputStream::writeLong);
+			} catch (IOException e) {
+				LOGGER.warn("failed to save: {}", path, e);
+			}
 		}
-	}
+		@Override
+		public Map<String, Long> init() {
+			if(Files.notExists(path))
+				return new HashMap<>();
 
-	private static Map<String, Long> backupLastPerformed;
-	private static volatile boolean backupLastPerformedModified = false;
-
-	public static void readBackupLastPerformedPathTimeMap() {
-		if (backupLastPerformed != null)
-			return;
-		Path p = getBackupLastPerformedPathTimeMapPath();
-		if(Files.notExists(p)){
-			backupLastPerformed = new HashMap<>();
-			return; 
+			try {
+				return ObjectReader.readMap(path, d -> d.readUTF(), DataInputStream::readLong);
+			} catch (IOException e) {
+				LOGGER.warn("failed to read: {}", path, e);
+				return new HashMap<>();
+			}
 		}
-		try {
-			backupLastPerformed = ObjectReader.readMap(getBackupLastPerformedPathTimeMapPath(), OneObjectReader.STRING_READER, OneObjectReader.LONG_READER);
-		} catch (IOException e) {
-			LOGGER.warn("failed to read: {}", p, e);
-			backupLastPerformed = new HashMap<>();
-		}
-	}
-
+	};  
+	
 	public static Long getBackupLastPerformed(String key) {
-		readBackupLastPerformedPathTimeMap();
-		return backupLastPerformed.get(key);
+		return backupLastPerformed.getData().get(key);
 	}
-
 	public static void putBackupLastPerformed(String key, long time) {
-		readBackupLastPerformedPathTimeMap();
-		backupLastPerformed.put(key, time);
-		backupLastPerformedModified = true;
+		backupLastPerformed.getData().put(key, time);
+		backupLastPerformed.setModified(true);
 	}
-
 	public static Stage showStage(Parent content) {
 		Stage stg = new Stage();
 		stg.initModality(Modality.WINDOW_MODAL);
@@ -317,13 +348,21 @@ public final class Utils {
 		StringWriter2.writer()
 		.onMalformedInput(CodingErrorAction.REPLACE)
 		.onUnmappableCharacter(CodingErrorAction.REPLACE)
+		.target(path, false)
 		.write(data);
 	}
+
+
 	public static void writeInTempDir0(Config config, String prefix, String suffix, CharSequence data, Logger logger) throws IOException {
-		Path path = TEMP_DIR.resolve(String.format("%s-%s-%s.txt", prefix == null ? "" : prefix, config.getName(), suffix == null ? "" : suffix));
-		
+		String name = counter.get() +
+				(prefix == null ? "" : "-"+prefix+"-")+
+				config.getName()+
+				(suffix == null ? "" : "-"+suffix)+
+				".txt";
+
+		Path path = TEMP_DIR.resolve(name);
+
 		try {
-			Files.createDirectories(path.getParent());
 			write(path, data);
 			logger.info("created: "+path);
 		} catch (Exception e) {
@@ -334,13 +373,13 @@ public final class Utils {
 		try {
 			writeInTempDir0(config, prefix, suffix, data, logger);
 		} catch (IOException e) {
-			FxAlert.showErrorDialog(null, "failed to save", e);
+			runLater(() -> FxAlert.showErrorDialog(null, "failed to save", e));
 		}
 	}
 
 	public static void stop() throws InterruptedException {
-		if (backupLastPerformedModified)
-			Utils.saveBackupLastPerformedPathTimeMap(backupLastPerformed);
+		if (backupLastPerformed.isModified())
+			backupLastPerformed.save();
 
 		threadPool().shutdownNow();
 		System.out.println("waiting thread to die");
@@ -379,7 +418,7 @@ public final class Utils {
 		}
 		node.getStylesheets().add(url.toExternalForm());
 	}
-	
+
 	public static Node hyperlink(Path path, String alternative) {
 		if(path != null) {
 			Hyperlink hyperlink = FxHyperlink.of(path);
@@ -404,5 +443,8 @@ public final class Utils {
 		button.setGraphic(new ImageView(icon));
 		button.setOnAction(action);
 		return button;
+	}
+	public static Logger getLogger(Class<?> cls) {
+		return LoggerFactory.getLogger(cls.getSimpleName());
 	}
 }

@@ -18,7 +18,6 @@ import java.nio.file.Paths;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javafx.scene.Node;
 import javafx.scene.control.TextArea;
@@ -46,7 +45,7 @@ import sam.myutils.System2;
 import sam.string.StringUtils;
 
 public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAction, WalkListener {
-	private static final Logger LOGGER =  LoggerFactory.getLogger(ListingView.class);
+	private static final Logger LOGGER =  Utils.getLogger(ListingView.class);
 
 	public static boolean saveWithoutAsking;
 

@@ -16,7 +16,6 @@ import java.util.function.Function;
 import java.util.function.LongConsumer;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -50,7 +49,7 @@ import sam.string.BasicFormat;
 
 
 public class TransferView extends VBox implements Runnable, IStopStart, ButtonAction, ICanceler, IUpdatable, TransferListener {
-	private static final Logger LOGGER = LoggerFactory.getLogger(TransferView.class);
+	private static final Logger LOGGER = Utils.getLogger(TransferView.class);
 
 	private TextArea sourceTargetTa ;
 	private Text currentProgressT ;
@@ -261,7 +260,7 @@ public class TransferView extends VBox implements Runnable, IStopStart, ButtonAc
 	}
 	@Override
 	public void copyStarted(Path src, Path target) {
-		runLater(() -> sourceTargetTa.appendText("src: "+sourceSubpather.apply(source)+"\ntarget: "+targetSubpather.apply(target)+"\n---------\n"));
+		runLater(() -> sourceTargetTa.appendText("src: "+sourceSubpather.apply(src)+"\ntarget: "+targetSubpather.apply(target)+"\n---------\n"));
 	}
 	@Override
 	public void copyCompleted(Path src, Path target) { }

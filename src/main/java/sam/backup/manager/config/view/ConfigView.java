@@ -26,7 +26,6 @@ import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;
@@ -46,6 +45,7 @@ import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TreeType;
+import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.DirEntity;
 import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTree;
@@ -63,7 +63,7 @@ import sam.fx.helpers.FxText;
 import sam.fx.popup.FxPopupShop;
 
 public class ConfigView extends BorderPane implements IStopStart, ButtonAction, ICanceler, WalkListener {
-	private static final Logger LOGGER = LoggerFactory.getLogger(ConfigView.class);
+	private static final Logger LOGGER = Utils.getLogger(ConfigView.class);
 
 	private final Config config;
 	private final GridPane container = new GridPane();

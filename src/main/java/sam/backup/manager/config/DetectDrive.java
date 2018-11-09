@@ -7,7 +7,8 @@ import java.nio.file.Path;
 import java.util.Properties;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import sam.backup.manager.extra.Utils;
 
 
 
@@ -16,7 +17,7 @@ public class DetectDrive {
 	private final String id;
 
 	public DetectDrive() {
-		Logger log = LoggerFactory.getLogger(getClass());
+		Logger log = Utils.getLogger(getClass());
 
 		Path drive = null;
 		for (Path p : FileSystems.getDefault().getRootDirectories()) {

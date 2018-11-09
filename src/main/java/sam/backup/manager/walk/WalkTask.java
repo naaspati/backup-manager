@@ -7,14 +7,14 @@ import java.nio.file.Path;
 import java.util.IdentityHashMap;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
+import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.FileTree;
 
 public class WalkTask implements Runnable {
-	public static final Logger logger = LoggerFactory.getLogger(WalkTask.class); 
+	public static final Logger logger = Utils.getLogger(WalkTask.class); 
 
 	private final Config config;
 	private final ICanceler canceler;

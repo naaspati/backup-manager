@@ -16,12 +16,12 @@ import java.util.EnumSet;
 import java.util.List;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import sam.backup.manager.config.Config;
 import sam.backup.manager.config.WalkConfig;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.ICanceler;
+import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.AttrsKeeper;
 import sam.backup.manager.file.DirEntity;
@@ -30,7 +30,7 @@ import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeEntity;
 
 class Walker implements FileVisitor<Path>{
-	private static final Logger LOGGER = LoggerFactory.getLogger(Walker.class);
+	private static final Logger LOGGER = Utils.getLogger(Walker.class);
 	
 	
 	private final boolean skipDirNotModified;

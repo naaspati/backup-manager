@@ -6,7 +6,6 @@ import java.nio.file.Path;
 import sam.backup.manager.config.filter.Filter;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.file.FileTree;
-import sam.myutils.MyUtilsExtra;
 
 public class Config extends ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;
@@ -15,13 +14,13 @@ public class Config extends ConfigBase implements Serializable {
 	private String source;
 	private String target;
 	private boolean disable;
-	private StoringSetting storingMethod;
-	
+	private Filter zip;
+
 	private transient RootConfig root;
 	private transient Path sourceP;
 	private transient Path targetP;
 	private transient FileTree fileTree;
-	
+
 	public Config() {}
 
 	public Config(RootConfig root, Path source, Path target) {
@@ -40,11 +39,11 @@ public class Config extends ConfigBase implements Serializable {
 	public Path getTarget() {
 		if(targetP == null) {
 			targetP = target == null ? null : pathResolve(root.resolve(target));
-			
+
 			/*
 			 * if(targetP == null)
 				return null;
-			
+
 			 * if(t.getRoot() != null)
 				targetP = t;
 			else {
@@ -57,13 +56,10 @@ public class Config extends ConfigBase implements Serializable {
 	}
 	public void init(RootConfig root) {
 		this.root = root;
-			
-		if(storingMethod != null) {
-			IFilter f = this.storingMethod.getSelecter();
-			if(f instanceof Filter)
-				((Filter)f).setConfig(this);	
-		}
-		
+
+		if(zip != null) 
+			zip.setConfig(this);	
+
 		super.init();
 	}
 	@Override
@@ -89,10 +85,9 @@ public class Config extends ConfigBase implements Serializable {
 	public boolean isDisabled() {
 		return disable;
 	}
-	public StoringSetting getStoringMethod() {
-		return MyUtilsExtra.nullSafe(storingMethod, StoringSetting.DIRECT_COPY);
+	public Filter getZipFilter() {
+		return zip;
 	}
-
 	public String getSourceRaw() {
 		return source;
 	}
@@ -103,5 +98,5 @@ public class Config extends ConfigBase implements Serializable {
 	public String toString() {
 		return "Config [name=" + name + ", source=" + source + ", target=" + target + ", disable=" + disable + "]";
 	}
-	
+
 }

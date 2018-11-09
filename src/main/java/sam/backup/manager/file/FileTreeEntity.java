@@ -6,13 +6,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+import sam.backup.manager.extra.Utils;
 import sam.backup.manager.walk.WalkMode;
 
 public abstract class FileTreeEntity extends FileTreeEntityStatus {
 	private String fileNameString;
-	protected static final Logger LOGGER =  LoggerFactory.getLogger(FileTreeEntity.class);
+	protected static final Logger LOGGER =  Utils.getLogger(FileTreeEntity.class);
 
 	private Path fileName; // lazy initiated  
 	private final DirEntity parent;

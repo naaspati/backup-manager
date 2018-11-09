@@ -7,9 +7,8 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 
-import org.slf4j.LoggerFactory;
-
 import sam.backup.manager.config.Config;
+import sam.backup.manager.extra.Utils;
 class SaveExcludeFilesList {
 	public SaveExcludeFilesList(WalkMode initialWalkMode, Config config, Walker walker) {
 		if(walker.excludeFilesList.isEmpty())
@@ -27,6 +26,6 @@ class SaveExcludeFilesList {
 				sb.append(path).append('\n');
 		}
 		sb.append("\n\n-------------------------------------------------\n\n");
-		writeInTempDir(config, "excluded-files-"+config.getName(), initialWalkMode.toString(), sb, LoggerFactory.getLogger(SaveExcludeFilesList.class));
+		writeInTempDir(config, "excluded-files-"+config.getName(), initialWalkMode.toString(), sb, Utils.getLogger(SaveExcludeFilesList.class));
 	}
 }

@@ -77,14 +77,14 @@ class Transferer implements Callable<State> {
 	private final TransferListener listener;
 	private final Set<Path> createdDirs = new HashSet<>();
 
-	private volatile int filesCopied;
-	private volatile long filesCopiedSize;
+	private int filesCopied;
+	private long filesCopiedSize;
 
-	private volatile int filesSelected;
-	private volatile long filesSelectedSize;
+	private int filesSelected;
+	private long filesSelectedSize;
 
-	private volatile long currentBytesRead;
-	private volatile long currentFileSize;
+	private long currentBytesRead;
+	private long currentFileSize;
 
 	private List<FileTreeEntity> toBeRemoved;
 	private final Config config;
@@ -178,7 +178,6 @@ class Transferer implements Callable<State> {
 				addFailed(d, e);
 			}
 		}
-
 		State state = copyFiles();
 
 		if(toBeRemoved != null)
@@ -218,14 +217,16 @@ class Transferer implements Callable<State> {
 			if(!f.isBackupable())
 				continue;
 
+			Path src = f.getSourcePath();
+			Path target = f.getBackupPath();
 			newTask(f);
 			copyStart(f);
 
 			try {
-				if(copy())
+				if(copy(src, target))
 					f.setCopied(true);
 			} catch (IOException e) {
-				LOGGER.error("file copy failed {}", src, e);
+				LOGGER.error("file copy failed {} -> {}", src, target, e);
 				addFailed(f, e);
 			}
 			copyEnd(f);
@@ -235,11 +236,11 @@ class Transferer implements Callable<State> {
 	} 
 
 	private void copyStart(FileEntity f) {
-		listener.copyStarted(src, target);
+		listener.copyStarted(f.getSourcePath(), f.getBackupPath());
 	}
 	private void copyEnd(FileTreeEntity f) {
 		filesCopied++;
-		listener.copyCompleted(src, target);
+		listener.copyCompleted(f.getSourcePath(), f.getBackupPath());
 	}
 	private static final AtomicInteger counter = new AtomicInteger(0);
 
@@ -254,7 +255,7 @@ class Transferer implements Callable<State> {
 			throw new IOException(String.format("zipfile size (%s) exceeds max allows size (%s)", MyUtilsBytes.bytesToHumanReadableUnits(dir.getSourceSize(), false), MyUtilsBytes.bytesToHumanReadableUnits(MAX_ZIP_SIZE, false)));
 
 		final int nameCount = dir.getSourcePath().getNameCount();
-		target = dir.getBackupPath();
+		Path target = dir.getBackupPath();
 
 		if(target.toString().length() > FILENAME_MAX)
 			throw new IOException(new IOException("filepath length exceeds FILENAME_MAX ("+FILENAME_MAX+"): "+target));
@@ -281,7 +282,7 @@ class Transferer implements Callable<State> {
 						cancel();
 						return TERMINATE;
 					}
-					src = ft.getSourcePath();
+					Path src = ft.getSourcePath();
 					if(Files.notExists(src)) {
 						LOGGER.warn("file not found: {}", src);
 						return CONTINUE;
@@ -289,7 +290,7 @@ class Transferer implements Callable<State> {
 					copyStart(ft);
 
 					try {
-						zipPipe(zos, nameCount);
+						zipPipe(src, zos, nameCount);
 					} catch (IOException e) {
 						error[0] = e;
 						return TERMINATE;
@@ -308,7 +309,7 @@ class Transferer implements Callable<State> {
 						return SKIP_SUBTREE;
 
 					if(Files.notExists(ft.getSourcePath())) {
-						LOGGER.warn("file not found: {}", src);
+						LOGGER.warn("file not found: {}", ft.getSourcePath());
 						return SKIP_SUBTREE;
 					}
 					return CONTINUE;
@@ -329,23 +330,25 @@ class Transferer implements Callable<State> {
 				delete(tempfile, "temp zip");
 		}
 
+		
 		if(!delete[0] && state[0] == COMPLETED)
 			moveZip(fdir, tempfile);
 
 		return state[0];
 	}
 
-	private void moveZip(FilteredDirEntity fdir, Path tempfile) throws IOException {
+	private void moveZip(FilteredDirEntity fdir, Path src) throws IOException {
+		Path target = fdir.getBackupPath();
 		target = target.resolveSibling(target.getFileName()+".zip");
-		newTask(MyUtilsException.noError(() -> Files.size(tempfile)), src, target);
-		listener.copyStarted(src, target);
-		this.src = tempfile;
-		if(copy()){
+		newTask(MyUtilsException.noError(() -> Files.size(src)), src, target);
+		Path src2 = fdir.getSourcePath();
+		listener.copyStarted(src2, target);
+		if(copy(src, target)){
 			fdir.setCopied(true);
 			zipsCopied.add(fdir);
-			delete(tempfile, null);
+			delete(src, null);
 		}
-		listener.copyCompleted(src, target);
+		listener.copyCompleted(src2, target);
 	}
 
 	private void rename(Path src, Path target, String msg) throws IOException {
@@ -368,7 +371,7 @@ class Transferer implements Callable<State> {
 		return false;
 
 	}
-	private void zipPipe(ZipOutputStream zos, int rootNameCount) throws IOException {
+	private void zipPipe(Path src, ZipOutputStream zos, int rootNameCount) throws IOException {
 		boolean entryPut = false;
 		int n = 0;
 		byte[] buffer = buffers.poll();
@@ -384,7 +387,6 @@ class Transferer implements Callable<State> {
 			try(InputStream strm = Files.newInputStream(src, READ);) {
 				while((n = strm.read(buffer)) != -1) {
 					if(canceler.isCancelled()) return;
-
 					zos.write(buffer, 0, n);
 					addBytesRead(n);
 				}
@@ -408,20 +410,19 @@ class Transferer implements Callable<State> {
 		}
 	}
 
-	private Path src, target;
+	// private Path src, target;
 
-	private void newTask(FileTreeEntity f) {
-		newTask(f.getSourceSize(), f.getSourcePath(), f.getBackupPath());
+	private Path newTask(FileTreeEntity f) {
+		return newTask(f.getSourceSize(), f.getSourcePath(), f.getBackupPath());
 	}
-	private void newTask(long size, Path src, Path target) {
+	private Path newTask(long size, Path src, Path target) {
 		currentFileSize = size;
 		currentBytesRead = 0;
 
-		this.src = src;
-		this.target = target;
 		listener.newTask();
+		return target;
 	}
-	private boolean copy() throws IOException {
+	private boolean copy(Path src, Path target) throws IOException {
 		if(canceler.isCancelled()) return false;
 
 		if(target.toString().length() > FILENAME_MAX)
@@ -437,7 +438,7 @@ class Transferer implements Callable<State> {
 
 		boolean directCopy=true;
 		Path temp = null;
-
+		
 		try(FileChannel in = FileChannel.open(src, READ);) {
 			long size = in.size();
 			directCopy = size < BUFFER_SIZE; 
@@ -478,6 +479,7 @@ class Transferer implements Callable<State> {
 			try {
 				Files.createDirectories(parent);
 				createdDirs.add(parent);
+				LOGGER.debug("DIR CREATED: {}", parent);
 			} catch (Exception e) {
 				throw new IOException("failed to create dir: "+ parent, e);
 			}

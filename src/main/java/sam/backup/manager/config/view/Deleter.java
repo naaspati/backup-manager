@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 import javafx.application.Platform;
@@ -52,12 +53,12 @@ public class Deleter extends Stage implements FileTreeWalker {
 		show();
 	}
 
-	public static void process(FilteredFileTree tree) {
+	public static CompletableFuture<Void> process(FilteredFileTree tree) {
 		Deleter d = new Deleter();
 		String root = tree.getBackupPath() == null ? null : tree.getBackupPath().toString();
 		d.path.setText(root);
-
-		Thread t = new Thread(() -> {
+		
+		return CompletableFuture.runAsync(() -> {
 			tree.walk(d);
 
 			Iterator<FileTreeEntity> iter = Stream.concat(
@@ -73,7 +74,7 @@ public class Deleter extends Stage implements FileTreeWalker {
 			while (iter.hasNext()) {
 				FileTreeEntity fte = iter.next();
 				File file = fte.getBackupPath().toFile();
-				boolean b = file.delete();
+				boolean b = !file.exists() || file.delete();
 				if(b) fte.remove();
 
 				String s = file.toString();
@@ -108,9 +109,6 @@ public class Deleter extends Stage implements FileTreeWalker {
 			}
 			Platform.runLater(() -> d.setOnCloseRequest(e -> d.close()));
 		});
-
-		t.setDaemon(true);
-		t.start();
 	}
 	@Override
 	public FileVisitResult file(FileEntity ft) {

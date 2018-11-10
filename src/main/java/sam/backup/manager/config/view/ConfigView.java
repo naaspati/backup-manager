@@ -193,8 +193,9 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	private void deleteAction(Stage stage) {
 		writeInTempDir(config, "delete", null, new FileTreeString(deleteFFT.get()), LOGGER);
 		stage.hide();
-		Deleter.process(deleteFFT.get());
-		saveFiletree(config, TreeType.BACKUP);
+		
+		Deleter.process(deleteFFT.get())
+		.thenAccept(NULL -> saveFiletree(config, TreeType.BACKUP));
 	}
 	@Override
 	public boolean isCancelled() {

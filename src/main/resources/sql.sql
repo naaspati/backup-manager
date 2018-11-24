@@ -15,13 +15,8 @@ create table Dirs ( -- copy of Files, keeping tables seperate for more continues
   filename text not null,
   src_attr integer not null, 
   backup_attr integer not null
+  child_count integer not null
 );
-
-create table DirChildCount (
-  dir_id integer not null primary key references Dirs(_id) on delete cascade,
-  _count integer not null default 0  
-);
-
 create table Files (
   _id integer not null primary key unique,
   parent_id  integer not null references Dirs(_id),

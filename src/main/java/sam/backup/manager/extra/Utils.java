@@ -11,7 +11,6 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -51,7 +50,7 @@ import javafx.stage.StageStyle;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.file.db.FileTree;
-import sam.backup.manager.file.db.RootFactory;
+import sam.backup.manager.file.db.FileTreeFactory;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxHyperlink;
 import sam.fx.helpers.FxUtils;
@@ -378,7 +377,7 @@ public final class Utils {
 		return LoggerFactory.getLogger(cls);
 	}
 	public static FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
-		return RootFactory.getInstance().newFileTree(c, type, createNewIfNotExists);
+		return FileTreeFactory.getInstance().newFileTree(c, type, createNewIfNotExists);
 	}
 	
 	public static boolean saveToFile2(File expectedDir, String expectedName, String title,  CharSequence text) {
@@ -406,7 +405,7 @@ public final class Utils {
 		try {
 			fileTree.save();
 			return true;
-		} catch (SQLException e) {
+		} catch (Exception e) {
 			FxAlert.showErrorDialog(c+"\n"+fileTree, "failed to save filetreee", e);
 			return false;
 		}

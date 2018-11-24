@@ -1,6 +1,5 @@
 package sam.backup.manager.file.db;
 
-import static sam.backup.manager.file.db.FileTree.DEFAULT_ATTR;
 public class Attrs {
 	private final Attr old;
 	private Attr current, nnew;
@@ -8,7 +7,7 @@ public class Attrs {
 	public Attrs(Attr old) {
 		this.old = old;
 		this.current = old;
-		this.nnew = FileTree.DEFAULT_ATTR;
+		this.nnew = old;
 	}
 
 	public Attr current() {
@@ -30,8 +29,16 @@ public class Attrs {
 	public void setUpdated() {
 		current = nnew;
 	}
-
 	public long size() {
-		return current != DEFAULT_ATTR ? current.size : old == DEFAULT_ATTR ? -1 : old.size;
+		return !isDefault(current) ? current.size : isDefault(old) ? -1 : old.size;
 	}
+	private boolean isDefault(Attr current2) {
+		return current == null || current.lastModified <= 0;
+	}
+
+	@Override
+	public String toString() {
+		return "Attrs [old=" + old + ", current=" + current + ", nnew=" + nnew + "]";
+	}
+	
 }

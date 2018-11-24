@@ -1,54 +1,37 @@
 package sam.backup.manager.file.db;
 
-import static sam.backup.manager.file.db.AttributeMeta.ATTR_TABLE_NAME;
-import static sam.backup.manager.file.db.FileMeta.BACKUP_ATTR;
-import static sam.backup.manager.file.db.FileMeta.DIRS_TABLE_NAME;
-import static sam.backup.manager.file.db.FileMeta.FILENAME;
-import static sam.backup.manager.file.db.FileMeta.FILES_TABLE_NAME;
-import static sam.backup.manager.file.db.FileMeta.ID;
-import static sam.backup.manager.file.db.FileMeta.PARENT_ID;
-import static sam.backup.manager.file.db.FileMeta.SRC_ATTR;
-
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
-import javafx.application.Platform;
 import sam.backup.manager.extra.TreeType;
-import sam.sql.SqlConsumer;
-import sam.sql.sqlite.SQLiteDB;
-import sam.string.BasicFormat;
+import sam.myutils.Checker;
 
 public final class FileTree extends Dir {
 	private TreeType treetype;
 	private final Path srcPath;
 	private Path backupPath;
-	private Attrs srcAttrs, backupAttrs;
+	private final Serializer serializer;
 
-	public static final Attr DEFAULT_ATTR = new Attr(0, 0, 0);
-	
-	FileTree(TreeType type, Path sourceDirPath, Path backupDirPath, Attrs source, Attrs backup) throws IOException {
-		super(null, 0, null, sourceDirPath.toString(), source, backup)
-	}
-	FileTree(TreeType type, Path sourceDirPath, Path backupDirPath) throws IOException {
-		super(null, 0, null, sourceDirPath.toString(), defaultAttrs(), defaultAttrs());
-		this.treetype = Objects.requireNonNull(type);
+	FileTree(Serializer serializer, TreeType type, Path sourceDirPath, Path backupDirPath, Attrs source, Attrs backup, int child_count) throws IOException {
+		super(null, null, sourceDirPath.toString(), source, backup, new ArrayList<>(child_count));
+		Checker.requireNonNull(
+				new String[]{"type", "sourceDirPath", "backupDirPath", "serializer"},  
+				type,
+				sourceDirPath,
+				backupDirPath,
+				serializer
+				);
+
+		this.treetype = type;
 		this.srcPath = sourceDirPath;
 		this.backupPath = backupDirPath;
+		this.serializer = serializer;
 	}
-	private static Attrs defaultAttrs() {
-		return new Attrs(DEFAULT_ATTR);
+	FileTree(Serializer serializer, TreeType type, Path sourceDirPath, Path backupDirPath) throws IOException {
+		this(serializer, type, sourceDirPath, backupDirPath, serializer.defaultAttrs(), serializer.defaultAttrs(), 0);
 	}
-	@Override public Attrs getSourceAttrs() { return srcAttrs; }
-	@Override public Attrs getBackupAttrs() { return backupAttrs; }
-	
 	private String srcPathString, backupPathString;
 	@Override 
 	public String getSourcePath() { 
@@ -59,37 +42,18 @@ public final class FileTree extends Dir {
 		return backupPathString != null ? backupPathString : ( backupPathString = backupPath == null ? "" : backupPath.toString());
 	}
 	public TreeType getTreetype(){ return this.treetype; }
-	
+
 	public void forcedMarkUpdated() {
-		files.forEach(f -> f.getSourceAttrs().setUpdated());
+		serializer.applyToAll(f -> f.getSourceAttrs().setUpdated());
 	}
-	public void backupRemove(FilteredFileTree delete, BiConsumer<FileImpl, Boolean> resultconsumer) {
-		FileImpl fte = iter.next();
-		File file = fte.getBackupPath().toFile();
-		boolean b = !file.exists() || file.delete();
-		if(b) fte.remove();
-
-		String s = file.toString();
-		if(root != null && s.length() > root.length() && s.startsWith(root))
-			s = s.substring(root.length());
-
-		if(b || !fte.isDirectory()) {
-			if(b)
-				success++;
-			total++;
-			sb.append(b).append("  ").append(s).append('\n');
-		}
-
-		if(System.currentTimeMillis() >= time) {
-			time = System.currentTimeMillis() + 1000;
-			String ss = sb.toString();
-			sb.setLength(0);
-			String st = success+"/"+total;
-			Platform.runLater(() -> {
-				d.view.appendText(ss);
-				d.text.setText(st);
-			});
-		}
+	public FileImpl newFile(Dir parent, String filename) {
+		return serializer.newFile(parent, filename);
+	}
+	public FileImpl newDir(Dir parent, String filename) {
+		return serializer.newDir(parent, filename);
+	}
+	public void save() {
+		serializer.save();
 	}
 }
 

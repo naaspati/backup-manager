@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -37,6 +38,8 @@ import java.util.stream.Collectors;
 import sam.backup.manager.extra.TreeType;
 import sam.collection.Iterable2;
 import sam.io.serilizers.StringReader2;
+import sam.myutils.Checker;
+import sam.sql.JDBCHelper;
 import sam.sql.SqlConsumer;
 import sam.sql.sqlite.SQLiteDB;
 import sam.string.BasicFormat;
@@ -45,6 +48,10 @@ public class DbSerializer implements Serializer {
 	private DbDir[] dirs;
 	private DbFileImpl[] files;
 	private DbAttr[] attrs;
+	
+	private int dirIdMax;
+	private int fileIdMax; 
+	private int attrIdMax;
 
 	private static final String TREE_TYPE = "TREE_TYPE";
 	private static final String SAVED_ON = "SAVED_ON";
@@ -64,7 +71,7 @@ public class DbSerializer implements Serializer {
 
 	public DbSerializer(Path dbpath, TreeType type, Path sourceDirPath, Path backupDirPath) {
 		this.dbpath = dbpath;
-		
+
 		if(Files.exists(dbpath)) 
 			this.fileTree = read(dbpath, type, sourceDirPath, backupDirPath);
 		else {
@@ -73,12 +80,12 @@ public class DbSerializer implements Serializer {
 			new FileTree(this, type, sourceDirPath, backupDirPath);
 		}
 	}
-	
+
 	private class TempDirDb {
 		final int id, child_count, parent_id;
 		final String filename;
 		final Attrs source, backup;
-		
+
 		public TempDirDb(int id, String name, int parent_id, Attrs src, Attrs backup, int child_count) {
 			this.id = id;
 			this.parent_id = parent_id;
@@ -97,20 +104,20 @@ public class DbSerializer implements Serializer {
 			return "TempDirDb [id=" + id + ", child_count=" + child_count + ", parent_id=" + parent_id + ", filename="
 					+ filename + ", source=" + source + ", backup=" + backup + "]";
 		}
-		
+
 	}
 
-	private FileTree read(Path dbpath2, TreeType type, Path sourceDirPath, Path backupDirPath) {
+	private FileTree read(Path dbpath, TreeType type, Path sourceDirPath, Path backupDirPath) {
 		db.executeUpdate(INIT_SQL);
 		StringBuilder sb = new StringBuilder();
 		db.executeUpdate(sb.toString());
 		db.commit();
-		
+
 		Attrs[] filetreeAttrs = {null, null};
-		
+
 		try {
 			Map<String, String> meta = db.collectToMap("SELECT * FROM".concat(ROOT_META_TABLE_NAME), rs -> rs.getString(NAME), rs -> rs.getString(VALUE));
-			
+
 			String s = meta.get(TREE_TYPE);
 			if(s == null || TreeType.valueOf(s) != type)
 				throw new SQLException("RootMeta Error: Different TreeType: "+s+" != "+type);
@@ -127,7 +134,7 @@ public class DbSerializer implements Serializer {
 				DbAttr a = new DbAttr(rs);
 				attrs[a.id] = a; 
 			});
-			
+
 			HashMap<Integer, List<TempDirDb>> no_parent = new HashMap<>();
 
 			getAll(DIRS_TABLE_NAME, rs -> {
@@ -138,13 +145,13 @@ public class DbSerializer implements Serializer {
 				int id = rs.getInt(ID);
 				String name = rs.getString(FILENAME);
 				int child_count = rs.getInt(CHILD_COUNT);
-				
+
 				// expected fileTree to be null
 				Dir parent = parent_id < 0 ? fileTree : dirs[parent_id];
 				Dir item = null;
-				
+
 				if(id == 0) {
-					item = fileTree = new FileTree(this, type, sourceDirPath, backupDirPath, src, backup);
+					item = fileTree = new FileTree(this, type, sourceDirPath, backupDirPath, src, backup, child_count);
 				} else {
 					if(parent == null)
 						no_parent.computeIfAbsent(parent_id, i -> new ArrayList<>()).add(new TempDirDb(id, name, parent_id, src, backup, child_count));
@@ -161,11 +168,11 @@ public class DbSerializer implements Serializer {
 						list.forEach(d -> item.addChild(d.map(item)));
 				}
 			});
-			
+
 			if(!no_parent.isEmpty()) {
 				throw new IllegalStateException("no_parent must be empty at this point: " + no_parent);
 			}
-			
+
 
 			getAll(FILES_TABLE_NAME, rs -> {
 				Attrs src = new Attrs(attrs[rs.getInt(SRC_ATTR)]);
@@ -187,16 +194,22 @@ public class DbSerializer implements Serializer {
 	public void save() {
 		StringBuilder batchSQL = new StringBuilder();
 		
+		//TODO
+
 		if(db == null) {
+			db = new SQLiteDB(dbpath, true);
+
 			if(INIT_SQL == null)
 				INIT_SQL = StringReader2.reader().source(ClassLoader.getSystemResourceAsStream("sql.sql")).read();
-			
+
+			db.executeUpdate(INIT_SQL);
+
 			insertAttrs(Collections.singletonList(DEFAULT_ATTR), batchSQL);
 		}
 
 		ArrayList<Attr> newAttrs = new ArrayList<>(dirs.size()+files.size());
 		Consumer<Attrs> setId = attrs -> {
-			if(attrs.current().id == -1) {
+			if(id(attrs) == -1) {
 				Attr c = attrs.current();
 				if(c.lastModified == 0 && c.size == 0)
 					attrs.setCurrent(DEFAULT_ATTR);
@@ -206,54 +219,62 @@ public class DbSerializer implements Serializer {
 				}
 			}
 		};
-		dirs.forEach(d -> {
+		for (DbDir d : dirs) {
 			setId.accept(d.getSourceAttrs());
 			setId.accept(d.getBackupAttrs());
-		});
-		files.forEach(d -> {
+		}
+		for (DbFileImpl d : files) {
 			setId.accept(d.getSourceAttrs());
 			setId.accept(d.getBackupAttrs());
-		});
+		}
 
-		Attr.insertAttrs(newAttrs, batchSQL);
-		Dir.insertDirs(dirSerial, dirs.iterableOfCurrent(), db);
-		FileImpl.insertFiles(fileSerial, files.iterableOfCurrent(), db);
+		insertAttrs(newAttrs, batchSQL);
+		insertDirs(dirSerial, dirs.iterableOfCurrent(), db);
+		insertFiles(fileSerial, files.iterableOfCurrent(), db);
 
 		updateDirChildCounts(batchSQL);
 		updateAttributes(batchSQL);
 
-		if(batchSQL.length() != 0)
-			db.executeUpdate(batchSQL.toString());
+		batchSQL.append("DELETE FROM ").append(ROOT_META_TABLE_NAME).append(";\n");
+		BasicFormat format = new BasicFormat(JDBCHelper.insertSQL(ROOT_META_TABLE_NAME, NAME, VALUE).replace("?", "'{}'"));
 
-		RootMetaImpl[] array = {
-				to(DIRS_TABLE_NAME, dirSerial),
-				to(FILES_TABLE_NAME, fileSerial),
-				new RootMetaImpl(ATTR_TABLE_NAME, String.valueOf(attrSerial)),
-				new RootMetaImpl(PATH, getSourcePath()),
-				new RootMetaImpl(BACKUP_PATH, getBackupPath()),
-				new RootMetaImpl(TREE_TYPE, treetype.toString()),
-				new RootMetaImpl(SAVED_ON, LocalDateTime.now().toString()),
-		};
-		RootMetaImpl.insert(array, db);
+		format.format(batchSQL, DIRS_TABLE_NAME, dirIdMax);
+		format.format(batchSQL, FILES_TABLE_NAME, fileIdMax);
+		format.format(batchSQL, ATTR_TABLE_NAME, attrIdMax);
+		if(fileTree.getSourcePath() != null)
+			format.format(batchSQL, PATH, fileTree.getSourcePath().toString().replace("'", "''"));
+		if(fileTree.getBackupPath() != null)
+			format.format(batchSQL, BACKUP_PATH, fileTree.getBackupPath().toString().replace("'", "''"));
+		if(fileTree.getTreetype() != null)
+			format.format(batchSQL, TREE_TYPE, fileTree.getTreetype());
 
+		format.format(batchSQL, SAVED_ON, LocalDateTime.now().toString().replace("'", "''"));
+
+		db.executeUpdate(batchSQL.toString());
 		db.commit();
+	}
 
-		dirSerial = new Serial(dirSerial);
-		fileSerial = new Serial(fileSerial); 
+	static int id(FileImpl item, Attrs a) {
+		int id = ((DbAttr)a.current()).id;
+
+		if(id < 0)
+			throw new IllegalArgumentException("Attrs not persisted yet: "+item+"  "+a);
+		return id;
 	}
 
 	private void getAll(String tableName, SqlConsumer<ResultSet> consumer) throws SQLException {
 		db.iterate("SELECT * FROM "+tableName, consumer);
 	}
-	public static final int insertDirs(Serial serial, Iterable<Dir> data, SQLiteDB db) throws SQLException {
-		return insert(DBColumns.DIRS_TABLE_NAME, serial, data, db, d -> !d.isDirectory(), "Not a Dir: ");
+	/* TODO 
+	public static final int insertDirs(Iterable<Dir> data, SQLiteDB db) throws SQLException {
+		return insert(DBColumns.DIRS_TABLE_NAME, data, db, d -> !d.isDirectory(), "Not a Dir: ");
 	}
 	private void updateAttributes(StringBuilder sb) {
 		String format = BasicFormat.format("UPDATE {} SET {}=\\{\\}, {}=\\{\\} WHERE {}=\\{\\};\n", FILES_TABLE_NAME, SRC_ATTR, BACKUP_ATTR, ID);
 		update(sb, dirSerial, new BasicFormat(format), dirs);
 		update(sb, fileSerial, new BasicFormat(format.replaceFirst(FILES_TABLE_NAME, DIRS_TABLE_NAME)), files);
 	}
-	private static <E extends FileImpl> void update(StringBuilder sb, Serial serial, BasicFormat update, List2<E> list) {
+	private static <E extends FileImpl> void update(StringBuilder sb, BasicFormat update) {
 		for (FileImpl d : list.iterableOfCurrent()) {
 			update(sb, update, d, d.getSourceAttrs(), d.getBackupAttrs());
 		}
@@ -284,13 +305,11 @@ public class DbSerializer implements Serializer {
 				update.format(sb, d.childrenCount(), d.id);
 		}
 	}
-	private RootMetaImpl to(String name, Serial serial) {
-		return new RootMetaImpl(name, String.valueOf(serial.current));
-	}
-	public static final int insertFiles(Serial serial, Iterable<FileImpl> data, SQLiteDB db) throws SQLException {
+
+	public static final int insertFiles(Iterable<FileImpl> data, SQLiteDB db) throws SQLException {
 		return insert(FILES_TABLE_NAME, serial, data, db, f -> f.isDirectory(), "trying to insert a Dir as file: ");
 	}
-	protected static int insert(String tableName, Serial serial, Iterable<? extends FileImpl> data, SQLiteDB db, Predicate<FileImpl> check, String msg) throws SQLException {
+	protected static int insertFiles(Iterable<? extends FileImpl> data, SQLiteDB db, Predicate<FileImpl> check, String msg) throws SQLException {
 		Iterable2<? extends FileImpl> list = Iterable2.wrap(data);
 		if(!list.hasNext()) return 0;
 
@@ -313,38 +332,104 @@ public class DbSerializer implements Serializer {
 			return p.executeBatch().length;
 		}
 	}
-	
+	*/
+
 	@Override
 	public FileImpl newFile(Dir parent, String filename) {
-		return new DbFileImpl(id, parent, filename, defaultAttrs(), defaultAttrs());
+		return new DbFileImpl(fileIdMax, parent, filename, defaultAttrs(), defaultAttrs());
 	}
 	@Override
 	public FileImpl newDir(Dir parent, String filename) {
-		return new DbDir(fileTree, id, 0, parent, filename, source, backup);
+		return new DbDir(fileTree, dirIdMax, 0, parent, filename, defaultAttrs(), defaultAttrs());
 	}
 	@Override
 	public void applyToAll(Consumer<FileImpl> action) {
-		// TODO Auto-generated method stub
-
+		//FIXME
+		throw new IllegalAccessError();
 	}
 	@Override
 	public FileTree getFileTree() {
 		return fileTree;
 	}
-	private static final StringBuilder ATTRS_INSERT_SQL = new StringBuilder().append("INSERT INTO ").append(ATTR_TABLE_NAME).append("(").append(ID).append(',').append(LASTMODIFIED).append(',').append(SIZE).append(") VALUES(");
 
-	static final void insertAttrs(Collection<Attr> data, StringBuilder massUpdate) throws SQLException {
+	private static final String ATTRS_INSERT_SQL = Optional.of(JDBCHelper.insertSQL(ATTR_TABLE_NAME, ID, LASTMODIFIED, SIZE)).map(s -> s.substring(0, s.lastIndexOf('(')+1)).get(); 
+
+	static final void insertAttrs(Collection<DbAttr> data, StringBuilder sink) throws SQLException {
 		if(data.isEmpty())
 			return;
 
-		for (Attr item: data) {
-			massUpdate.append(ATTRS_INSERT_SQL)
-			.append(((DbAttr)item).id).append(',')
+		for (DbAttr item: data) {
+			sink.append(ATTRS_INSERT_SQL)
+			.append(item.id).append(',')
 			.append(item.lastModified).append(',')
 			.append(item.size).append(");\n");
 		}
-
-
 	}
 
+	private class DbFileImpl extends FileImpl {
+		final int id;
+
+		DbFileImpl(int id, Dir parent, String filename, Attrs source, Attrs backup) {
+			super(parent, filename, source, backup);
+			this.id = id;
+		}
+		@Override
+		public final int hashCode() {
+			return id;
+		}
+		@Override
+		public final boolean equals(Object obj) {
+			if (this == obj) return true;
+			if (obj == null || getClass() != obj.getClass()) return false;
+
+			DbFileImpl other = (DbFileImpl) obj;
+			if (id != other.id)
+				return false;
+			if(other != this) throw new IllegalArgumentException("two different Entity have same id: "+this+"  "+other);
+			return true;
+		}
+		@Override
+		public String toString() {
+			return getClass().getSimpleName()+" [id=" + id + ", filename=" + filename + ", srcAttrs=" + srcAttrs + ", backupAttrs="
+					+ backupAttrs + "]";
+		}
+	}
+
+	private class DbDir extends Dir {
+		public final int id;
+		public final int child_count;
+
+		DbDir(FileTree root, int id, int child_count, Dir parent, String filename, Attrs source, Attrs backup){
+			super(root, parent, filename, source, backup, new ArrayList<>(child_count+1));
+			this.id = id;
+			this.child_count  = child_count;
+		}
+		@Override
+		public String toString() {
+			return getClass().getSimpleName()+" [id=" + id + ", filename=" + filename + ", srcAttrs=" + srcAttrs + ", backupAttrs="
+					+ backupAttrs + "]";
+		}
+	}
+	private class DbAttr extends Attr {
+
+		final int id;
+
+		DbAttr(ResultSet rs) throws SQLException {
+			super(rs.getLong(LASTMODIFIED), rs.getLong(SIZE));
+			this.id = rs.getInt(ID);
+		}
+		DbAttr(int id, long lastModified, long size){
+			super(lastModified, size);
+			this.id = id;
+		}
+		DbAttr(int id, DbAttr from) {
+			super(from);
+			this.id = id;
+		}
+		@Override
+		public String toString() {
+			return "DbAttr [id=" + id + ", lastModified=" + lastModified + ", size=" + size + "]";
+		}
+
+	}
 }

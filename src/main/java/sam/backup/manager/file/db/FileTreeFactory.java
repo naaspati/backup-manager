@@ -31,6 +31,28 @@ public class FileTreeFactory {
 			return INSTANCE;
 		}
 	}
+	
+	private static final HashMap<Path, Serializer> SERIALIZERS = new HashMap<>();
+	
+	/**
+	 * static {
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			synchronized (SERIALIZERS) {
+				SERIALIZERS.forEach((s,t) -> {
+					try {
+						if(t instanceof AutoCloseable)
+							((AutoCloseable)t).close();
+						else if(t instanceof Closeable)
+							((Closeable)t).close();
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				});
+			}	
+		}));
+	}
+	 */
+	
 
 	private final Path root = Utils.APP_DATA.resolve("trees.dbs");
 
@@ -40,27 +62,29 @@ public class FileTreeFactory {
 	private Path getPath(Config config, TreeType treeType) {
 		return root.resolve(treeType+"-"+config.getName().replaceAll("\\s+", "_")+".db");
 	}
-	private final HashMap<Path, Serializer> serializers = new HashMap<>(); 
 	public FileTree newFileTree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
 		Path path = getPath(c, type);
 
-		try {
-			Serializer s = serializers.get(path);
-			if(s != null)
-				return s.getFileTree();
-			
-			if (Files.exists(path) && createNewIfNotExists) {
-				if(Files.notExists(path))
-					LOGGER.warn("file not found: {}", path);
+		synchronized (SERIALIZERS) {
+			try {
+				Serializer s = SERIALIZERS.get(path);
+				if(s != null)
+					return s.getFileTree();
 				
-				Serializer serializer = new DbSerializer(path, type, c.getSource(), c.getTarget());
-				serializers.put(path, serializer);
-				return serializer.getFileTree();
+				if (Files.exists(path) && createNewIfNotExists) {
+					if(Files.notExists(path))
+						LOGGER.warn("file not found: {}", path);
+					
+					Serializer serializer = new DbSerializer(path, type, c.getSource(), c.getTarget());
+					SERIALIZERS.put(path, serializer);
+					return serializer.getFileTree();
+				}
+			} catch (Exception e) {
+				throw new Exception(e.getMessage()+" (path: "+path+")", e);
 			}
-		} catch (Exception e) {
-			throw new Exception(e.getMessage()+" (path: "+path+")", e);
+			return null;	
 		}
-		return null;
+		
 	}
 
 

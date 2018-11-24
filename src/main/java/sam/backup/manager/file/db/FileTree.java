@@ -27,17 +27,16 @@ import sam.sql.sqlite.SQLiteDB;
 import sam.string.BasicFormat;
 
 public final class FileTree extends Dir {
-	
-	private final DirList dirList;
-	private final FileList fileList;
-	
 	private TreeType treetype;
 	private final Path srcPath;
 	private Path backupPath;
 	private Attrs srcAttrs, backupAttrs;
 
 	public static final Attr DEFAULT_ATTR = new Attr(0, 0, 0);
-
+	
+	FileTree(TreeType type, Path sourceDirPath, Path backupDirPath, Attrs source, Attrs backup) throws IOException {
+		super(null, 0, null, sourceDirPath.toString(), source, backup)
+	}
 	FileTree(TreeType type, Path sourceDirPath, Path backupDirPath) throws IOException {
 		super(null, 0, null, sourceDirPath.toString(), defaultAttrs(), defaultAttrs());
 		this.treetype = Objects.requireNonNull(type);
@@ -61,13 +60,6 @@ public final class FileTree extends Dir {
 	}
 	public TreeType getTreetype(){ return this.treetype; }
 	
-	
-	public List2<FileImpl> getFiles() {
-		return files;
-	}
-	public List2<Dir> getDirs() {
-		return dirs;
-	}
 	public void forcedMarkUpdated() {
 		files.forEach(f -> f.getSourceAttrs().setUpdated());
 	}
@@ -98,12 +90,6 @@ public final class FileTree extends Dir {
 				d.text.setText(st);
 			});
 		}
-	}
-	public FileImpl newFile(Dir parent, String filename) {
-		return fileList.add(parent, filename);
-	}
-	public Dir newDir(Dir parent, String filename) {
-		return dirList.add(this, parent, filename);
 	}
 }
 

@@ -61,14 +61,10 @@ public class Dir extends FileImpl implements Iterable<FileImpl> {
 	}
 	
 	public FileImpl addFile(String filename) {
-		return addChild(root.newFile(filename));
+		return addChild(root.newFile(this, filename));
 	}
 	public Dir addDir(String filename) {
-		return (Dir) addChild(root.newDir(filename));
+		return (Dir) addChild(root.newDir(this, filename));
 	}
-	private void setChildren(FileImpl[] children) {
-		this.children = children;
-	}
-	
 }
 

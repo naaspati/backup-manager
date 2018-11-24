@@ -34,9 +34,12 @@ import sam.sql.sqlite.SQLiteDB;
 import sam.string.BasicFormat;
 
 public class DbSerializer implements Serializer {
-	private Serial dirSerial;
-	private Serial fileSerial;
-	private int attrSerial;
+	public List2<FileImpl> getFiles() {
+		return files;
+	}
+	public List2<Dir> getDirs() {
+		return dirs;
+	}
 
 	private final SQLiteDB db;
 

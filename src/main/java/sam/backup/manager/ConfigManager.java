@@ -4,8 +4,8 @@ import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.getBackupLastPerformed;
 import static sam.backup.manager.extra.Utils.putBackupLastPerformed;
 import static sam.backup.manager.extra.Utils.run;
-import static sam.backup.manager.extra.Utils.saveFiletree;
 
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -16,12 +16,12 @@ import sam.backup.manager.config.view.ConfigView;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.State;
-import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.transfer.TransferView;
 import sam.backup.manager.view.StatusView;
 import sam.backup.manager.viewers.ViewSwitcher;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
+import sam.fx.alert.FxAlert;
 
 public class ConfigManager implements IStartOnComplete<ConfigView> {
 //	private static final Logger LOGGER = Utils.getLogger(ConfigManager.class);
@@ -59,7 +59,11 @@ public class ConfigManager implements IStartOnComplete<ConfigView> {
 		public void onComplete(TransferView view) {
 			statusView.removeSummery(view.getSummery());
 			putBackupLastPerformed("backup:"+view.getConfig().getSource(), System.currentTimeMillis());
-			saveFiletree(view.getConfig(), TreeType.BACKUP);
+			try {
+				view.getConfig().getFileTree().save();
+			} catch (SQLException e) {
+				FxAlert.showErrorDialog(view.getConfig()+"\n"+view.getConfig().getFileTree(), "Failed to save filetree", e);
+			}
 		}
 	};
 

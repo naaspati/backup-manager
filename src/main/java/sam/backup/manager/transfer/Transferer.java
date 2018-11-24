@@ -40,18 +40,17 @@ import sam.backup.manager.config.filter.Filter;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.State;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.DirEntity;
-import sam.backup.manager.file.FileEntity;
-import sam.backup.manager.file.FileTreeEntity;
-import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.FileTreeWalker;
-import sam.backup.manager.file.FilteredDirEntity;
-import sam.backup.manager.file.FilteredFileTree;
+import sam.backup.manager.file.FilteredDirImpl;
 import sam.backup.manager.file.SimpleFileTreeWalker;
+import sam.backup.manager.file.db.Dir;
+import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.FileTreeString;
+import sam.backup.manager.file.db.FilteredFileTree;
 import sam.myutils.MyUtilsBytes;
 import sam.myutils.MyUtilsException;
 import sam.myutils.MyUtilsPath;
-import sam.reference.WeakList;
+import sam.reference.WeakQueue;
 
 class Transferer implements Callable<State> {
 	private static final Logger LOGGER =  Utils.getLogger(Transferer.class);
@@ -67,8 +66,8 @@ class Transferer implements Callable<State> {
 	private static final long MAX_ZIP_ENTRIES_COUNT = 65535;
 	private static final long FILENAME_MAX = 260;
 
-	private static final WeakList<ByteBuffer> byteBuffers = new WeakList<>(true, () -> ByteBuffer.allocate(BUFFER_SIZE));
-	private static final WeakList<byte[]> buffers = new WeakList<>(true, () -> new byte[BUFFER_SIZE]);
+	private static final WeakQueue<ByteBuffer> byteBuffers = new WeakQueue<>(true, () -> ByteBuffer.allocate(BUFFER_SIZE));
+	private static final WeakQueue<byte[]> buffers = new WeakQueue<>(true, () -> new byte[BUFFER_SIZE]);
 
 	private final Filter zipFilter;
 
@@ -86,7 +85,7 @@ class Transferer implements Callable<State> {
 	private long currentBytesRead;
 	private long currentFileSize;
 
-	private List<FileTreeEntity> toBeRemoved;
+	private List<FileImpl> toBeRemoved;
 	private final Config config;
 
 	public Transferer(Config config, FilteredFileTree filesTree, ICanceler canceler, TransferListener listener) {
@@ -102,9 +101,9 @@ class Transferer implements Callable<State> {
 	public int getFilesSelectedCount() { return filesSelected; }
 	public long getFilesSelectedSize() { return filesSelectedSize; }
 
-	private final List<FileEntity> files = new ArrayList<>();
-	private final List<FilteredDirEntity> zips = new ArrayList<>();
-	private final Set<FilteredDirEntity> zipsCopied = new HashSet<>();
+	private final List<FileImpl> files = new ArrayList<>();
+	private final List<FilteredDirImpl> zips = new ArrayList<>();
+	private final Set<FilteredDirImpl> zipsCopied = new HashSet<>();
 
 	void update() {
 		filesCopied = 0;
@@ -117,7 +116,7 @@ class Transferer implements Callable<State> {
 
 		filesTree.walk(new FileTreeWalker() {
 			@Override
-			public FileVisitResult file(FileEntity ft) {
+			public FileVisitResult file(FileImpl ft) {
 				if(ft.isCopied()) {
 					long size = ft.getSourceSize();
 
@@ -134,7 +133,7 @@ class Transferer implements Callable<State> {
 				return CONTINUE;
 			}
 			@Override
-			public FileVisitResult dir(DirEntity ft) {
+			public FileVisitResult dir(Dir ft) {
 				if(zipFilter == null)
 					return CONTINUE;
 
@@ -142,7 +141,7 @@ class Transferer implements Callable<State> {
 					return SKIP_SUBTREE;
 
 				if(zipFilter.test(ft.getSourcePath())) {
-					FilteredDirEntity fdir = (FilteredDirEntity) ft;
+					FilteredDirImpl fdir = (FilteredDirImpl) ft;
 					long size = fdir.getDir().getSourceSize();
 					int count = fdir.getDir().filesInTree();
 					if(zipsCopied.contains(ft)) {
@@ -164,12 +163,12 @@ class Transferer implements Callable<State> {
 		if(failedPrinter != null && writer.getBuffer().length() != 0)
 			writeInTempDir(config, "transfer-failed", null, writer.toString(), LOGGER);
 	}
-	private <E extends FileTreeEntity> void save(List<E> files, String suffix) {
+	private <E extends FileImpl> void save(List<E> files, String suffix) {
 		writeInTempDir(config, "transfer-log-", suffix, new FileTreeString(filesTree, files), LOGGER);
 	}
 	@Override
 	public State call() throws Exception {
-		for (FilteredDirEntity d : zips) {
+		for (FilteredDirImpl d : zips) {
 			try {
 				if(zipDir(d) == CANCELLED)
 					return CANCELLED;
@@ -181,7 +180,7 @@ class Transferer implements Callable<State> {
 		State state = copyFiles();
 
 		if(toBeRemoved != null)
-			toBeRemoved.forEach(FileTreeEntity::remove);
+			toBeRemoved.forEach(FileImpl::remove);
 
 		filesTree.updateDirAttrs();
 		return state;
@@ -190,7 +189,7 @@ class Transferer implements Callable<State> {
 	StringWriter writer;
 	PrintWriter failedPrinter;
 
-	private void addFailed(FileTreeEntity d, Throwable e) {
+	private void addFailed(FileImpl d, Throwable e) {
 		if(writer == null){
 			writer = new StringWriter();
 			failedPrinter = new PrintWriter(writer);
@@ -210,7 +209,7 @@ class Transferer implements Callable<State> {
 		return currentFileSize;
 	}
 	private State copyFiles() {
-		for (FileEntity f : files) {
+		for (FileImpl f : files) {
 			if(canceler.isCancelled())
 				return CANCELLED;
 
@@ -235,17 +234,17 @@ class Transferer implements Callable<State> {
 		return COMPLETED;
 	} 
 
-	private void copyStart(FileEntity f) {
+	private void copyStart(FileImpl f) {
 		listener.copyStarted(f.getSourcePath(), f.getBackupPath());
 	}
-	private void copyEnd(FileTreeEntity f) {
+	private void copyEnd(FileImpl f) {
 		filesCopied++;
 		listener.copyCompleted(f.getSourcePath(), f.getBackupPath());
 	}
 	private static final AtomicInteger counter = new AtomicInteger(0);
 
-	private State zipDir(FilteredDirEntity fdir) throws IOException {
-		DirEntity dir = fdir.getDir();
+	private State zipDir(FilteredDirImpl fdir) throws IOException {
+		Dir dir = fdir.getDir();
 
 		if(removeFromFileTree(dir))
 			return COMPLETED;
@@ -274,7 +273,7 @@ class Transferer implements Callable<State> {
 
 			dir.walk(new SimpleFileTreeWalker() {
 				@Override
-				public FileVisitResult file(FileEntity ft) {
+				public FileVisitResult file(FileImpl ft) {
 					if(removeFromFileTree(ft))
 						return CONTINUE;
 
@@ -304,7 +303,7 @@ class Transferer implements Callable<State> {
 				}
 
 				@Override
-				public FileVisitResult dir(DirEntity ft) {
+				public FileVisitResult dir(Dir ft) {
 					if(removeFromFileTree(dir))
 						return SKIP_SUBTREE;
 
@@ -337,7 +336,7 @@ class Transferer implements Callable<State> {
 		return state[0];
 	}
 
-	private void moveZip(FilteredDirEntity fdir, Path src) throws IOException {
+	private void moveZip(FilteredDirImpl fdir, Path src) throws IOException {
 		Path target = fdir.getBackupPath();
 		target = target.resolveSibling(target.getFileName()+".zip");
 		newTask(MyUtilsException.noError(() -> Files.size(src)), src, target);
@@ -360,8 +359,8 @@ class Transferer implements Callable<State> {
 			throw new IOException("failed to rename:"+msg+": "+src+" -> "+target, e);
 		}
 	}
-	private boolean removeFromFileTree(FileTreeEntity dir) {
-		if(dir.getSourceAttrs().getCurrent() == null) {
+	private boolean removeFromFileTree(FileImpl dir) {
+		if(dir.getSourceAttrs().current() == null) {
 			LOGGER.debug("removed from filetree: {}", dir.getSourcePath());
 			if(toBeRemoved == null)
 				toBeRemoved = new ArrayList<>();
@@ -412,7 +411,7 @@ class Transferer implements Callable<State> {
 
 	// private Path src, target;
 
-	private Path newTask(FileTreeEntity f) {
+	private Path newTask(FileImpl f) {
 		return newTask(f.getSourceSize(), f.getSourcePath(), f.getBackupPath());
 	}
 	private Path newTask(long size, Path src, Path target) {

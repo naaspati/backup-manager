@@ -1,15 +1,6 @@
 package sam.backup.manager.config.view;
 
-import java.io.File;
-import java.nio.file.FileVisitResult;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
 
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -21,17 +12,13 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sam.backup.manager.App;
-import sam.backup.manager.file.DirEntity;
-import sam.backup.manager.file.FileEntity;
-import sam.backup.manager.file.FileTreeEntity;
-import sam.backup.manager.file.FileTreeWalker;
-import sam.backup.manager.file.FilteredFileTree;
+import sam.backup.manager.file.db.FileTree;
+import sam.backup.manager.file.db.FilteredFileTree;
+import sam.console.ANSI;
 
-public class Deleter extends Stage implements FileTreeWalker {
+public class Deleter extends Stage {
 	private final TextArea view = new TextArea();
 	private final Text text = new Text(), path = new Text();
-	private final Set<DirEntity> dirs = new HashSet<>();
-	private final List<FileEntity> files = new ArrayList<>();
 
 	private Deleter() {
 		super(StageStyle.UTILITY);
@@ -53,75 +40,63 @@ public class Deleter extends Stage implements FileTreeWalker {
 		show();
 	}
 
-	public static CompletableFuture<Void> process(FilteredFileTree tree) {
+	public static CompletableFuture<Void> process(FileTree filetree, FilteredFileTree delete) {
 		Deleter d = new Deleter();
-		String root = tree.getBackupPath() == null ? null : tree.getBackupPath().toString();
+		String root = delete.getBackupPath() == null ? null : delete.getBackupPath();
 		d.path.setText(root);
-		
-		return CompletableFuture.runAsync(() -> {
-			tree.walk(d);
 
-			Iterator<FileTreeEntity> iter = Stream.concat(
-					d.files.stream(), 
-					d.dirs.stream().sorted(Comparator.comparing((DirEntity dir) -> dir.getBackupPath().getNameCount()).reversed())
-					)
-					.iterator();
+		if(delete.isEmpty()) {
+			d.view.setText(ANSI.createUnColoredBanner("NOTHING TO DELETE"));
+			return CompletableFuture.completedFuture(null);
+		}
 
-			StringBuilder sb = new StringBuilder();
+		if(delete.size() < 20) {
+			filetree.backupRemove(delete, null);
+			return CompletableFuture.completedFuture(null);
+		}
+
+		return CompletableFuture.runAsync(new Runnable() {
 			long time = System.currentTimeMillis() + 1000;
 			int success = 0, total = 0;
 
-			while (iter.hasNext()) {
-				FileTreeEntity fte = iter.next();
-				File file = fte.getBackupPath().toFile();
-				boolean b = !file.exists() || file.delete();
-				if(b) fte.remove();
+			@Override
+			public void run() {
+				StringBuilder sb = new StringBuilder();
 
-				String s = file.toString();
-				if(root != null && s.length() > root.length() && s.startsWith(root))
-					s = s.substring(root.length());
+				filetree.backupRemove(delete, (fte, b) -> {
 
-				if(b || !fte.isDirectory()) {
-					if(b)
-						success++;
-					total++;
-					sb.append(b).append("  ").append(s).append('\n');
-				}
+					if(b || !fte.isDirectory()) {
+						if(b)
+							success++;
+						total++;
+						String s = fte.getBackupPath();
+						if(root != null && s.length() > root.length() && s.startsWith(root))
+							s = s.substring(root.length());
+						sb.append(b).append("  ").append(s).append('\n');
+					}
 
-				if(System.currentTimeMillis() >= time) {
-					time = System.currentTimeMillis() + 1000;
+					if(System.currentTimeMillis() >= time) {
+						time = System.currentTimeMillis() + 1000;
+						String ss = sb.toString();
+						sb.setLength(0);
+						String st = success+"/"+total;
+						Platform.runLater(() -> {
+							d.view.appendText(ss);
+							d.text.setText(st);
+						});
+					}
+				});
+
+				if(sb.length() != 0) {
 					String ss = sb.toString();
-					sb.setLength(0);
 					String st = success+"/"+total;
 					Platform.runLater(() -> {
 						d.view.appendText(ss);
 						d.text.setText(st);
 					});
 				}
-			} 
-			if(sb.length() != 0) {
-				String ss = sb.toString();
-				String st = success+"/"+total;
-				Platform.runLater(() -> {
-					d.view.appendText(ss);
-					d.text.setText(st);
-				});
+				Platform.runLater(() -> d.setOnCloseRequest(e -> d.close()));
 			}
-			Platform.runLater(() -> d.setOnCloseRequest(e -> d.close()));
 		});
 	}
-	@Override
-	public FileVisitResult file(FileEntity ft) {
-		if(ft.isBackupDeletable()) {
-			dirs.add(ft.getParent());
-			files.add(ft);
-		}
-		return FileVisitResult.CONTINUE;
-	}
-
-	@Override
-	public FileVisitResult dir(DirEntity ft) {
-		return FileVisitResult.CONTINUE;
-	}
-
 }

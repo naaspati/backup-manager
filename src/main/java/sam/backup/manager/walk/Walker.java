@@ -22,12 +22,11 @@ import sam.backup.manager.config.WalkConfig;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.Attrs;
-import sam.backup.manager.file.AttrsKeeper;
-import sam.backup.manager.file.DirEntity;
-import sam.backup.manager.file.FileEntity;
-import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeEntity;
+import sam.backup.manager.file.db.Attr;
+import sam.backup.manager.file.db.Attrs;
+import sam.backup.manager.file.db.Dir;
+import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.FileTree;
 
 class Walker implements FileVisitor<Path>{
 	private static final Logger LOGGER = Utils.getLogger(Walker.class);
@@ -71,9 +70,9 @@ class Walker implements FileVisitor<Path>{
 			return TERMINATE;
 
 		if(rootTree.isRootPath(dir)) {
-			rootTree.setAttr(new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode, dir);
+			rootTree.setAttr(new Attr(attrs.lastModifiedTime().toMillis(), 0), walkMode, dir);
 		} else if(include(dir)) {
-			DirEntity ft = rootTree.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), walkMode);
+			Dir ft = rootTree.addDirectory(dir, new Attr(attrs.lastModifiedTime().toMillis(), 0), walkMode);
 			listener.onDirFound(ft, walkMode);
 
 			/**
@@ -94,7 +93,7 @@ class Walker implements FileVisitor<Path>{
 		}
 		return CONTINUE;
 	}
-	private AttrsKeeper atrs(FileTreeEntity ft) {
+	private Attrs atrs(FileImpl ft) {
 		return walkMode == WalkMode.BACKUP ? ft.getBackupAttrs() : ft.getSourceAttrs();
 	}
 	public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
@@ -109,8 +108,8 @@ class Walker implements FileVisitor<Path>{
 			return CONTINUE;
 
 		if(include(file)) {
-			Attrs af = new Attrs(attrs.lastModifiedTime().toMillis(), attrs.size());
-			FileEntity ft  = rootTree.addFile(file, af, walkMode);
+			Attr af = new Attr(attrs.lastModifiedTime().toMillis(), attrs.size());
+			FileImpl ft  = rootTree.addFile(file, af, walkMode);
 			listener.onFileFound(ft, af.getSize(), walkMode);
 		} else 
 			excludeFilesList.add(file);

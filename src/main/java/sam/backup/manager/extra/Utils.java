@@ -11,6 +11,7 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -19,11 +20,11 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -49,12 +50,11 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
-import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeReader;
-import sam.backup.manager.file.FileTreeWriter;
+import sam.backup.manager.file.db.FileTree;
+import sam.backup.manager.file.db.RootFactory;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxHyperlink;
-import sam.fx.popup.FxPopupShop;
+import sam.fx.helpers.FxUtils;
 import sam.io.serilizers.ObjectReader;
 import sam.io.serilizers.ObjectWriter;
 import sam.io.serilizers.StringWriter2;
@@ -90,11 +90,11 @@ public final class Utils {
 		}
 
 		counter = new Supplier<String>() {
-			int n = number(TEMP_DIR);
+			AtomicInteger n = new AtomicInteger(number(TEMP_DIR));
 
 			@Override
 			public String get() {
-				return (n++)+" - ";
+				return n.incrementAndGet()+" - ";
 			}
 		};
 
@@ -217,45 +217,6 @@ public final class Utils {
 		});
 		waitUntil(b);
 	}
-
-	private static Path getTreePath(Config config, TreeType treeType) {
-		return APP_DATA.resolve("trees/"+treeType+"-"+config.getName()+".filetree");
-	}
-	public static FileTree readFiletree(Config config, TreeType treeType) throws IOException {
-		Path p = getTreePath(config, treeType);
-
-		try {
-			if (Files.exists(p))
-				return new FileTreeReader().read(p, config);
-		} catch (IOException e) {
-			throw new IOException(e.getMessage()+" ("+p+")", e);
-		}
-
-		LOGGER.warn("treeFile file not found: {}", p);
-		return null;
-	}
-
-	public static void saveFiletree0(Config config, TreeType treeType) throws IOException {
-		Objects.requireNonNull(config.getFileTree(), "config does not have a filetree: " + config.getSource());
-
-		Path p = getTreePath(config, treeType);
-
-		try {
-			Files.createDirectories(p.getParent());
-			new FileTreeWriter().write(p, config.getFileTree());
-			LOGGER.info("file-tree saved: {}", p.getFileName());
-		} catch (IOException e) {
-			throw new IOException(e.getMessage()+" ("+p+")", e);
-		}
-	}
-
-	public static void saveFiletree(Config config, TreeType treeType) {
-		try {
-			saveFiletree0(config, treeType);
-		} catch (IOException e) {
-			FxAlert.showErrorDialog(null, "failed to save filetree", e);
-		}
-	}
 	private static final LazyLoadedData<Map<String, Long>> backupLastPerformed = new LazyLoadedData<Map<String,Long>>() {
 		private final Path path = APP_DATA.resolve("backup-last-performed.dat");
 		
@@ -305,40 +266,9 @@ public final class Utils {
 	public static void showErrorDialog(Object text, String header, Exception error) {
 		runLater(() -> FxAlert.showErrorDialog(text, header, error));
 	}
-
-	public static File selectFile(File expectedFile, String title) {
-		FileChooser fc = new FileChooser();
-
-		if (expectedFile != null) {
-			File parent = expectedFile.getParentFile();
-			boolean b = parent.exists();
-			if (!b) {
-				b = parent.mkdirs();
-				if (!b)
-					FxPopupShop.showHidePopup("failed to create\n" + parent, 1500);
-			}
-			fc.setInitialDirectory(b ? parent : new File(System.getProperty("user.home")));
-			fc.setInitialFileName(expectedFile.getName());
-		}
-
-		fc.setTitle(title);
-		return fc.showSaveDialog(App.getStage());
+	public static FileChooser selectFile(File expectedDir, String expectedName, String title) {
+		return FxUtils.fileChooser(expectedDir, expectedName, title, null);
 	}
-
-	public static boolean saveToFile2(CharSequence text, Path expectedPath) {
-		File file = selectFile(expectedPath == null ? null : expectedPath.toFile(), "save filetree");
-
-		if (file == null)
-			return false;
-		try {
-			write(file.toPath(), text);
-			return true;
-		} catch (IOException e) {
-			showErrorDialog("target: " + file, "failed to save", e);
-		}
-		return false;
-	}
-
 	public static String hashedName(Path p, String ext) {
 		return p.getFileName() + "-" + p.hashCode() + ext;
 	}
@@ -445,6 +375,40 @@ public final class Utils {
 		return button;
 	}
 	public static Logger getLogger(Class<?> cls) {
-		return LoggerFactory.getLogger(cls.getSimpleName());
+		return LoggerFactory.getLogger(cls);
+	}
+	public static FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
+		return RootFactory.getInstance().newFileTree(c, type, createNewIfNotExists);
+	}
+	
+	public static boolean saveToFile2(File expectedDir, String expectedName, String title,  CharSequence text) {
+		File file = selectFile(expectedDir, expectedName, title).showSaveDialog(App.getStage());
+
+		if (file == null)
+			return false;
+		try {
+			write(file.toPath(), text);
+			return true;
+		} catch (IOException e) {
+			showErrorDialog("target: " + file, "failed to save", e);
+		}
+		return false;
+	}
+	
+	public static boolean saveFileTree(Config config) {
+		return saveFileTree(config, config.getFileTree());
+	}
+
+	public static boolean saveFileTree(FileTree fileTree) {
+		return saveFileTree(null, fileTree);
+	}
+	public static boolean saveFileTree(Config c, FileTree fileTree) {
+		try {
+			fileTree.save();
+			return true;
+		} catch (SQLException e) {
+			FxAlert.showErrorDialog(c+"\n"+fileTree, "failed to save filetreee", e);
+			return false;
+		}
 	}
 }

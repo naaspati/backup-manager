@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.db.FileTree;
 
 public class WalkTask implements Runnable {
 	public static final Logger logger = Utils.getLogger(WalkTask.class); 

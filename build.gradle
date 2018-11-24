@@ -8,13 +8,14 @@ repositories {
     jcenter()
 }
 dependencies {
+   // compile 'org.xerial:sqlite-jdbc:3.7.2'
    compile 'com.google.code.gson:gson:2.8.2'
    compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
-  compile files('myutils.jar')
-   compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.8.0-beta2'
+ // compile files('myutils.jar')
+  compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.8.0-beta2'
 }
  
-version = 1.11
+version = 1.12
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
@@ -47,12 +48,17 @@ run.dependsOn << combineCss
 run.mustRunAfter combineCss
 
 run {
- environment('custom.filter.dir', 'custom.filters')
  main 'Main'
  workingDir appdir.parent
 }
 
-task install(type: Copy, dependsOn:installDist) {
+task deleteJars {
+  delete fileTree(appdir) {
+    include '*.jar'
+  }
+}
+
+task install(type: Copy, dependsOn:[installDist, deleteJars]) {
   def libdir = file(new File(installDist.destinationDir, 'lib')) 
   from libdir
   into appdir
@@ -64,7 +70,7 @@ task install(type: Copy, dependsOn:installDist) {
   
   ${versionText()}
   
-  java %JAVA_OPTS% -cp \"%~dp0${String.join(';%~dp0', libdir.list())}\" ${mainClassName} %*
+  java %JVM_OPTS% %JAVA_OPTS% -cp \"%~dp0;%~dp0${String.join(';%~dp0', libdir.list())}\" ${mainClassName} %*
   
   """.stripIndent()
   } 
@@ -88,6 +94,7 @@ def versionText() {
 jar {
   exclude '*.fxgraph'
   exclude 'styles'
+  exclude 'sql-column-change_from_dir_id_to_parent_id.sql'
 }
 
 defaultTasks 'install'

@@ -5,7 +5,7 @@ import java.nio.file.Path;
 
 import sam.backup.manager.config.filter.Filter;
 import sam.backup.manager.config.filter.IFilter;
-import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.db.FileTree;
 
 public class Config extends ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;

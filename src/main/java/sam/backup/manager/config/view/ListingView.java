@@ -4,8 +4,6 @@ import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.hashedName;
 import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
-import static sam.backup.manager.extra.Utils.saveFiletree;
-import static sam.backup.manager.extra.Utils.saveToFile2;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
 import static sam.backup.manager.extra.Utils.showStage;
 import static sam.fx.helpers.FxClassHelper.addClass;
@@ -28,11 +26,10 @@ import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
-import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.DirEntity;
-import sam.backup.manager.file.FileEntity;
-import sam.backup.manager.file.FileTreeString;
+import sam.backup.manager.file.db.Dir;
+import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.FileTreeString;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
@@ -159,20 +156,19 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	private volatile int fileCount, dirCount;
 
 	@Override
-	public void onFileFound(FileEntity ft, long size, WalkMode mode) {
+	public void onFileFound(FileImpl ft, long size, WalkMode mode) {
 		runLater(() -> fileCountT.setText("  Files: "+(++fileCount)));
 	}
 	@Override
-	public void onDirFound(DirEntity ft, WalkMode mode) {
+	public void onDirFound(Dir ft, WalkMode mode) {
 		runLater(() -> dirCountT.setText("  Dirs: "+(++dirCount)));
 	}
 	@Override
 	public void walkCompleted() {
 		if(treeText == null) {
 			treeText = new FileTreeString(config.getFileTree());
-			saveFiletree(config, TreeType.BACKUP);
+			Utils.saveFileTree(config);
 		}
-
 		runLater(() -> {
 			getChildren().remove(button);
 			button.setType(ButtonType.OPEN);
@@ -186,7 +182,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	}
 	public void save() {
 		if(treeText == null) {
-			showErrorDialog(null, "FileTreeEntity not set", null);
+			showErrorDialog(null, "FileImpl not set", null);
 			return;
 		}
 		Path p = config.getTargetRaw() != null ? config.getTarget() : null;
@@ -212,6 +208,10 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 			listCreated();
 
 	}
+	private boolean saveToFile2(CharSequence text, Path p) {
+		return Utils.saveToFile2(p.getParent().toFile(), p.getFileName().toString(), "Save File Tree", text);
+	}
+
 	private void write(Path p) {
 		if(p == null)
 			return;

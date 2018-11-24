@@ -1,16 +1,19 @@
-import javafx.application.Application;
-import sam.backup.manager.App;
-import sam.backup.manager.extra.Utils;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.sql.SQLException;
 
-// import sam.logging.LogFilter;
+import sam.backup.manager.extra.Utils;
+import sam.config.LoadConfig;
+
 public class Main  {
-	public static void main(String[] args) {
-		if(args.length == 1 && args[0].equals("-v")) {
-			System.out.println("1.04");
-			System.exit(0);
-		}
-		
+	public static void main(String[] args) throws URISyntaxException, IOException, SQLException {
+		LoadConfig.load();
 		Utils.init();
-		Application.launch(App.class, args);
+
+		//Dao dao = Dao.getInstance();
+
+		new Converter();
+
+		// Application.launch(App.class, args);
 	}
 }

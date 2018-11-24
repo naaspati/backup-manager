@@ -4,16 +4,8 @@ import static javafx.application.Platform.runLater;
 import static sam.fx.helpers.FxMenu.menuitem;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashSet;
 import java.util.Set;
-
-import org.slf4j.Logger;
 
 import javafx.application.Application;
 import javafx.application.HostServices;
@@ -23,7 +15,6 @@ import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
-import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import sam.backup.manager.cleanup.Cleanup;
 import sam.backup.manager.config.ConfigReader;
@@ -31,21 +22,15 @@ import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.config.view.AboutDriveView;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.Attrs;
-import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.view.StatusView;
 import sam.backup.manager.view.ViewType;
 import sam.backup.manager.viewers.TransferViewer;
 import sam.backup.manager.viewers.ViewSwitcher;
-import sam.backup.manager.walk.WalkMode;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
 
 public class App extends Application {
-	private static final Logger LOGGER = Utils.getLogger(App.class);
-	
 	private static Stage stage;
 	private static HostServices hs;
 
@@ -67,6 +52,7 @@ public class App extends Application {
 	public void start(Stage stage) throws Exception {
 		FxAlert.setParent(stage);
 		FxPopupShop.setParent(stage);
+		FileOpenerNE.setErrorHandler((file, e) -> FxAlert.showErrorDialog(file, "Failed to open File", e));
 
 		App.stage = stage;
 		App.hs = getHostServices();
@@ -116,50 +102,10 @@ public class App extends Application {
 		Menu  file = new Menu("_File",
 				null,
 				menuitem("open app dir", e -> FileOpenerNE.openFile(new File("."))),
-				menuitem("create FileTree", this::createFileTree),
 				menuitem("cleanup", e -> new Cleanup())
 				);
 		return new MenuBar(file);
 	}
-
-	private void createFileTree(Object ignore) {
-		DirectoryChooser dc = new DirectoryChooser();
-		dc.setTitle("Select dir to make FileTree");
-		File file = dc.showDialog(stage);
-
-		if(file == null)
-			return;
-
-		Path root = file.toPath();
-		FileTree ft = new FileTree(root);
-
-		try {
-			ft.walkStarted(root);
-			Files.walkFileTree(root, new SimpleFileVisitor<Path> () {
-				@Override
-				public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-					ft.addFile(file, new Attrs(attrs.lastModifiedTime().toMillis(), attrs.size()), WalkMode.SOURCE);
-					return FileVisitResult.CONTINUE;
-				}
-				@Override
-				public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-					if(!ft.isRootPath(dir))
-						ft.addDirectory(dir, new Attrs(attrs.lastModifiedTime().toMillis(), 0), WalkMode.SOURCE);
-					return FileVisitResult.CONTINUE;
-				}
-			});
-			
-			ft.walkCompleted();
-			Path p = root.resolveSibling(root.getFileName()+".txt");
-			Utils.saveToFile2(new FileTreeString(ft), p);
-			FxPopupShop.showHidePopup(p.getFileName()+" saved", 1500);
-			LOGGER.info("saved: {}", p);
-		} catch (IOException e) {
-			LOGGER.error("failed to walk: {}", root, e);
-			Utils.showErrorDialog(root, "failed to walk", e);
-		}
-	}
-
 	@Override
 	public void stop() throws Exception {
 		stoppableTasks.forEach(IStopStart::stop);

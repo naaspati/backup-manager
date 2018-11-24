@@ -3,7 +3,6 @@ package sam.backup.manager;
 import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -18,7 +17,7 @@ import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.db.FileTree;
 import sam.backup.manager.viewers.ViewSwitcher;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
@@ -53,9 +52,9 @@ public class ListsManager implements IStartOnComplete<ListingView> {
 			return;
 		}
 		try {
-			FileTree f = Utils.readFiletree(c, TreeType.LIST);
-			c.setFileTree(f != null ? f : new FileTree(c));
-		} catch (IOException e1) {
+			FileTree f = Utils.readFiletree(c, TreeType.LIST, true);
+			c.setFileTree(f);
+		} catch (Exception e1) {
 			showErrorDialog(null, "failed to read TreeFile: ", e1);
 			LOGGER.error("failed to read TreeFile	", e1);
 			return;

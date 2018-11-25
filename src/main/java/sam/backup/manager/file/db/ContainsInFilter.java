@@ -1,40 +1,46 @@
 package sam.backup.manager.file.db;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Map;
 import java.util.function.Predicate;
 
-import sam.collection.IntSet;
-
-public class ContainsInFilter implements Predicate<FileImpl> {
-	private IntSet files;
-	private IntSet dirs;
+public class ContainsInFilter implements Predicate<FileEntity> {
+	private Map<FileEntity, Void> files;
+	private Map<FileEntity, Void> dirs;
 	
-	public ContainsInFilter(Collection<? extends FileImpl> containsIn) {
+	public ContainsInFilter(Collection<? extends FileEntity> containsIn) {
 		if(containsIn.isEmpty()) {
 			return;
 		}
 		
-		dirs = new IntSet();
-		files = new IntSet();
+		dirs = new IdentityHashMap<>();
+		files = new IdentityHashMap<>();
 		
-		for (FileImpl f : containsIn) {
+		for (FileEntity f : containsIn) {
 			if(f.isDirectory())
-				dirs.add(f.id);
+				dirs.put(f, null);
 			else
-				files.add(f.id);
+				files.put(f, null);
 			
-			while((f = f.getParent()) != null) dirs.add(f.id);
+			while((f = f.getParent()) != null) dirs.put(f, null);
 		}
+		
+		if(dirs.isEmpty())
+			dirs = Collections.emptyMap();
+		if(files.isEmpty())
+			files = Collections.emptyMap();
 	}
 
 	@Override
-	public boolean test(FileImpl f) {
+	public boolean test(FileEntity f) {
 		if(files == null && dirs == null)
 			return false;
 		
 		if(f.isDirectory())
-			return dirs.contains(f.id);
+			return dirs.containsKey(f);
 		else 
-			return files.contains(f.id);
+			return files.containsKey(f);
 	}
 }

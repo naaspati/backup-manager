@@ -18,7 +18,7 @@ import org.slf4j.Logger;
 
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.Utils;
-import sam.myutils.MyUtilsCheck;
+import sam.myutils.Checker;
 import sam.myutils.MyUtilsExtra;
 import sam.myutils.System2;
 import sam.reference.WeakAndLazy;
@@ -40,7 +40,7 @@ public class RootConfig extends ConfigBase {
 	protected void init() {
 		Map<String, List<Config>> string =  Stream.concat(backups == null ? Stream.empty() : Arrays.stream(backups), lists  == null ? Stream.empty() : Arrays.stream(lists))
 				.peek(c -> {
-					if(MyUtilsCheck.isEmptyTrimmed(c.getName()))
+					if(Checker.isEmptyTrimmed(c.getName()))
 						throw new NullPointerException("name not specified: "+c);
 				})
 				.collect(Collectors.groupingBy(Config::getName));

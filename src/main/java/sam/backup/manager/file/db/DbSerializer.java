@@ -25,6 +25,7 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -44,7 +45,7 @@ import sam.sql.SqlConsumer;
 import sam.sql.sqlite.SQLiteDB;
 import sam.string.BasicFormat;
 
-public class DbSerializer implements Serializer {
+public class DbSerializer implements Serializer<FileImpl, DirImpl> {
 	private DbDir[] dirs;
 	private DbFileImpl[] files;
 	private DbAttr[] attrs;
@@ -147,8 +148,8 @@ public class DbSerializer implements Serializer {
 				int child_count = rs.getInt(CHILD_COUNT);
 
 				// expected fileTree to be null
-				Dir parent = parent_id < 0 ? fileTree : dirs[parent_id];
-				Dir item = null;
+				DirImpl parent = parent_id < 0 ? fileTree : dirs[parent_id];
+				DirImpl item = null;
 
 				if(id == 0) {
 					item = fileTree = new FileTreeImpl(this, type, sourceDirPath, backupDirPath, src, backup, child_count);
@@ -172,8 +173,7 @@ public class DbSerializer implements Serializer {
 			if(!no_parent.isEmpty()) {
 				throw new IllegalStateException("no_parent must be empty at this point: " + no_parent);
 			}
-
-
+			
 			getAll(FILES_TABLE_NAME, rs -> {
 				Attrs src = new Attrs(attrs[rs.getInt(SRC_ATTR)]);
 				Attrs backup = new Attrs(attrs[rs.getInt(BACKUP_ATTR)]);
@@ -192,6 +192,8 @@ public class DbSerializer implements Serializer {
 		}
 	}
 	public void save() {
+		throw new IllegalAccessError("not yes implemented");
+		
 		StringBuilder batchSQL = new StringBuilder();
 		
 		//TODO
@@ -335,11 +337,11 @@ public class DbSerializer implements Serializer {
 	*/
 
 	@Override
-	public FileImpl newFile(Dir parent, String filename) {
+	public FileImpl newFile(DirImpl parent, String filename) {
 		return new DbFileImpl(fileIdMax, parent, filename, defaultAttrs(), defaultAttrs());
 	}
 	@Override
-	public FileImpl newDir(Dir parent, String filename) {
+	public DirImpl newDir(DirImpl parent, String filename) {
 		return new DbDir(fileTree, dirIdMax, 0, parent, filename, defaultAttrs(), defaultAttrs());
 	}
 	@Override
@@ -366,7 +368,7 @@ public class DbSerializer implements Serializer {
 		}
 	}
 
-	private class DbFileImpl extends FileImpl {
+	private static class DbFileImpl extends FileImpl {
 		final int id;
 
 		DbFileImpl(int id, Dir parent, String filename, Attrs source, Attrs backup) {
@@ -395,7 +397,7 @@ public class DbSerializer implements Serializer {
 		}
 	}
 
-	private class DbDir extends Dir {
+	private static class DbDir extends DirImpl {
 		public final int id;
 		public final int child_count;
 
@@ -411,7 +413,6 @@ public class DbSerializer implements Serializer {
 		}
 	}
 	private class DbAttr extends Attr {
-
 		final int id;
 
 		DbAttr(ResultSet rs) throws SQLException {

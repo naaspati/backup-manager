@@ -9,22 +9,23 @@ import se.sawano.java.text.AlphanumericComparator;
 
 public class FileTreeString implements CharSequence {
 	private final StringBuilder sb = new StringBuilder();
-	private final Predicate<FileImpl> filter;
+	private final Predicate<FileEntity> filter;
 	
-	private static final AlphanumericComparator ALPHANUMERIC_COMPARATOR = new AlphanumericComparator();
-	
-	public FileTreeString(Dir dir, Predicate<FileImpl> filter) {
+	public FileTreeString(Dir dir, Predicate<FileEntity> filter) {
 		this.filter = filter;
 		
 		appendDetails(dir, new char[0]);
 		walk(new char[] {' ', '|'}, dir);
 	}
 	public FileTreeString(Dir dir) {
-		this(dir, (Predicate<FileImpl>)null);
+		this(dir, (Predicate<FileEntity>)null);
 	}
-	public FileTreeString(Dir dir, Collection<? extends FileImpl> containsIn) {
+	public FileTreeString(Dir dir, Collection<? extends FileEntity> containsIn) {
 		this(dir, new ContainsInFilter(containsIn));
 	}
+	
+	//TODO private static final AlphanumericComparator ALPHANUMERIC_COMPARATOR = new AlphanumericComparator();
+	
 	private void walk(final char[] separator, Dir dir) {
 		
 		/**
@@ -40,7 +41,7 @@ public class FileTreeString implements CharSequence {
 		});
 		 */
 		
-		for (FileImpl f : dir) {
+		for (FileEntity f : dir) {
 			if(filter == null || filter.test(f)) {
 				appendDetails(f, separator);
 				
@@ -61,10 +62,10 @@ public class FileTreeString implements CharSequence {
 			}
 		}
 	}
-	private Dir asDir(FileImpl f) {
+	private Dir asDir(FileEntity f) {
 		return (Dir)f;
 	}
-	private void appendDetails(FileImpl f, char[] separator) {
+	private void appendDetails(FileEntity f, char[] separator) {
 		sb.append(separator)
 		.append(f.getName());
 		

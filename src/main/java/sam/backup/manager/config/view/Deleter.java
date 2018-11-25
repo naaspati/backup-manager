@@ -61,7 +61,7 @@ public class Deleter extends Stage {
 
 			Iterator<FileEntity> iter = Stream.concat(
 					d.files.stream(), 
-					d.dirs.stream().sorted(Comparator.comparing((Dir dir) -> dir.getBackupPath().getNameCount()).reversed())
+					d.dirs.stream().sorted(Comparator.comparingInt((Dir dir) -> dir.getBackupPath().length()).reversed())
 					)
 					.iterator();
 
@@ -71,7 +71,7 @@ public class Deleter extends Stage {
 
 			while (iter.hasNext()) {
 				FileEntity fte = iter.next();
-				File file = fte.getBackupPath().toFile();
+				File file = new File(fte.getBackupPath());
 				boolean b = !file.exists() || file.delete();
 				if(b) fte.remove();
 

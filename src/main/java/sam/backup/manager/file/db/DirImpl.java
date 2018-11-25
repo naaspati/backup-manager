@@ -4,7 +4,7 @@ import java.util.Iterator;
 import java.util.List;
 
 
-class DirImpl extends FileImpl implements Dir {
+class DirImpl extends FileImpl implements Dir, ModifiableDir {
 	private final List<FileEntity> children;
 	private final FileTree2<FileImpl, DirImpl> root;
 	

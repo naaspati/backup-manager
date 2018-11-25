@@ -188,7 +188,8 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		writeInTempDir(config, "delete", null, new FileTreeString(deleteFFT.get()), LOGGER);
 		stage.hide();
 
-		Deleter.process(config.getFileTree(), deleteFFT.get())
+		//TODO old method Deleter.process(config.getFileTree(), deleteFFT.get())
+		Deleter.process(deleteFFT.get())
 		.thenAccept(NULL -> Utils.saveFileTree(config));
 	}
 	@Override
@@ -268,8 +269,8 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 
 	@Override
 	public void walkCompleted() {
-		FilteredFileTree backup =  new FilteredFileTree(config.getFileTree(), WalkMode.SOURCE, f -> f.getStatus().isBackupable());
-		FilteredFileTree delete = !config.getBackupConfig().hardSync() ? null :  new FilteredFileTree(config.getFileTree(), WalkMode.BACKUP, f -> f.getStatus().isBackupDeletable());
+		FilteredFileTree backup =  new FilteredFileTree(config.getFileTree(), f -> f.getStatus().isBackupable());
+		FilteredFileTree delete = !config.getBackupConfig().hardSync() ? null :  new FilteredFileTree(config.getFileTree(), f -> f.getStatus().isBackupDeletable());
 
 		runLater(() -> {
 			backupFFT.set(backup);

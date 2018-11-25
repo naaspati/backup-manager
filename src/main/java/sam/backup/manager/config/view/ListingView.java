@@ -28,7 +28,7 @@ import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.FileEntity;
 import sam.backup.manager.file.db.FileTreeString;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
@@ -156,7 +156,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	private volatile int fileCount, dirCount;
 
 	@Override
-	public void onFileFound(FileImpl ft, long size, WalkMode mode) {
+	public void onFileFound(FileEntity ft, long size, WalkMode mode) {
 		runLater(() -> fileCountT.setText("  Files: "+(++fileCount)));
 	}
 	@Override
@@ -182,7 +182,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	}
 	public void save() {
 		if(treeText == null) {
-			showErrorDialog(null, "FileImpl not set", null);
+			showErrorDialog(null, "FileEntity not set", null);
 			return;
 		}
 		Path p = config.getTargetRaw() != null ? config.getTarget() : null;

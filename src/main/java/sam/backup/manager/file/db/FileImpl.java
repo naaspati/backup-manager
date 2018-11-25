@@ -2,7 +2,7 @@ package sam.backup.manager.file.db;
 
 import java.util.Objects;
 
-public class FileImpl {
+class FileImpl implements FileEntity {
 	protected final Dir parent;
 	protected final String filename;
 	protected final Attrs srcAttrs, backupAttrs; // direct 

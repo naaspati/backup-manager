@@ -10,7 +10,10 @@ import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -46,25 +49,26 @@ import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.db.Attr;
 import sam.backup.manager.file.db.Attrs;
-import sam.backup.manager.file.db.DirImpl;
-import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.Dir;
+import sam.backup.manager.file.db.FileEntity;
+import sam.backup.manager.file.db.FileTree;
 import sam.backup.manager.file.db.FileTreeString;
 import sam.backup.manager.file.db.Status;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.config.SessionFactory;
-import sam.config.SessionFactory.Session;
+import sam.config.Session;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxGridPane;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
 import sam.io.serilizers.StringWriter2;
+import sam.myutils.Checker;
 import sam.reference.WeakQueue;
 
 public class FilesView extends BorderPane {
 	private static WeakQueue<FilesView> views = new WeakQueue<>(() -> new FilesView(null, null, null, null)); 
 	private static WeakReference<Stage> weakStage = new WeakReference<Stage>(null);
-	private static final Session SESSION = SessionFactory.getSession(FilesView.class);
+	private static final Session SESSION = Session.getSession(FilesView.class);
 
 
 	private static Stage getStage() {
@@ -84,10 +88,10 @@ public class FilesView extends BorderPane {
 		}
 		return stage;
 	}
-	public static Stage open(String title, Config config, DirImpl treeToDisplay, FilesViewSelector selector, Button...buttons) {
+	public static Stage open(String title, Config config, Dir treeToDisplay, FilesViewSelector selector, Button...buttons) {
 		return open(title, config, treeToDisplay, selector, null, buttons);
 	}
-	public static Stage open(String title, Config config, DirImpl treeToDisplay, FilesViewSelector selector,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
+	public static Stage open(String title, Config config, Dir treeToDisplay, FilesViewSelector selector,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
 		Stage stage = getStage();
 		FilesView v = views.stream().filter(f -> f.treeToDisplay == treeToDisplay && f.selector == selector).findFirst().orElse(null);
 		if(v == null) {
@@ -105,22 +109,22 @@ public class FilesView extends BorderPane {
 	}
 	private static final String separator = "    ";
 
-	private final TreeView<FileImpl> treeView;
+	private final TreeView<FileEntity> treeView;
 	private final ToggleButton expandAll = new ToggleButton("Expand All");
 	private final SimpleIntegerProperty selectedCount = new SimpleIntegerProperty();
 	private final SimpleIntegerProperty totalCount = new SimpleIntegerProperty();
 	private final String sourceRoot, targetRoot;
 
-	private final DirImpl treeToDisplay;
+	private final Dir treeToDisplay;
 	private final AboutPane aboutPane = new AboutPane();
 	private final FilesViewSelector selector;
-	private final Config config;
+	private final FileTree fileTree;
 
-	private FilesView(Config config, DirImpl treeToDisplay, FilesViewSelector selector, Button[] buttons) {
+	private FilesView(Config config, Dir treeToDisplay, FilesViewSelector selector, Button[] buttons) {
 		addClass(this, "files-view");
-		this.config = config; 
-		sourceRoot = config.getFileTree().getSourcePath();
-		targetRoot = config.getFileTree().getBackupPath();
+		this.fileTree = config.getFileTree(); 
+		sourceRoot = fileTree.getSourcePath();
+		targetRoot = fileTree.getBackupPath();
 		this.treeToDisplay = treeToDisplay;
 		this.selector = selector;
 
@@ -171,8 +175,8 @@ public class FilesView extends BorderPane {
 		link.setWrapText(true);
 		return link;
 	}
-	private void expand(boolean expand, Collection<TreeItem<FileImpl>> root) {
-		for (TreeItem<FileImpl> item : root) {
+	private void expand(boolean expand, Collection<TreeItem<FileEntity>> root) {
+		for (TreeItem<FileEntity> item : root) {
 			item.setExpanded(true);
 			expand(expand, item.getChildren());
 		}
@@ -200,9 +204,9 @@ public class FilesView extends BorderPane {
 		String s = SESSION.getProperty("last.visited", System.getenv("USERPROFILE"));
 		if(s == null)
 			s = ".";
-		
-		Utils.saveToFile2()
-		
+
+		//FIXME Utils.saveToFile2()
+
 		File file = Utils.selectFile(new File(s), new File(treeToDisplay.getName()).getName()+".txt", "save File Tree").showSaveDialog(App.getStage());
 		if(file == null) {
 			FxPopupShop.showHidePopup("CANCELLED", 1500);
@@ -216,7 +220,7 @@ public class FilesView extends BorderPane {
 		}
 	}
 	private void init() {
-		TreeItem<FileImpl> root = item(treeToDisplay);
+		TreeItem<FileEntity> root = item(treeToDisplay);
 		root.setExpanded(true);
 		int total = walk(root, treeToDisplay);
 
@@ -224,9 +228,9 @@ public class FilesView extends BorderPane {
 		totalCount.set(total);
 		treeView.setRoot(root);
 	}
-	private class Unit extends CheckBoxTreeItem<FileImpl> {
-		final FileImpl file;
-		public Unit(FileImpl file) {
+	private class Unit extends CheckBoxTreeItem<FileEntity> {
+		final FileEntity file;
+		public Unit(FileEntity file) {
 			super(file, null, selector.get(file));
 			this.file = file;
 
@@ -240,20 +244,20 @@ public class FilesView extends BorderPane {
 		}
 	} 
 
-	private int walk(TreeItem<FileImpl> parent, DirImpl dir) {
+	private int walk(TreeItem<FileEntity> parent, Dir dir) {
 		int total = 0;
-		for (FileImpl f : dir) {
-			TreeItem<FileImpl> item =  item(f);
+		for (FileEntity f : dir) {
+			TreeItem<FileEntity> item =  item(f);
 			parent.getChildren().add(item);
 			if(f.isDirectory())
-				total += walk(item, (DirImpl)f);
+				total += walk(item, (Dir)f);
 			else
 				total++;
 		}
 		return total;
 	}
-	private TreeItem<FileImpl> item(FileImpl f) {
-		return selector.isSelectable() ? new Unit(f) : new TreeItem<FileImpl>(f);
+	private TreeItem<FileEntity> item(FileEntity f) {
+		return selector.isSelectable() ? new Unit(f) : new TreeItem<FileEntity>(f);
 	}
 	private class AboutPane extends VBox {
 		final Text name = new Text();
@@ -300,7 +304,7 @@ public class FilesView extends BorderPane {
 			about.setVisible(false);
 		}
 
-		void reset(FileImpl file) {
+		void reset(FileEntity file) {
 			if(file == null) {
 				grid.setVisible(false); 
 				about.setVisible(false);
@@ -336,7 +340,7 @@ public class FilesView extends BorderPane {
 					sb
 					.append("\n\n-----------------------------\nWILL BE DELETED\n")
 					.append("reason:\n");
-					appendDeleteReason(file);
+					appendDeleteReason(file, getMoveMap());
 				}
 			} finally {
 				about.setText(sb.toString());
@@ -345,6 +349,20 @@ public class FilesView extends BorderPane {
 			}
 		}
 
+		private Map<String, List<FileEntity>> _moveMap;
+		private Map<String, List<FileEntity>> getMoveMap() {
+			if(_moveMap != null) return _moveMap;
+			_moveMap = new HashMap<>();
+
+			for (FileEntity f : fileTree) 
+				_moveMap.computeIfAbsent(f.getName(), s -> new ArrayList<>()).add(f);
+
+			if(_moveMap.values().stream().allMatch(l -> l.size() < 2))
+				return Collections.emptyMap();
+
+			_moveMap.values().removeIf(l -> l.size() < 2);
+			return _moveMap;
+		}
 		private void append(String heading, Attrs ak) {
 			sb.append(heading);
 			append("old:\n", ak.old());
@@ -357,23 +375,18 @@ public class FilesView extends BorderPane {
 				.append(separator).append(separator).append("last-modified: ").append(a.lastModified == 0 ? "--" : millsToTimeString(a.lastModified)).append('\n');
 			}
 		}
-		private void appendDeleteReason(FileImpl file) {
-			String name = file.getName();
 
-			List<FileImpl> list = new ArrayList<>();
-			config.getFileTree()
-			.getFiles()
-			.forEach(f -> {
-				if(f != file && name.equals(f.getName()))
-					list.add(f);
-			});
+		private void appendDeleteReason(FileEntity file, Map<String, List<FileEntity>> entities) {
+			List<FileEntity> list = entities.get(file.getName());
 
-			if(list.isEmpty())
+			if(Checker.isEmpty(list) || list.size() == 1)
 				sb.append("UNKNOWN\n");
 			else {
 				sb.append("Possibly moved to: \n");
-				for (FileImpl f : list) 
-					sb.append(separator).append(subpath(f.getBackupPath(), false)).append('\n');
+				for (FileEntity f : list) { 
+					if(f != file)
+						sb.append(separator).append(subpath(f.getBackupPath(), false)).append('\n');
+				}
 			}
 		}
 		private void set(Hyperlink h, String path, boolean isSource) {

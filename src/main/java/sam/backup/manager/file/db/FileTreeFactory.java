@@ -32,7 +32,7 @@ public class FileTreeFactory {
 		}
 	}
 	
-	private static final HashMap<Path, Serializer> SERIALIZERS = new HashMap<>();
+	private static final HashMap<Path, Serializer<?, ?>> SERIALIZERS = new HashMap<>();
 	
 	/**
 	 * static {
@@ -62,6 +62,7 @@ public class FileTreeFactory {
 	private Path getPath(Config config, TreeType treeType) {
 		return root.resolve(treeType+"-"+config.getName().replaceAll("\\s+", "_")+".db");
 	}
+	@SuppressWarnings("rawtypes")
 	public FileTree newFileTree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
 		Path path = getPath(c, type);
 

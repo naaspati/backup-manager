@@ -43,7 +43,7 @@ import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.FileEntity;
 import sam.backup.manager.file.db.FileTree;
 import sam.backup.manager.file.db.FileTreeString;
 import sam.backup.manager.file.db.FilteredFileTree;
@@ -237,7 +237,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	private volatile int sourceFileCount, sourceDirCount, targetFileCount, targetDirCount;
 
 	@Override
-	public void onFileFound(FileImpl ft, long size, WalkMode mode) {
+	public void onFileFound(FileEntity ft, long size, WalkMode mode) {
 		runLater(() -> {
 			if(mode == WalkMode.SOURCE) {
 				sourceSizeT.setText(bytesToString(sourceSize += size));
@@ -301,7 +301,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		});
 	}
 	private void walk(Dir backup, long[] l) {
-		for (FileImpl f : backup) {
+		for (FileEntity f : backup) {
 			if(f.isDirectory())
 				walk((Dir)f, l);
 			else {

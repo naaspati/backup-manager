@@ -13,7 +13,7 @@ import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.FileTreeReader;
 import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.FileEntity;
 import sam.backup.manager.file.db.FileTree;
 import sam.io.serilizers.StringReader2;
 import sam.sql.sqlite.SQLiteDB;
@@ -59,14 +59,14 @@ public class Converter {
 			
 			FileTree root = new FileTree(dao, TreeType.BACKUP, tree);
 
-			ArrayList<FileImpl> files = new ArrayList<>();
+			ArrayList<FileEntity> files = new ArrayList<>();
 			ArrayList<Dir> dirs = new ArrayList<>();
 			
 			tree.walk(new FileTreeWalker() {
 				Dir current;
 				Dir currentD;
 				
-				void parent(FileImpl ft) {
+				void parent(FileEntity ft) {
 					if(ft.getParent() == tree) {
 						current = root;
 						currentD = tree;						
@@ -81,7 +81,7 @@ public class Converter {
 					}
 				}
 				@Override
-				public FileVisitResult file(FileImpl ft) {
+				public FileVisitResult file(FileEntity ft) {
 					parent(ft);
 					files.add(root.file(current, ft));
 					return FileVisitResult.CONTINUE;

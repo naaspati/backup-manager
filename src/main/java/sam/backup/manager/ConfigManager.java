@@ -5,7 +5,6 @@ import static sam.backup.manager.extra.Utils.getBackupLastPerformed;
 import static sam.backup.manager.extra.Utils.putBackupLastPerformed;
 import static sam.backup.manager.extra.Utils.run;
 
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -61,7 +60,7 @@ public class ConfigManager implements IStartOnComplete<ConfigView> {
 			putBackupLastPerformed("backup:"+view.getConfig().getSource(), System.currentTimeMillis());
 			try {
 				view.getConfig().getFileTree().save();
-			} catch (SQLException e) {
+			} catch (Exception e) {
 				FxAlert.showErrorDialog(view.getConfig()+"\n"+view.getConfig().getFileTree(), "Failed to save filetree", e);
 			}
 		}

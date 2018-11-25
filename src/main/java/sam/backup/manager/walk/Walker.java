@@ -25,7 +25,7 @@ import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.db.Attr;
 import sam.backup.manager.file.db.Attrs;
 import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.FileEntity;
 import sam.backup.manager.file.db.FileTree;
 
 class Walker implements FileVisitor<Path>{
@@ -93,7 +93,7 @@ class Walker implements FileVisitor<Path>{
 		}
 		return CONTINUE;
 	}
-	private Attrs atrs(FileImpl ft) {
+	private Attrs atrs(FileEntity ft) {
 		return walkMode == WalkMode.BACKUP ? ft.getBackupAttrs() : ft.getSourceAttrs();
 	}
 	public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
@@ -109,7 +109,7 @@ class Walker implements FileVisitor<Path>{
 
 		if(include(file)) {
 			Attr af = new Attr(attrs.lastModifiedTime().toMillis(), attrs.size());
-			FileImpl ft  = rootTree.addFile(file, af, walkMode);
+			FileEntity ft  = rootTree.addFile(file, af, walkMode);
 			listener.onFileFound(ft, af.getSize(), walkMode);
 		} else 
 			excludeFilesList.add(file);

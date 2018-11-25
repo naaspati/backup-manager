@@ -22,14 +22,14 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sam.backup.manager.App;
 import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileImpl;
+import sam.backup.manager.file.db.FileEntity;
 import sam.backup.manager.file.db.FilteredFileTree;
 
 public class Deleter extends Stage {
 	private final TextArea view = new TextArea();
 	private final Text text = new Text(), path = new Text();
 	private final Set<Dir> dirs = new HashSet<>();
-	private final List<FileImpl> files = new ArrayList<>();
+	private final List<FileEntity> files = new ArrayList<>();
 
 	private Deleter() {
 		super(StageStyle.UTILITY);
@@ -59,7 +59,7 @@ public class Deleter extends Stage {
 		return CompletableFuture.runAsync(() -> {
 			tree.walk(d);
 
-			Iterator<FileImpl> iter = Stream.concat(
+			Iterator<FileEntity> iter = Stream.concat(
 					d.files.stream(), 
 					d.dirs.stream().sorted(Comparator.comparing((Dir dir) -> dir.getBackupPath().getNameCount()).reversed())
 					)
@@ -70,7 +70,7 @@ public class Deleter extends Stage {
 			int success = 0, total = 0;
 
 			while (iter.hasNext()) {
-				FileImpl fte = iter.next();
+				FileEntity fte = iter.next();
 				File file = fte.getBackupPath().toFile();
 				boolean b = !file.exists() || file.delete();
 				if(b) fte.remove();
@@ -109,7 +109,7 @@ public class Deleter extends Stage {
 		});
 	}
 	@Override
-	public FileVisitResult file(FileImpl ft) {
+	public FileVisitResult file(FileEntity ft) {
 		if(ft.isBackupDeletable()) {
 			dirs.add(ft.getParent());
 			files.add(ft);

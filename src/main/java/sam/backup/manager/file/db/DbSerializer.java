@@ -66,7 +66,7 @@ public class DbSerializer implements Serializer {
 		return new Attrs(DEFAULT_ATTR);
 	}
 	private final Path dbpath;
-	private FileTree fileTree;
+	private FileTreeImpl fileTree;
 	private SQLiteDB db;
 
 	public DbSerializer(Path dbpath, TreeType type, Path sourceDirPath, Path backupDirPath) {
@@ -77,7 +77,7 @@ public class DbSerializer implements Serializer {
 		else {
 			dirs = new DbDir[0];
 			files = new DbFileImpl[0];
-			new FileTree(this, type, sourceDirPath, backupDirPath);
+			new FileTreeImpl(this, type, sourceDirPath, backupDirPath);
 		}
 	}
 
@@ -107,7 +107,7 @@ public class DbSerializer implements Serializer {
 
 	}
 
-	private FileTree read(Path dbpath, TreeType type, Path sourceDirPath, Path backupDirPath) {
+	private FileTreeImpl read(Path dbpath, TreeType type, Path sourceDirPath, Path backupDirPath) {
 		db.executeUpdate(INIT_SQL);
 		StringBuilder sb = new StringBuilder();
 		db.executeUpdate(sb.toString());
@@ -151,7 +151,7 @@ public class DbSerializer implements Serializer {
 				Dir item = null;
 
 				if(id == 0) {
-					item = fileTree = new FileTree(this, type, sourceDirPath, backupDirPath, src, backup, child_count);
+					item = fileTree = new FileTreeImpl(this, type, sourceDirPath, backupDirPath, src, backup, child_count);
 				} else {
 					if(parent == null)
 						no_parent.computeIfAbsent(parent_id, i -> new ArrayList<>()).add(new TempDirDb(id, name, parent_id, src, backup, child_count));
@@ -348,7 +348,7 @@ public class DbSerializer implements Serializer {
 		throw new IllegalAccessError();
 	}
 	@Override
-	public FileTree getFileTree() {
+	public FileTreeImpl getFileTree() {
 		return fileTree;
 	}
 
@@ -399,7 +399,7 @@ public class DbSerializer implements Serializer {
 		public final int id;
 		public final int child_count;
 
-		DbDir(FileTree root, int id, int child_count, Dir parent, String filename, Attrs source, Attrs backup){
+		DbDir(FileTreeImpl root, int id, int child_count, Dir parent, String filename, Attrs source, Attrs backup){
 			super(root, parent, filename, source, backup, new ArrayList<>(child_count+1));
 			this.id = id;
 			this.child_count  = child_count;

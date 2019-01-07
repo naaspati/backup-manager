@@ -2,32 +2,56 @@ package sam.backup.manager.config;
 
 import static sam.backup.manager.extra.Utils.either;
 
-public class WalkConfig {
+public class WalkConfig implements Settable {
 	private Integer depth;
 	private Boolean walkBackup;
 	private Boolean skipDirNotModified;
 	private Boolean skipFiles;
 	private Boolean saveExcludeList;
 
-	private transient WalkConfig rootConfig;
+	private final WalkConfig global;
 
-	void setRootConfig(WalkConfig rootConfig) {
-		this.rootConfig = rootConfig;
+	WalkConfig(WalkConfig global) {
+		this.global = global;
 	}
+
+	@Override
+	public void set(String key, Object value) {
+		switch (key) {
+			case "depth": 
+				depth = (Integer)value;
+				break;
+			case "walkBackup": 
+				walkBackup = (Boolean)value;
+				break;
+			case "skipDirNotModified": 
+				skipDirNotModified = (Boolean)value;
+				break;
+			case "skipFiles": 
+				skipFiles = (Boolean)value;
+				break;
+			case "saveExcludeList": 
+				saveExcludeList = (Boolean)value;
+				break;
+			default:
+				throw new IllegalArgumentException("unknown key: "+key);
+		}
+	}
+
 	public boolean walkBackup() {
-		return either(walkBackup, rootConfig.walkBackup, false);
+		return either(walkBackup, global.walkBackup, false);
 	}
 	public boolean skipDirNotModified() {
-		return either(skipDirNotModified, rootConfig.skipDirNotModified, false);
+		return either(skipDirNotModified, global.skipDirNotModified, false);
 	}
 	public boolean skipFiles() {
-		return either(skipFiles, rootConfig.skipFiles, false);
+		return either(skipFiles, global.skipFiles, false);
 	}
 	public int getDepth() {
 		return depth == null ? Integer.MAX_VALUE : depth;
 	}
 	public boolean saveExcludeList() {
-		return either(saveExcludeList, rootConfig.saveExcludeList, false);
+		return either(saveExcludeList, global.saveExcludeList, false);
 	}
 
 }

@@ -9,10 +9,11 @@ repositories {
 }
 dependencies {
    // compile 'org.xerial:sqlite-jdbc:3.7.2'
-   compile 'com.google.code.gson:gson:2.8.2'
+   // compile 'com.google.code.gson:gson:2.8.2'
    compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
  // compile files('myutils.jar')
-  compile group: 'org.slf4j', name: 'slf4j-jdk14', version: '1.8.0-beta2'
+  compile 'org.slf4j:slf4j-jdk14:1.8.0-beta2'
+  compile 'org.json:json:20180813'
 }
  
 version = 1.12
@@ -20,7 +21,7 @@ sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
  
 mainClassName = 'Main'
-ext.appdir = file(System.env.SAM_PROGRAMS+'/backup/bin')
+ext.appdir = file(System.env.SAM_PROGRAMS+'/backup/backup.beta/bin')
 	
 task combineCss {
   def rsrc = sourceSets.main.resources.srcDirs[0].toString() 

@@ -2,22 +2,31 @@ package sam.backup.manager.config;
 
 import static sam.backup.manager.extra.Utils.either;
 
-public class BackupConfig {
+public class BackupConfig implements Settable {
 	private Boolean checkModified, hardSync;
+	private final BackupConfig global;
 	
-	private transient BackupConfig rootConfig;
-	
-	void setRootConfig(BackupConfig rootConfig) {
-		this.rootConfig = rootConfig;
+	public BackupConfig(BackupConfig global) {
+		this.global = global;
 	}
 	
-	BackupConfig() {}
-	
+	@Override
+	public void set(String key, Object value) {
+		switch (key) {
+			case "checkModified":
+				checkModified = (Boolean)value;
+				break;
+			case "hardSync":
+				hardSync = (Boolean)value;
+				break;
+			default:
+				throw new IllegalArgumentException("unknown key: "+key);
+		}
+	}
 	public boolean checkModified() {
-		return either(checkModified, rootConfig.checkModified, true);
+		return either(checkModified, global.checkModified, true);
 	}
-
 	public boolean hardSync() {
-		return either(hardSync, rootConfig.hardSync, false);
+		return either(hardSync, global.hardSync, false);
 	}
 }

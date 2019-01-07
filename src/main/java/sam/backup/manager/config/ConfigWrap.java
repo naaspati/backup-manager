@@ -7,23 +7,17 @@ import sam.backup.manager.config.filter.Filter;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.file.FileTree;
 
-public class Config extends ConfigBase implements Serializable {
+public class ConfigWrap extends ConfigBase implements Serializable {
 	private static final long serialVersionUID = 1L;
-
-	private String name;
-	private String source;
-	private String target;
-	private boolean disable;
-	private Filter zip;
 
 	private transient RootConfig root;
 	private transient Path sourceP;
 	private transient Path targetP;
 	private transient FileTree fileTree;
 
-	public Config() {}
+	public ConfigWrap() {}
 
-	public Config(RootConfig root, Path source, Path target) {
+	public ConfigWrap(RootConfig root, Path source, Path target) {
 		this.root = root;
 		this.sourceP = source;
 		this.targetP = target;

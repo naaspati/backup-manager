@@ -1,102 +1,52 @@
 package sam.backup.manager.config;
 
-import java.io.Serializable;
-import java.nio.file.Path;
+import java.util.List;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import sam.backup.manager.config.filter.Filter;
-import sam.backup.manager.config.filter.IFilter;
-import sam.backup.manager.file.FileTree;
+import static sam.backup.manager.config.ConfigKeys.*;
+import static sam.backup.manager.config.ConfigUtils.*;
 
-public class Config extends ConfigBase implements Serializable {
-	private static final long serialVersionUID = 1L;
-
-	private String name;
-	private String source;
-	private String target;
-	private boolean disable;
-	private Filter zip;
-
-	private transient RootConfig root;
-	private transient Path sourceP;
-	private transient Path targetP;
-	private transient FileTree fileTree;
-
-	public Config() {}
-
-	public Config(RootConfig root, Path source, Path target) {
-		this.root = root;
-		this.sourceP = source;
-		this.targetP = target;
-		this.source = source.toString();
-		this.target = target.toString();
-	}
-	public Path getSource() {
-		return sourceP != null ? sourceP :  (sourceP = pathResolve(root.resolve(source)));
-	}
-	public String getName() {
-		return name;
-	}
-	public Path getTarget() {
-		if(targetP == null) {
-			targetP = target == null ? null : pathResolve(root.resolve(target));
-
-			/*
-			 * if(targetP == null)
-				return null;
-
-			 * if(t.getRoot() != null)
-				targetP = t;
-			else {
-				Path s = target != null ?  pathResolve(root.resolve(target)) : getSource();
-				targetP = root.getBackupRoot().resolve(s.getRoot() == null ? s : s.subpath(0, s.getNameCount())).normalize().toAbsolutePath();	
-			}
-			 */
+public class Config {
+	protected final String name;
+	protected final List<String> source;
+	protected final String target;
+	protected final boolean disable;
+	
+	protected final Filter zip;
+	protected final Filter excludes;
+	protected final Filter targetExcludes;
+	protected final BackupConfig backupConfig;
+	protected final WalkConfig walkConfig;
+	
+	public Config(String name, JSONObject json, Config global) {
+		try {
+			this.name = name;
+			this.source = getList(json.opt(SOURCE), true);
+			if(this.source.isEmpty())
+				throw new JSONException("source not found in json");
+			
+			this.target = json.getString(TARGET);
+			this.disable = json.optBoolean(DISABLE, false);
+			this.zip = getFilter(json.opt(ZIP_IF), ZIP_IF);
+			this.excludes = getFilter(json.opt(EXCLUDES), EXCLUDES);
+			this.targetExcludes = getFilter(json.opt(TARGET_EXCLUDES), TARGET_EXCLUDES);
+			this.backupConfig = set(json.get(BACKUP_CONFIG), new BackupConfig(global.backupConfig));
+			this.walkConfig = set(json.get(WALK_CONFIG), new WalkConfig(global.walkConfig));
+		} catch (Exception e) {
+			throw new JSONException(e.getMessage()+"\n"+json, e);
 		}
-		return targetP;
-	}
-	public void init(RootConfig root) {
-		this.root = root;
-
-		if(zip != null) 
-			zip.setConfig(this);	
-
-		super.init();
-	}
-	@Override
-	protected RootConfig getRoot() {
-		return root;
-	}
-	@Override
-	public IFilter getSourceFilter() {
-		if(excluder != null) return excluder;
-		return excluder = combine(root.getSourceFilter(), excludes);
-	}
-	@Override
-	public IFilter getTargetFilter() {
-		if(targetExcluder != null) return targetExcluder;
-		return targetExcluder = combine(root.getTargetFilter(), targetExcludes);
-	}
-	public FileTree getFileTree() {
-		return fileTree;
-	}
-	public void setFileTree(FileTree filetree) {
-		this.fileTree = filetree;
-	}
-	public boolean isDisabled() {
-		return disable;
-	}
-	public Filter getZipFilter() {
-		return zip;
-	}
-	public String getSourceRaw() {
-		return source;
-	}
-	public String getTargetRaw() {
-		return target;
-	}
-	@Override
-	public String toString() {
-		return "Config [name=" + name + ", source=" + source + ", target=" + target + ", disable=" + disable + "]";
 	}
 
+	public String getName() { return name; }
+	public List<String> getSource() { return source; }
+	public String getTarget() { return target; }
+	public boolean isDisable() { return disable; }
+	public Filter getZip() { return zip; }
+	public Filter getExcludes() { return excludes; }
+	public Filter getTargetExcludes() { return targetExcludes; }
+	public BackupConfig getBackupConfig() { return backupConfig; }
+	public WalkConfig getWalkConfig() { return walkConfig; }
 }

@@ -1,4 +1,4 @@
-package sam.backup.manager.file.db;
+package sam.backup.manager.file;
 
 public class Attrs {
 	private final Attr old;

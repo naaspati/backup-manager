@@ -36,7 +36,7 @@ import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.State;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.db.FilteredFileTree;
+import sam.backup.manager.file.FilteredFileTree;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;

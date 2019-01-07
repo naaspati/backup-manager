@@ -1,4 +1,4 @@
-package sam.backup.manager.file.db;
+package sam.backup.manager.file;
 
 import java.nio.file.attribute.BasicFileAttributes;
 

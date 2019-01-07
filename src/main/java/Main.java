@@ -12,8 +12,6 @@ public class Main  {
 
 		//Dao dao = Dao.getInstance();
 
-		new Converter();
-
 		// Application.launch(App.class, args);
 	}
 }

@@ -1,6 +1,7 @@
-package sam.backup.manager.file.db;
+package sam.backup.manager.file;
 
 public interface FileEntity {
+	int getId();
 	Dir getParent();
 	Attrs getBackupAttrs();
 	Attrs getSourceAttrs();

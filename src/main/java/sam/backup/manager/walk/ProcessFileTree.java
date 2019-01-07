@@ -8,10 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import sam.backup.manager.config.Config;
+import sam.backup.manager.file.Attrs;
+import sam.backup.manager.file.Dir;
+import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTreeWalker;
-import sam.backup.manager.file.db.Attrs;
-import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileEntity;
 
 public class ProcessFileTree implements FileTreeWalker {
 	private final boolean checkModified;

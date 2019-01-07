@@ -1,4 +1,4 @@
-package sam.backup.manager.file.db;
+package sam.backup.manager.file;
 
 import java.util.Iterator;
 import java.util.function.Predicate;

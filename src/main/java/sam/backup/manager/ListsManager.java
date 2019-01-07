@@ -17,7 +17,7 @@ import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.db.FileTree;
+import sam.backup.manager.file.FileTree;
 import sam.backup.manager.viewers.ViewSwitcher;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;

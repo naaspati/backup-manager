@@ -10,11 +10,11 @@ import java.util.List;
 
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
+import sam.backup.manager.file.Dir;
+import sam.backup.manager.file.FileEntity;
+import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeReader;
 import sam.backup.manager.file.FileTreeWalker;
-import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileEntity;
-import sam.backup.manager.file.db.FileTree;
 import sam.io.serilizers.StringReader2;
 import sam.sql.sqlite.SQLiteDB;
 

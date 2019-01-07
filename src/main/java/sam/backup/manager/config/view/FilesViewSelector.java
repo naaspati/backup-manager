@@ -1,6 +1,6 @@
 package sam.backup.manager.config.view;
 
-import sam.backup.manager.file.db.FileEntity;
+import sam.backup.manager.file.FileEntity;
 
 public interface FilesViewSelector {
 	public static FilesViewSelector backup() {

@@ -16,7 +16,6 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
-import sam.backup.manager.cleanup.Cleanup;
 import sam.backup.manager.config.ConfigReader;
 import sam.backup.manager.config.RootConfig;
 import sam.backup.manager.config.view.AboutDriveView;
@@ -101,8 +100,8 @@ public class App extends Application {
 	private Node getMenubar() {
 		Menu  file = new Menu("_File",
 				null,
-				menuitem("open app dir", e -> FileOpenerNE.openFile(new File("."))),
-				menuitem("cleanup", e -> new Cleanup())
+				menuitem("open app dir", e -> FileOpenerNE.openFile(new File(".")))
+				//TODO menuitem("cleanup", e -> new Cleanup())
 				);
 		return new MenuBar(file);
 	}

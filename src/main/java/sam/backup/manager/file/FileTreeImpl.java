@@ -1,4 +1,4 @@
-package sam.backup.manager.file.db;
+package sam.backup.manager.file;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -7,14 +7,13 @@ import java.util.ArrayList;
 import sam.backup.manager.extra.TreeType;
 import sam.myutils.Checker;
 
-final class FileTreeImpl extends DirImpl implements FileTree2<FileImpl, DirImpl> {
+final class FileTreeImpl implements FileTree {
 	private TreeType treetype;
 	private final Path srcPath;
 	private Path backupPath;
 	private final Serializer<FileImpl, DirImpl> serializer;
 
 	FileTreeImpl(Serializer<FileImpl, DirImpl> serializer, TreeType type, Path sourceDirPath, Path backupDirPath, Attrs source, Attrs backup, int child_count) throws IOException {
-		super(null, null, sourceDirPath.toString(), source, backup, new ArrayList<>(child_count));
 		Checker.requireNonNull(
 				new String[]{"type", "sourceDirPath", "backupDirPath", "serializer"},  
 				type,

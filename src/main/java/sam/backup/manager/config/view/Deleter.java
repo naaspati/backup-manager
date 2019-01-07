@@ -21,9 +21,9 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sam.backup.manager.App;
-import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileEntity;
-import sam.backup.manager.file.db.FilteredFileTree;
+import sam.backup.manager.file.Dir;
+import sam.backup.manager.file.FileEntity;
+import sam.backup.manager.file.FilteredFileTree;
 
 public class Deleter extends Stage {
 	private final TextArea view = new TextArea();

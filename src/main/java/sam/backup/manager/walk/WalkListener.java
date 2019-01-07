@@ -1,7 +1,7 @@
 package sam.backup.manager.walk;
 
-import sam.backup.manager.file.db.Dir;
-import sam.backup.manager.file.db.FileEntity;
+import sam.backup.manager.file.Dir;
+import sam.backup.manager.file.FileEntity;
 
 public interface WalkListener {
 

@@ -1,7 +1,6 @@
-package sam.backup.manager.file.db;
+package sam.backup.manager.file;
 
 public class Attr {
-	
 	public final long lastModified;
 	public final long size;
 	
@@ -13,10 +12,7 @@ public class Attr {
 		this.lastModified = from.lastModified;
 		this.size = from.size;
 	}
-	Attr(int id, Attr from) {
-		this.lastModified = from.lastModified;
-		this.size = from.size;
-	}
+	
 	@Override
 	public String toString() {
 		return "Attr [lastModified=" + lastModified + ", size=" + size + "]";

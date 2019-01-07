@@ -1,4 +1,4 @@
-package sam.backup.manager.file.db;
+package sam.backup.manager.file;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import sam.backup.manager.config.Config;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
+import sam.backup.manager.file.db.DbSerializer;
 
 public class FileTreeFactory {
 	private static volatile FileTreeFactory INSTANCE;
@@ -85,8 +86,5 @@ public class FileTreeFactory {
 			}
 			return null;	
 		}
-		
-	}
-
-
+}
 }

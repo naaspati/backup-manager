@@ -1,11 +1,10 @@
-package sam.backup.manager.file.db;
+package sam.backup.manager.file;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Predicate;
 
 import sam.myutils.MyUtilsBytes;
-import se.sawano.java.text.AlphanumericComparator;
 
 public class FileTreeString implements CharSequence {
 	private final StringBuilder sb = new StringBuilder();

@@ -12,7 +12,7 @@ import javafx.event.EventHandler;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
-import sam.backup.manager.config.RootConfig;
+import sam.backup.manager.config.ConfigManager;
 import sam.backup.manager.extra.Utils;
 import sam.fx.helpers.FxUtils;
 import sam.myutils.MyUtilsException;
@@ -39,7 +39,7 @@ public class AboutDriveView extends VBox  implements EventHandler<MouseEvent> {
 	}
 	
 
-	public AboutDriveView(RootConfig root) {
+	public AboutDriveView(ConfigManager root) {
 		setClass(this, "AboutDriveView");
 		setOnMouseClicked(this);
 		

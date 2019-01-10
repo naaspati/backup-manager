@@ -1,4 +1,4 @@
-package sam.backup.manager.config;
+package sam.backup.manager.config.json;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -7,10 +7,9 @@ import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import sam.backup.manager.config.filter.Filter;
 import sam.nopkg.Junk;
 
-interface ConfigUtils {
+interface Utils {
 
 	public static List<String> getList(Object obj, boolean unmodifiable) {
 		if(obj == null)

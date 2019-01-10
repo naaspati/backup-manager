@@ -1,6 +1,6 @@
-package sam.backup.manager.config;
+package sam.backup.manager.config.json;
 
-public interface ConfigKeys {
+public interface JsonKeys {
 	String SOURCE = "source";
 	String TARGET = "target";
 	String BACKUP_CONFIG = "backupConfig";

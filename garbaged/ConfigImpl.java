@@ -1,38 +1,33 @@
 package sam.backup.manager.config;
 
-import java.io.Serializable;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
-import sam.backup.manager.config.filter.Filter;
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.file.FileTree;
 
-public class ConfigWrap extends ConfigBase implements Serializable {
-	private static final long serialVersionUID = 1L;
-
-	private transient RootConfig root;
-	private transient Path sourceP;
-	private transient Path targetP;
-	private transient FileTree fileTree;
-
-	public ConfigWrap() {}
-
-	public ConfigWrap(RootConfig root, Path source, Path target) {
-		this.root = root;
-		this.sourceP = source;
-		this.targetP = target;
-		this.source = source.toString();
-		this.target = target.toString();
+class ConfigImpl  {
+	private List<Path> source;
+	private Path target;
+	private Map<String, FileTree> fileTree;
+	private ConfigJsonImpl config;
+	
+	public ConfigImpl(ConfigJsonImpl config) {
+		this.config = config;
 	}
-	public Path getSource() {
-		return sourceP != null ? sourceP :  (sourceP = pathResolve(root.resolve(source)));
+	public List<Path> getSource() {
+		if(source != null)
+			return source;
+		
+		return source != null ? source :  (source = pathResolve(root.resolve(source)));
 	}
 	public String getName() {
-		return name;
+		return config.name;
 	}
 	public Path getTarget() {
-		if(targetP == null) {
-			targetP = target == null ? null : pathResolve(root.resolve(target));
+		if(target == null) {
+			target = target == null ? null : pathResolve(root.resolve(target));
 
 			/*
 			 * if(targetP == null)
@@ -46,7 +41,7 @@ public class ConfigWrap extends ConfigBase implements Serializable {
 			}
 			 */
 		}
-		return targetP;
+		return target;
 	}
 	public void init(RootConfig root) {
 		this.root = root;
@@ -77,20 +72,11 @@ public class ConfigWrap extends ConfigBase implements Serializable {
 		this.fileTree = filetree;
 	}
 	public boolean isDisabled() {
-		return disable;
-	}
-	public Filter getZipFilter() {
-		return zip;
-	}
-	public String getSourceRaw() {
-		return source;
-	}
-	public String getTargetRaw() {
-		return target;
+		return config.disable;
 	}
 	@Override
 	public String toString() {
-		return "Config [name=" + name + ", source=" + source + ", target=" + target + ", disable=" + disable + "]";
+		return "Config [name=" + config.name + ", source=" + source + ", target=" + target + ", disable=" + config.disable + "]";
 	}
 
 }

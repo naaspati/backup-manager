@@ -105,9 +105,9 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		int row = 0;
 
 		container.addRow(row, text("Source: "));
-		container.add(hyperlink(config.getSource(), config.getSourceRaw()), 1, row++, REMAINING, 1);
+		container.add(hyperlink(config.getSource(), config.getSource()), 1, row++, REMAINING, 1);
 		container.addRow(row,text("Target: "));
-		container.add(hyperlink(config.getTarget(), config.getTargetRaw()), 1, row++, REMAINING, 1);
+		container.add(hyperlink(config.getTarget(), config.getTarget()), 1, row++, REMAINING, 1);
 		container.addRow(row, text("Last updated: "));
 		container.add(text(lastUpdated == null ? "N/A" : millsToTimeString(lastUpdated)), 1, row++, REMAINING, 1);
 

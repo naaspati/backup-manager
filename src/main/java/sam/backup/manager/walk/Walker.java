@@ -18,8 +18,8 @@ import java.util.List;
 import org.slf4j.Logger;
 
 import sam.backup.manager.config.Config;
+import sam.backup.manager.config.IFilter;
 import sam.backup.manager.config.WalkConfig;
-import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.Attr;

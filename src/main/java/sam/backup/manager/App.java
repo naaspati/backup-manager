@@ -16,8 +16,7 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
-import sam.backup.manager.config.ConfigReader;
-import sam.backup.manager.config.RootConfig;
+import sam.backup.manager.config.*;
 import sam.backup.manager.config.view.AboutDriveView;
 import sam.backup.manager.extra.IStopStart;
 import sam.backup.manager.extra.Utils;
@@ -28,6 +27,7 @@ import sam.backup.manager.viewers.ViewSwitcher;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
+import sam.myutils.Checker;
 
 public class App extends Application {
 	private static Stage stage;
@@ -39,7 +39,7 @@ public class App extends Application {
 	public static HostServices getHostService() {
 		return hs;
 	}
-	private static RootConfig rootConfig;
+	private static ConfigManager configManager;
 	private AboutDriveView aboutDriveView;
 	private StatusView statusView;
 	private final BorderPane rootContainer = new BorderPane();
@@ -73,26 +73,25 @@ public class App extends Application {
 		t.start();
 	}
 	private void secondStart() {
-		rootConfig = new ConfigReader().read(Utils.APP_DATA.resolve("config.json"));
+		configManager = ConfigManagerFactory.defaultInstance();
 		
 		runLater(() -> {
-			aboutDriveView = new AboutDriveView(rootConfig);
+			aboutDriveView = new AboutDriveView(configManager);
 			rootContainer.setTop(new BorderPane(aboutDriveView, getMenubar(), null, null, null));
 		});
 
 		centerView = new ViewSwitcher();
 		runLater(() -> rootContainer.setCenter(centerView));
 
-		if(rootConfig.hasBackups()) {
+		if(Checker.isNotEmpty(configManager.getBackups())) {
 			statusView = new StatusView();
 			runLater(() -> TransferViewer.getInstance().setStatusView(statusView));
-			ConfigManager.init(statusView, aboutDriveView, centerView, rootConfig, stoppableTasks);
-		}
-		else 
+			ConfigViewManager.init(statusView, aboutDriveView, centerView, configManager, stoppableTasks);
+		} else 
 			centerView.setStatus(ViewType.BACKUP, true);
 
-		if(rootConfig.hasLists())
-			 ListsManager.init(rootConfig, stoppableTasks, centerView);
+		if(Checker.isNotEmpty(configManager.getLists()))
+			 ListsViewManager.init(configManager, stoppableTasks, centerView);
 
 		runLater(centerView::firstClick);
 	}
@@ -111,7 +110,7 @@ public class App extends Application {
 		Utils.stop();
 		stage.hide();
 	}
-	public static RootConfig getRootConfig() {
-		return rootConfig;
+	public static ConfigManager getConfigManager() {
+		return configManager;
 	}
 }

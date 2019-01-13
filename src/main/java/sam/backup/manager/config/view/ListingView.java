@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.IdentityHashMap;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import org.slf4j.Logger;
@@ -23,6 +25,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.config.Config;
+import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.extra.ICanceler;
 import sam.backup.manager.extra.IStartOnComplete;
 import sam.backup.manager.extra.IStopStart;
@@ -38,6 +41,7 @@ import sam.backup.manager.walk.WalkMode;
 import sam.console.ANSI;
 import sam.fx.helpers.FxText;
 import sam.fx.popup.FxPopupShop;
+import sam.myutils.Checker;
 import sam.myutils.System2;
 import sam.string.StringUtils;
 
@@ -49,7 +53,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	private final Config config;
 	private final IStartOnComplete<ListingView> startEnd;
 	private volatile boolean cancel;
-	private CharSequence treeText;
+	private IdentityHashMap<PathWrap, CharSequence> treeTextMap;
 	private CustomButton button;
 	private Text fileCountT, dirCountT;  
 	private Consumer<ListingView> onWalkCompleted;
@@ -58,25 +62,23 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 		setClass(this, "listing-view");
 		config = c;
 		this.startEnd = startEnd;
+		
+		Node src = hyperlink(config.getSource());
+		if(src instanceof VBox)
+			((VBox) src).getChildren().forEach(h -> addClass(h, "header"));
+		else
+			addClass(src, "header");
 
-		Path src = config.getSource();
-		if(src == null || Files.notExists(src)) {
-			Node h = hyperlink(null, config.getSourceRaw());
-			addClass(h, "header");
-			getChildren().addAll(h, FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)));
+		if(Checker.isEmpty(config.getSource())) {
+			getChildren().addAll(src, FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)));
 			setDisable(true);
 		} else {
 			button = new CustomButton(ButtonType.WALK, this);
-
-			Node header = hyperlink(src, null);
-			addClass(header, "header");
 			fileCountT = FxText.text("  Files: --", "count-text");
 			dirCountT = FxText.text("  Dirs: --", "count-text");
 
-			getChildren().addAll(header, new HBox(10, fileCountT, dirCountT), FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)), button);
+			getChildren().addAll(src, new HBox(10, fileCountT, dirCountT), FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)), button);
 		}
-
-
 	}
 
 	@Override
@@ -89,7 +91,24 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 				stop();
 				break;
 			case OPEN:
-				TextArea ta = new TextArea(treeText.toString());
+				String joined = null;
+				if(!Checker.isEmpty(treeTextMap)) {
+					if(treeTextMap.size() == 1)
+						joined = treeTextMap.values().iterator().next().toString(); 
+					else {
+						StringBuilder sb = new StringBuilder();
+						treeTextMap.forEach((s,t) -> {
+							StringUtils.repeat('-', s.path().toString().length(), sb);
+							sb.append("\n\n");
+							sb.append(s.path()).append('\n');
+							sb.append(t);
+							sb.append("\n\n");
+						});
+
+						joined = sb.toString();
+					}
+				}
+				TextArea ta = new TextArea(joined);
 				ta.setEditable(false);
 				showStage(ta);
 				break;
@@ -102,30 +121,41 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	}
 
 	private void start1Depth() {
-		final Path root = config.getSource();
-		LOGGER.info("1-depth walk: "+root);
+		for (PathWrap pw : config.getSource()) {
+			if(pw.path() == null) {
+				LOGGER.info("unresolved: "+pw);
+				continue;
+			}
 
-		if(!Files.isDirectory(root)) {
-			FxPopupShop.showHidePopup("dir not found: \n"+root, 1500);
-			LOGGER.info("dir not found: "+root);
-			return;
+			Path root = pw.path(); 
+			LOGGER.info("1-depth walk: "+root);
+
+			if(!Files.isDirectory(root)) {
+				FxPopupShop.showHidePopup("dir not found: \n"+root, 1500);
+				LOGGER.info("dir not found: "+root);
+				return;
+			}
+			String[] names = root.toFile().list();
+			StringBuilder treeText = new StringBuilder()
+					.append(config.getSource())
+					.append("\n |");
+
+			for (int i = 0; i < names.length - 1; i++)
+				treeText.append(names[i]).append("\n |");
+
+			treeText.append(names[names.length - 1]).append('\n');
+
+			if(treeTextMap == null)
+				treeTextMap = new IdentityHashMap<>();
+
+			treeTextMap.put(pw, treeText);
+
+			runLater(() ->{
+				dirCountT.setText(null);
+				fileCountT.setText("All count: "+names.length);
+			});	
 		}
-		String[] names = root.toFile().list();
-		StringBuilder treeText = new StringBuilder()
-				.append(config.getSource())
-				.append("\n |");
 
-		for (int i = 0; i < names.length - 1; i++)
-			treeText.append(names[i]).append("\n |");
-
-		treeText.append(names[names.length - 1]).append('\n');
-
-		this.treeText = treeText;
-
-		runLater(() ->{
-			dirCountT.setText(null);
-			fileCountT.setText("All count: "+names.length);
-		});
 		walkCompleted();
 	}
 
@@ -165,8 +195,9 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	}
 	@Override
 	public void walkCompleted() {
-		if(treeText == null) {
-			treeText = new FileTreeString(config.getFileTree());
+		if(treeTextMap == null) {
+			treeTextMap = new IdentityHashMap<>();
+			config.getFileTree().forEach((s,t) -> treeTextMap.put(s, new FileTreeString(t)));
 			Utils.saveFileTree(config);
 		}
 		runLater(() -> {
@@ -181,44 +212,50 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 		this.onWalkCompleted = onWalkCompleted;
 	}
 	public void save() {
-		if(treeText == null) {
+		if(Checker.isEmpty(treeTextMap)) {
 			showErrorDialog(null, "FileEntity not set", null);
 			return;
 		}
-		Path p = config.getTargetRaw() != null ? config.getTarget() : null;
-		Path name = p == null ? Paths.get(hashedName(config.getSource(), ".txt")) : p.getFileName();
-		
-		if(saveWithoutAsking) {
-			String listbackDirs = System2.lookup("LIST_BACKUP_DIR");
-			
-			if(listbackDirs == null)
-				LOGGER.warn("no var specified for: LIST_BACKUP_DIR, thus no list saving performed in defaults dirs");
-			else {
-				for(String str: StringUtils.split(listbackDirs, ';')) 
-					write(Paths.get(str).resolve(name));
-			}
-			if(p == null) {
-				if(saveToFile2(treeText, p))
-					listCreated();
-			} else {
-				write(p);
-				listCreated();
-			}
-		} else if(saveToFile2(treeText, p)) 
-			listCreated();
+		boolean created[] = {false};
 
+		treeTextMap.forEach((pw, treeText) -> {
+			Path p = Optional.ofNullable(config.getTarget(pw)).map(PathWrap::path).orElse(null);
+			Path name = p == null ? Paths.get(hashedName(pw.path(), ".txt")) : p.getFileName();
+
+			if(saveWithoutAsking) {
+				String listbackDirs = System2.lookup("LIST_BACKUP_DIR");
+
+				if(listbackDirs == null)
+					LOGGER.warn("no var specified for: LIST_BACKUP_DIR, thus no list saving performed in defaults dirs");
+				else {
+					for(String str: StringUtils.split(listbackDirs, ';')) 
+						write(Paths.get(str).resolve(name), treeText);
+				}
+
+				if(p == null) {
+					if(saveToFile2(treeText, p)) 
+						created[0] = true; 
+				} else {
+					write(p, treeText);
+					listCreated();
+				}
+			} else {
+				saveToFile2(treeText, p);
+			} 
+		});
+		if(created[0])
+			listCreated();
 	}
 	private boolean saveToFile2(CharSequence text, Path p) {
 		return Utils.saveToFile2(p.getParent().toFile(), p.getFileName().toString(), "Save File Tree", text);
 	}
-
-	private void write(Path p) {
+	private void write(Path p, CharSequence data) {
 		if(p == null)
 			return;
-		
+
 		try {
 			Files.createDirectories(p.getParent());
-			Utils.write(p, treeText);
+			Utils.write(p, data);
 			LOGGER.info("files-tree created: {}", p);
 		} catch (IOException e) {
 			showErrorDialog(p, "failed to save tree", e);

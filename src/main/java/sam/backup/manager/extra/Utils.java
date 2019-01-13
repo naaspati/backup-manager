@@ -7,7 +7,6 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.charset.CodingErrorAction;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,6 +17,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,6 +42,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Tooltip;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -49,6 +50,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
+import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeFactory;
 import sam.fx.alert.FxAlert;
@@ -57,6 +59,7 @@ import sam.fx.helpers.FxUtils;
 import sam.io.serilizers.ObjectReader;
 import sam.io.serilizers.ObjectWriter;
 import sam.io.serilizers.StringWriter2;
+import sam.myutils.Checker;
 import sam.myutils.MyUtilsPath;
 import sam.nopkg.LazyLoadedData;
 import sam.reference.WeakAndLazy;
@@ -273,12 +276,7 @@ public final class Utils {
 	}
 
 	public static void write(Path path, CharSequence data) throws IOException {
-		Files.createDirectories(path.getParent());
-		StringWriter2.writer()
-		.onMalformedInput(CodingErrorAction.REPLACE)
-		.onUnmappableCharacter(CodingErrorAction.REPLACE)
-		.target(path, false)
-		.write(data);
+		StringWriter2.setText(path, data);
 	}
 
 
@@ -348,16 +346,26 @@ public final class Utils {
 		node.getStylesheets().add(url.toExternalForm());
 	}
 
-	public static Node hyperlink(Path path, String alternative) {
-		if(path != null) {
-			Hyperlink hyperlink = FxHyperlink.of(path);
+	public static Node hyperlink(PathWrap wrap) {
+		if(wrap != null && wrap.path() != null) {
+			Hyperlink hyperlink = FxHyperlink.of(wrap.path());
 			hyperlink.setMinWidth(400);
 			return hyperlink;
 		} else {
-			Text t = new Text(alternative);
+			Text t = new Text(wrap == null ? "--" : wrap.raw());
 			t.setDisable(true);
 			return t;
 		}
+	}
+	public static Node hyperlink(List<PathWrap> wraps) {
+		if(Checker.isEmpty(wraps))
+			return hyperlink((PathWrap)null);
+		if(wraps.size() == 1)
+			return hyperlink(wraps.get(0));
+		VBox box = new VBox(2);
+		wraps.forEach(p -> box.getChildren().add(hyperlink(p)));
+		
+		return box;
 	}
 	public static <T> T either(T t1, T t2, T defaultValue) {
 		if(t1 == null && t2 == null)

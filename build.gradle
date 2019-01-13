@@ -54,8 +54,11 @@ run {
 }
 
 task deleteJars {
-  delete fileTree(appdir) {
-    include '*.jar'
+  doLast {
+     file(appdir).listFiles().each({
+       if(it.name.endsWith('.jar'))
+         it.delete();
+     });
   }
 }
 

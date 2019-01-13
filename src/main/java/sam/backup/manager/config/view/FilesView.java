@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -46,12 +47,15 @@ import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
 import sam.backup.manager.App;
 import sam.backup.manager.config.Config;
+import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.extra.Utils;
+import sam.backup.manager.file.Attr;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.Dir;
 import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeString;
+import sam.backup.manager.file.Status;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.config.Session;
@@ -61,6 +65,7 @@ import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
 import sam.io.serilizers.StringWriter2;
 import sam.myutils.Checker;
+import sam.nopkg.Junk;
 import sam.reference.WeakQueue;
 
 public class FilesView extends BorderPane {
@@ -89,9 +94,22 @@ public class FilesView extends BorderPane {
 	public static Stage open(String title, Config config, Dir treeToDisplay, FilesViewSelector selector, Button...buttons) {
 		return open(title, config, treeToDisplay, selector, null, buttons);
 	}
+	public static void open(String string, Config config, IdentityHashMap<PathWrap, FileTree> fileTree2,
+			FilesViewSelector all) {
+		//TODO
+		Junk.notYetImplemented();
+	}
 	public static Stage open(String title, Config config, Dir treeToDisplay, FilesViewSelector selector,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
 		Stage stage = getStage();
-		FilesView v = views.stream().filter(f -> f.treeToDisplay == treeToDisplay && f.selector == selector).findFirst().orElse(null);
+		FilesView[] vs = {null};
+		
+		views.forEach(f -> {
+			if(vs[0] != null && f.treeToDisplay == treeToDisplay && f.selector == selector)
+				vs[0] = f;
+		});
+		
+		FilesView v = vs[0];
+		
 		if(v == null) {
 			v = new FilesView(config, treeToDisplay, selector, buttons);
 			views.add(v);
@@ -410,5 +428,4 @@ public class FilesView extends BorderPane {
 			return prefix + p.substring(start.length());
 		}
 	}
-
 }

@@ -151,6 +151,7 @@ class Filter implements IFilter, HasFilterArrays {
 	private boolean path(Path p) {
 		if(invalidArray(path))
 			return false;
+		
 		if(isNull(paths)) {
 			paths = stream(path)
 					.map(s -> {

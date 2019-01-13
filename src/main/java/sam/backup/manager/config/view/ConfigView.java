@@ -3,7 +3,6 @@ package sam.backup.manager.config.view;
 
 import static java.lang.String.valueOf;
 import static javafx.application.Platform.runLater;
-import static javafx.scene.layout.GridPane.REMAINING;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
@@ -24,15 +23,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
-import javafx.geometry.HPos;
-import javafx.geometry.VPos;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.TilePane;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import sam.backup.manager.App;
@@ -60,7 +60,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 	private static final Logger LOGGER = Utils.getLogger(ConfigView.class);
 
 	private final Config config;
-	private final GridPane container = new GridPane();
+	private final VBox container = new VBox(5);
 	private final CustomButton files = new CustomButton(FILES, this);
 	private final CustomButton delete = new CustomButton(DELETE, this);
 	private final CustomButton walk = new CustomButton(WALK, this); 
@@ -102,38 +102,37 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		backupSizeT = text("---");
 		backupFileCountT = text("---");
 
-		int row = 0;
+		ObservableList<Node> container = this.container.getChildren();
 
-		container.addRow(row, text("Source: "));
-		container.add(hyperlink(config.getSource(), config.getSource()), 1, row++, REMAINING, 1);
-		container.addRow(row,text("Target: "));
-		container.add(hyperlink(config.getTarget(), config.getTarget()), 1, row++, REMAINING, 1);
-		container.addRow(row, text("Last updated: "));
-		container.add(text(lastUpdated == null ? "N/A" : millsToTimeString(lastUpdated)), 1, row++, REMAINING, 1);
+		container.add(text("Source: "));
+		container.addAll(new Text("  "),  hyperlink(config.getSource()));
+		container.add(text("Target: "));
+		container.addAll(new Text("  "),  hyperlink(config.getBaseTarget()));
+		container.add(new HBox(5, text("Last updated: "), text(lastUpdated == null ? "N/A" : millsToTimeString(lastUpdated))));
 
 		Label t = FxLabel.label("SUMMERY", "summery");
-		container.add(t, 0, row++, REMAINING, 2);
-		GridPane.setHalignment(t, HPos.CENTER);
-		GridPane.setValignment(t, VPos.BOTTOM);
-		GridPane.setFillWidth(t, true);
-		row+=2;
-		container.addRow(row++, new Text(), header("Source"), header("Backup"), header("New/Modified"));
-		container.addRow(row++, new Text("size  |"), sourceSizeT, targetSizeT, backupSizeT);
-		container.addRow(row++, new Text("files |"), sourceFileCountT, targetFileCountT, backupFileCountT);
-		container.addRow(row++, new Text("dirs  |"), sourceDirCountT, targetDirCountT);
+		t.setMaxWidth(Double.MAX_VALUE);
+		t.setAlignment(Pos.CENTER);
+		container.add(t);
+		
+		TilePane tiles = new TilePane(2, 2,
+				new Text(), header("Source"), header("Backup"), header("New/Modified"),
+				new Text("size  |"), sourceSizeT, targetSizeT, backupSizeT,
+				new Text("files |"), sourceFileCountT, targetFileCountT, backupFileCountT,
+				new Text("dirs  |"), sourceDirCountT, targetDirCountT);
 
-		bottomText = new Text();
+		container.add(tiles);
 
-
-		if(Files.notExists(config.getSource()))
+		if(config.getSource().stream().allMatch(p -> p.path() == null || Files.notExists(p.path())))
 			finish("Source not found", true);
 		else {
-			container.add(new HBox(5, walk, files, delete), 0, row++, REMAINING, 2);
+			container.add(new HBox(5, walk, files, delete));
 			files.setVisible(false);
 			delete.setVisible(false);
-			row++;
 		}
-		container.add(bottomText, 1, row++, REMAINING, REMAINING);
+		
+		bottomText = new Text();
+		container.add(bottomText);
 	}
 	private void setContextMenu() {
 		setOnContextMenuRequested(e -> {
@@ -152,7 +151,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		FilesView.open("all files",config, config.getFileTree(), FilesViewSelector.all());
 	}
 	private void setAsLatestAction(ActionEvent e) {
-		config.getFileTree().forcedMarkUpdated();
+		config.getFileTree().forEach((s,t) -> t.forcedMarkUpdated());
 		if(Utils.saveFileTree(config))
 			FxPopupShop.showHidePopup("marked as letest", 1500);
 	};

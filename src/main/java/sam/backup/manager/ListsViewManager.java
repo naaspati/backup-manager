@@ -3,7 +3,6 @@ package sam.backup.manager;
 import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;

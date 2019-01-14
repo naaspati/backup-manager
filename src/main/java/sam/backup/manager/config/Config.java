@@ -1,6 +1,5 @@
 package sam.backup.manager.config;
 
-import java.util.IdentityHashMap;
 import java.util.List;
 
 import sam.backup.manager.file.FileTree;
@@ -16,7 +15,7 @@ public interface Config {
 	public IFilter getTargetExcludes() ;
 	public BackupConfig getBackupConfig() ;
 	public WalkConfig getWalkConfig() ;
-	public IdentityHashMap<PathWrap, FileTree> getFileTree();
+	public FileTree getFileTree();
 	public boolean isDisabled();
 	public void setFileTree(FileTree f);
 	

@@ -13,8 +13,7 @@ public class FilteredFileTree extends FilteredDir {
 		// TODO Auto-generated constructor stub
 	}
 
-	public FilteredFileTree(IdentityHashMap<PathWrap, FileTree> fileTree, Predicate<FileEntity> filter) {
-		
+	public FilteredFileTree(FileTree fileTree, Predicate<FileEntity> filter) {
 		// TODO Auto-generated constructor stub
 	}
 

@@ -53,7 +53,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	private final Config config;
 	private final IStartOnComplete<ListingView> startEnd;
 	private volatile boolean cancel;
-	private IdentityHashMap<PathWrap, CharSequence> treeTextMap;
+	private CharSequence treeText;
 	private CustomButton button;
 	private Text fileCountT, dirCountT;  
 	private Consumer<ListingView> onWalkCompleted;
@@ -91,24 +91,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 				stop();
 				break;
 			case OPEN:
-				String joined = null;
-				if(!Checker.isEmpty(treeTextMap)) {
-					if(treeTextMap.size() == 1)
-						joined = treeTextMap.values().iterator().next().toString(); 
-					else {
-						StringBuilder sb = new StringBuilder();
-						treeTextMap.forEach((s,t) -> {
-							StringUtils.repeat('-', s.path().toString().length(), sb);
-							sb.append("\n\n");
-							sb.append(s.path()).append('\n');
-							sb.append(t);
-							sb.append("\n\n");
-						});
-
-						joined = sb.toString();
-					}
-				}
-				TextArea ta = new TextArea(joined);
+				TextArea ta = new TextArea(treeText == null ? null : treeText.toString());
 				ta.setEditable(false);
 				showStage(ta);
 				break;
@@ -121,6 +104,8 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	}
 
 	private void start1Depth() {
+		StringBuilder treeText = new StringBuilder();
+		
 		for (PathWrap pw : config.getSource()) {
 			if(pw.path() == null) {
 				LOGGER.info("unresolved: "+pw);
@@ -136,7 +121,7 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 				return;
 			}
 			String[] names = root.toFile().list();
-			StringBuilder treeText = new StringBuilder()
+					treeText
 					.append(config.getSource())
 					.append("\n |");
 
@@ -145,17 +130,15 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 
 			treeText.append(names[names.length - 1]).append('\n');
 
-			if(treeTextMap == null)
-				treeTextMap = new IdentityHashMap<>();
-
-			treeTextMap.put(pw, treeText);
-
 			runLater(() ->{
 				dirCountT.setText(null);
 				fileCountT.setText("All count: "+names.length);
-			});	
+			});
+			
+			treeText.append('\n');
 		}
 
+		this.treeText = treeText;
 		walkCompleted();
 	}
 
@@ -195,9 +178,8 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 	}
 	@Override
 	public void walkCompleted() {
-		if(treeTextMap == null) {
-			treeTextMap = new IdentityHashMap<>();
-			config.getFileTree().forEach((s,t) -> treeTextMap.put(s, new FileTreeString(t)));
+		if(treeText == null) {
+			treeText = new FileTreeString(config.getFileTree());
 			Utils.saveFileTree(config);
 		}
 		runLater(() -> {
@@ -212,37 +194,35 @@ public class ListingView extends VBox implements ICanceler, IStopStart, ButtonAc
 		this.onWalkCompleted = onWalkCompleted;
 	}
 	public void save() {
-		if(Checker.isEmpty(treeTextMap)) {
+		if(Checker.isEmpty(treeText)) {
 			showErrorDialog(null, "FileEntity not set", null);
 			return;
 		}
 		boolean created[] = {false};
 
-		treeTextMap.forEach((pw, treeText) -> {
-			Path p = Optional.ofNullable(config.getTarget(pw)).map(PathWrap::path).orElse(null);
-			Path name = p == null ? Paths.get(hashedName(pw.path(), ".txt")) : p.getFileName();
+		Path p = Optional.ofNullable(config.getBaseTarget()).map(PathWrap::path).orElse(null);
+		Path name = p == null ? Paths.get(hashedName(config.getBaseTarget().path(), ".txt")) : p.getFileName();
 
-			if(saveWithoutAsking) {
-				String listbackDirs = System2.lookup("LIST_BACKUP_DIR");
+		if(saveWithoutAsking) {
+			String listbackDirs = System2.lookup("LIST_BACKUP_DIR");
 
-				if(listbackDirs == null)
-					LOGGER.warn("no var specified for: LIST_BACKUP_DIR, thus no list saving performed in defaults dirs");
-				else {
-					for(String str: StringUtils.split(listbackDirs, ';')) 
-						write(Paths.get(str).resolve(name), treeText);
-				}
+			if(listbackDirs == null)
+				LOGGER.warn("no var specified for: LIST_BACKUP_DIR, thus no list saving performed in defaults dirs");
+			else {
+				for(String str: StringUtils.split(listbackDirs, ';')) 
+					write(Paths.get(str).resolve(name), treeText);
+			}
 
-				if(p == null) {
-					if(saveToFile2(treeText, p)) 
-						created[0] = true; 
-				} else {
-					write(p, treeText);
-					listCreated();
-				}
+			if(p == null) {
+				if(saveToFile2(treeText, p)) 
+					created[0] = true; 
 			} else {
-				saveToFile2(treeText, p);
-			} 
-		});
+				write(p, treeText);
+				listCreated();
+			}
+		} else {
+			saveToFile2(treeText, p);
+		} 
 		if(created[0])
 			listCreated();
 	}

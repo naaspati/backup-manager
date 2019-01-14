@@ -28,7 +28,7 @@ public class ConfigViewManager implements IStartOnComplete<ConfigView> {
 	private final StatusView statusView;
 	// private final AboutDriveView aboutDriveView;
 
-	private static volatile ConfigViewManager instance;
+	private static ConfigViewManager instance;
 
 	public static ConfigViewManager getInstance() {
 		return instance;

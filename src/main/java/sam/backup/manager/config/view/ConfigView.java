@@ -151,7 +151,7 @@ public class ConfigView extends BorderPane implements IStopStart, ButtonAction, 
 		FilesView.open("all files",config, config.getFileTree(), FilesViewSelector.all());
 	}
 	private void setAsLatestAction(ActionEvent e) {
-		config.getFileTree().forEach((s,t) -> t.forcedMarkUpdated());
+		config.getFileTree().forcedMarkUpdated();
 		if(Utils.saveFileTree(config))
 			FxPopupShop.showHidePopup("marked as letest", 1500);
 	};

@@ -154,15 +154,7 @@ class Filter implements IFilter, HasFilterArrays {
 		
 		if(isNull(paths)) {
 			paths = stream(path)
-					.map(s -> {
-						if(s.charAt(0) == '\\' || s.charAt(0) == '/')
-							return config.getSource().resolve(s.substring(1));
-						if(s.contains("%source%"))
-							s = s.replace("%source%", config.getSource().toString());
-						if(s.contains("%target%") && config.getTarget() != null)
-							s = s.replace("%target%", config.getTarget().toString());
-						return Paths.get(s);
-					})
+					.map(config::resolve)
 					.collect(Collectors.toSet());
 		}
 

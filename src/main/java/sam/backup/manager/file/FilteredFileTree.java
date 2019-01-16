@@ -4,6 +4,8 @@ import java.util.IdentityHashMap;
 import java.util.function.Predicate;
 
 import sam.backup.manager.config.PathWrap;
+import sam.backup.manager.config.view.Deleter;
+import sam.nopkg.Junk;
 
 
 public class FilteredFileTree extends FilteredDir {
@@ -14,12 +16,23 @@ public class FilteredFileTree extends FilteredDir {
 	}
 
 	public FilteredFileTree(FileTree fileTree, Predicate<FileEntity> filter) {
-		// TODO Auto-generated constructor stub
+		// super(dir, parent, filter);
+		super(null, null, filter);
+		Junk .notYetImplemented();
+		// FIXME Auto-generated constructor stub
 	}
 
 	public boolean isEmpty() {
 		// TODO Auto-generated method stub
 		return false;
+	}
+
+	public void walk(Deleter d) {
+		Junk.notYetImplemented();
+		// this is temp solution to hide error in  Deleter
+		// 
+		// FIXME Auto-generated method stub
+		
 	}
 
 }

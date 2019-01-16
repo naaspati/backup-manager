@@ -72,8 +72,11 @@ public class Deleter extends Stage {
 			while (iter.hasNext()) {
 				FileEntity fte = iter.next();
 				File file = new File(fte.getBackupPath());
+				//FIXME move this code to FileEntityImpl
 				boolean b = !file.exists() || file.delete();
-				if(b) fte.remove();
+				if(b) {
+					fte.delete();
+				} 
 
 				String s = file.toString();
 				if(root != null && s.length() > root.length() && s.startsWith(root))
@@ -108,16 +111,16 @@ public class Deleter extends Stage {
 			Platform.runLater(() -> d.setOnCloseRequest(e -> d.close()));
 		});
 	}
-	@Override
+	// FIXME @Override
 	public FileVisitResult file(FileEntity ft) {
-		if(ft.isBackupDeletable()) {
+		if(ft.getStatus().isBackupDeletable()) {
 			dirs.add(ft.getParent());
 			files.add(ft);
 		}
 		return FileVisitResult.CONTINUE;
 	}
 
-	@Override
+	// FIXME @Override
 	public FileVisitResult dir(Dir ft) {
 		return FileVisitResult.CONTINUE;
 	}

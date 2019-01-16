@@ -10,4 +10,5 @@ public interface FileEntity {
 	String getName();
 	String getSourcePath();
 	String getBackupPath();
+	void delete();
 }

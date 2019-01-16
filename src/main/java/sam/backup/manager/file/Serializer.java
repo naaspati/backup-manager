@@ -1,5 +1,6 @@
 package sam.backup.manager.file;
 
+import java.io.IOException;
 import java.util.function.Consumer;
 
 interface Serializer<F extends FileEntity, D extends Dir> {
@@ -7,6 +8,6 @@ interface Serializer<F extends FileEntity, D extends Dir> {
 	D newDir(D parent, String filename);
 	void applyToAll(Consumer<FileEntity> action);
 	FileTree getFileTree();
-	void save() throws Exception;
+	void save() throws IOException;
 	Attrs defaultAttrs();
 }

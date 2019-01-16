@@ -15,7 +15,7 @@ final class FileTreeImpl implements FileTree {
 
 	FileTreeImpl(Serializer<FileImpl, DirImpl> serializer, TreeType type, Path sourceDirPath, Path backupDirPath, Attrs source, Attrs backup, int child_count) throws IOException {
 		Checker.requireNonNull(
-				new String[]{"type", "sourceDirPath", "backupDirPath", "serializer"},  
+				"type sourceDirPath backupDirPath serializer",  
 				type,
 				sourceDirPath,
 				backupDirPath,
@@ -31,11 +31,11 @@ final class FileTreeImpl implements FileTree {
 		this(serializer, type, sourceDirPath, backupDirPath, serializer.defaultAttrs(), serializer.defaultAttrs(), 0);
 	}
 	private String srcPathString, backupPathString;
-	@Override 
+	
 	public String getSourcePath() { 
 		return srcPathString != null ? srcPathString : ( srcPathString = srcPath.toString()); 
 	}
-	@Override
+	
 	public String getBackupPath() {
 		return backupPathString != null ? backupPathString : ( backupPathString = backupPath == null ? "" : backupPath.toString());
 	}
@@ -50,7 +50,7 @@ final class FileTreeImpl implements FileTree {
 	public DirImpl newDir(DirImpl parent, String filename) {
 		return serializer.newDir(parent, filename);
 	}
-	public void save() throws Exception {
+	public void save() throws IOException {
 		serializer.save();
 	}
 }

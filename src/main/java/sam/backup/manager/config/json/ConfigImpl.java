@@ -12,6 +12,7 @@ import static sam.backup.manager.config.json.Utils.getFilter;
 import static sam.backup.manager.config.json.Utils.getList;
 import static sam.backup.manager.config.json.Utils.set;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import org.json.JSONException;
@@ -19,6 +20,7 @@ import org.json.JSONObject;
 
 import sam.backup.manager.config.BackupConfig;
 import sam.backup.manager.config.WalkConfig;
+import sam.nopkg.Junk;
 
 class ConfigImpl {
 	protected final String name;
@@ -60,4 +62,19 @@ class ConfigImpl {
 	public Filter getTargetExcludes() { return targetExcludes; }
 	public BackupConfig getBackupConfig() { return backupConfig; }
 	public WalkConfig getWalkConfig() { return walkConfig; }
+
+	public Path resolve(String s) {
+		return Junk.notYetImplemented();
+		/* FIXME
+		 * {
+						if(s.charAt(0) == '\\' || s.charAt(0) == '/')
+							return config.getSource().resolve(s.substring(1));
+						if(s.contains("%source%"))
+							s = s.replace("%source%", config.getSource().toString());
+						if(s.contains("%target%") && config.getTarget() != null)
+							s = s.replace("%target%", config.getTarget().toString());
+						return Paths.get(s);
+					}
+		 */
+	}
 }

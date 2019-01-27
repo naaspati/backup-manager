@@ -1,5 +1,7 @@
 package sam.backup.manager.file;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -10,14 +12,14 @@ import sam.myutils.Checker;
 public class DirImpl extends FileImpl implements Dir {
 	public static final FileEntity[] EMPTY_ARRAY = new FileEntity[0];
 	
-	private final FileTree filetree;
 	private final FileEntity[] old;
-	private List<FileEntity> neww;
+	private List<FileEntity> neww = Collections.emptyList();
+	private final Generator generator;
 	
-	protected DirImpl(int id, FileTree filetree, DirImpl parent, String filename, Attrs source, Attrs backup, FileEntity[] children){
+	protected DirImpl(Generator generator, int id, DirImpl parent, String filename, Attrs source, Attrs backup, FileEntity[] children){
 		super(id, parent, filename, source, backup);
-		this.filetree  = filetree;
-		this.old = children;
+		this.old = Checker.isEmpty(children) ? EMPTY_ARRAY : children;
+		this.generator = generator;
 	}
 	
 	@Override
@@ -26,23 +28,32 @@ public class DirImpl extends FileImpl implements Dir {
 	}
 	@Override
 	public boolean isEmpty() {
-		return (old == EMPTY_ARRAY || Checker.isEmpty(old)) && Checker.isEmpty(neww);
+		return childrenCount() == 0;
 	}
 	@Override
 	public int childrenCount() {
-		return isEmpty() ? 0 : (old == null ? 0 : old.length) + (neww == null ? 0 : neww.size());
+		return old.length + neww.size();
 	}
 	@Override
 	public Iterator<FileEntity> iterator() {
-		return Iterators.joi;
+		if(isEmpty())
+			return Iterators.empty();
+		return Iterators.join(Iterators.of(old), neww.iterator());
 	}
 	@Override
 	public FileImpl addFile(String filename) {
-		return (FileImpl)(filetree.addFile(this, filename));
+		return (FileImpl)(add(generator.newFile(filename)));
 	}
 	@Override
-	public DirImpl addDir(String filename) {
-		return (DirImpl)filetree.addDir(this, filename);
+	public DirImpl addDir(String dirname) {
+		return (DirImpl)add(generator.newDir(dirname));
+	}
+
+	private FileEntity add(FileEntity f) {
+		if(Checker.isEmpty(neww))
+			neww = new ArrayList<>();
+		neww.add(f);
+		return f;
 	}
 }
 

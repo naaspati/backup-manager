@@ -6,29 +6,27 @@ import java.util.ArrayList;
 
 import sam.backup.manager.extra.TreeType;
 import sam.myutils.Checker;
+import sam.nopkg.Junk;
 
 final class FileTreeImpl implements FileTree {
 	private TreeType treetype;
 	private final Path srcPath;
 	private Path backupPath;
-	private final Serializer<FileImpl, DirImpl> serializer;
 
-	FileTreeImpl(Serializer<FileImpl, DirImpl> serializer, TreeType type, Path sourceDirPath, Path backupDirPath, Attrs source, Attrs backup, int child_count) throws IOException {
+	FileTreeImpl(TreeType type, Path sourceDirPath, Path backupDirPath, int child_count) throws IOException {
 		Checker.requireNonNull(
-				"type sourceDirPath backupDirPath serializer",  
+				"type sourceDirPath backupDirPath",  
 				type,
 				sourceDirPath,
-				backupDirPath,
-				serializer
+				backupDirPath
 				);
 
 		this.treetype = type;
 		this.srcPath = sourceDirPath;
 		this.backupPath = backupDirPath;
-		this.serializer = serializer;
 	}
-	FileTreeImpl(Serializer<FileImpl, DirImpl> serializer, TreeType type, Path sourceDirPath, Path backupDirPath) throws IOException {
-		this(serializer, type, sourceDirPath, backupDirPath, serializer.defaultAttrs(), serializer.defaultAttrs(), 0);
+	FileTreeImpl(TreeType type, Path sourceDirPath, Path backupDirPath) throws IOException {
+		this(type, sourceDirPath, backupDirPath, 0);
 	}
 	private String srcPathString, backupPathString;
 	
@@ -42,15 +40,12 @@ final class FileTreeImpl implements FileTree {
 	public TreeType getTreetype(){ return this.treetype; }
 
 	public void forcedMarkUpdated() {
-		serializer.applyToAll(f -> f.getSourceAttrs().setUpdated());
-	}
-	public FileImpl newFile(DirImpl parent, String filename) {
-		return serializer.newFile(parent, filename);
-	}
-	public DirImpl newDir(DirImpl parent, String filename) {
-		return serializer.newDir(parent, filename);
+		//TODO serializer.applyToAll(f -> f.getSourceAttrs().setUpdated());
+		Junk.notYetImplemented();
 	}
 	public void save() throws IOException {
-		serializer.save();
+		//TODO serializer.save();
+		Junk.notYetImplemented();
+		
 	}
 }

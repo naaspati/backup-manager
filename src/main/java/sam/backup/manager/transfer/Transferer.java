@@ -35,9 +35,8 @@ import java.util.zip.ZipOutputStream;
 
 import org.slf4j.Logger;
 
-import sam.backup.manager.config.Config;
-import sam.backup.manager.config.filter.Filter;
-import sam.backup.manager.extra.ICanceler;
+import sam.backup.manager.api.ICanceler;
+import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.State;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.Dir;

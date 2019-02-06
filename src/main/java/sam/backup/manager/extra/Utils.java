@@ -1,12 +1,21 @@
 package sam.backup.manager.extra;
 
+import static java.nio.file.FileVisitResult.CONTINUE;
+import static java.nio.file.FileVisitResult.SKIP_SIBLINGS;
+import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
+import static java.nio.file.FileVisitResult.TERMINATE;
+import static java.nio.file.StandardOpenOption.CREATE;
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
+import static java.nio.file.StandardOpenOption.WRITE;
 import static javafx.application.Platform.runLater;
 
+import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -19,11 +28,13 @@ import java.time.format.FormatStyle;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,6 +43,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javafx.application.HostServices;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
@@ -48,11 +60,13 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import sam.backup.manager.App;
-import sam.backup.manager.config.Config;
+import javafx.stage.Window;
 import sam.backup.manager.config.PathWrap;
+import sam.backup.manager.config.api.Config;
+import sam.backup.manager.file.Dir;
+import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeFactory;
+import sam.backup.manager.file.FileTreeWalker;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxHyperlink;
 import sam.fx.helpers.FxUtils;
@@ -61,6 +75,8 @@ import sam.io.serilizers.ObjectWriter;
 import sam.io.serilizers.StringWriter2;
 import sam.myutils.Checker;
 import sam.myutils.MyUtilsPath;
+import sam.myutils.System2;
+import sam.nopkg.Junk;
 import sam.nopkg.LazyLoadedData;
 import sam.reference.WeakAndLazy;
 
@@ -69,8 +85,11 @@ public final class Utils {
 	public static final Path APP_DATA = Paths.get("app_data");
 	public static final Path TEMP_DIR;
 	private static final Supplier<String> counter;
-
-	public static ExecutorService threadPool0;
+	private static Window window;
+	private static HostServices hostservice;
+	private static BiConsumer<Object, Exception> errorHandler;
+	private static final ExecutorService EXECUTOR_SERVICE;
+	public static final boolean SAVE_EXCLUDE_LIST = System2.lookupBoolean("SAVE_EXCLUDE_LIST", true);
 
 	static {
 		try {
@@ -102,6 +121,8 @@ public final class Utils {
 
 		LOGGER = Utils.getLogger(Utils.class);
 		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> LOGGER.error("thread: {}", thread.getName(), exception));
+		
+		EXECUTOR_SERVICE = Optional.ofNullable(System2.lookup("THREAD_COUNT")).map(Integer::parseInt).filter(i -> i > 0).map(c -> Executors.newFixedThreadPool(c)).orElseGet(() -> Executors.newSingleThreadExecutor());
 	}
 
 	// does nothing only initiates static block
@@ -122,21 +143,6 @@ public final class Utils {
 	}
 
 	private Utils() {}
-
-	private static ExecutorService threadPool() {
-		if (threadPool0 == null)
-			threadPool0 = Executors.newSingleThreadExecutor();
-
-		return threadPool0;
-	}
-
-	public static void run(Runnable r) {
-		threadPool().execute(r);
-	}
-
-	public static void shutdown() {
-		threadPool().shutdownNow();
-	}
 
 	public static String bytesToString(long bytes) {
 		if (bytes == 0)
@@ -255,9 +261,9 @@ public final class Utils {
 		Stage stg = new Stage();
 		stg.initModality(Modality.WINDOW_MODAL);
 		stg.initStyle(StageStyle.UTILITY);
-		stg.initOwner(App.getStage());
+		stg.initOwner(window);
 		stg.setScene(new Scene(content));
-		stg.getScene().getStylesheets().setAll(App.getStage().getScene().getStylesheets());
+		stg.getScene().getStylesheets().setAll(window.getScene().getStylesheets());
 		stg.setWidth(300);
 		stg.setHeight(400);
 		runLater(stg::show);
@@ -308,12 +314,12 @@ public final class Utils {
 		if (backupLastPerformed.isModified())
 			backupLastPerformed.save();
 
-		threadPool().shutdownNow();
+		EXECUTOR_SERVICE.shutdownNow();
 		System.out.println("waiting thread to die");
-		threadPool().awaitTermination(2, TimeUnit.SECONDS);
+		EXECUTOR_SERVICE.awaitTermination(2, TimeUnit.SECONDS);
 	}
-
 	private static final WeakAndLazy<FXMLLoader> fxkeep = new WeakAndLazy<>(FXMLLoader::new);
+	
 
 	public static void fxml(String filename, Object root, Object controller) {
 		try {
@@ -385,25 +391,14 @@ public final class Utils {
 		return LoggerFactory.getLogger(cls);
 	}
 	public static FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
-		return FileTreeFactory.getInstance().newFileTree(c, type, createNewIfNotExists);
-	}
-	
-	public static boolean saveToFile2(File expectedDir, String expectedName, String title,  CharSequence text) {
-		File file = selectFile(expectedDir, expectedName, title).showSaveDialog(App.getStage());
-
-		if (file == null)
-			return false;
-		try {
-			write(file.toPath(), text);
-			return true;
-		} catch (IOException e) {
-			showErrorDialog("target: " + file, "failed to save", e);
-		}
-		return false;
+		//FIXME 
+		return Junk.notYetImplemented();
+		// return FileTree.getInstance().newFileTree(c, type, createNewIfNotExists);
 	}
 	
 	public static boolean saveFileTree(Config config) {
-		return saveFileTree(config, config.getFileTree());
+		return Junk.notYetImplemented();
+		//FIXME return saveFileTree(config, config.getFileTree());
 	}
 
 	public static boolean saveFileTree(FileTree fileTree) {
@@ -417,5 +412,78 @@ public final class Utils {
 			FxAlert.showErrorDialog(c+"\n"+fileTree, "failed to save filetreee", e);
 			return false;
 		}
+	}
+	
+	public static Window window() {
+		return window;
+	}
+	public static HostServices hostServices() {
+		return hostservice;
+	}
+	public static void set(Window window, HostServices hostservice) {
+		if(hostservice != null)
+			throw new IllegalStateException("calling second is not allowed");
+		Utils.window = window;
+		Utils.hostservice = hostservice;
+	}
+
+	public static void runAsync(Runnable runnable) {
+		EXECUTOR_SERVICE.execute(runnable);
+	}
+	
+	public static boolean saveInTempDirHideError(Writable w, Config config, String directory, String fileName) {
+		try {
+			saveInTempDir(w, config, directory, fileName);
+			return true;
+		} catch (IOException e) {
+			errorHandler.accept(path(TEMP_DIR, directory, config.getName(), fileName), e);
+			return false;
+		}
+	}
+
+	public static Path saveInTempDir(Writable w, Config config, String directory, String fileName) throws IOException {
+		Path p = path(TEMP_DIR, directory, config.getName(), fileName);
+		save(p, w);
+		return p;
+	}
+	private static Path path(Path root, String child1, String...child) {
+		return root.resolve(Paths.get(child1, child));
+	}
+
+	private static void save(Path p, Writable w) throws IOException {
+		Files.createDirectories(p.getParent());
+		
+		try(BufferedWriter os = Files.newBufferedWriter(p, WRITE, CREATE, TRUNCATE_EXISTING)) {
+			w.write(os);
+		}
+	}
+	public static void walk(Dir start, FileTreeWalker walker) {
+		walk0(start, walker);
+	}
+	private static FileVisitResult walk0(Dir start, FileTreeWalker walker) {
+		for (FileEntity f : start) {
+			if(f.isDirectory() && asDir(f).isEmpty())
+				continue;
+
+			FileVisitResult result = f.isDirectory() ? walker.dir(asDir(f)) : walker.file(f);
+
+			if(result == TERMINATE)
+				return TERMINATE;
+			if(result == SKIP_SIBLINGS)
+				break;
+
+			if(result != SKIP_SUBTREE && f.isDirectory() && walk0(asDir(f), walker) == TERMINATE)
+				return TERMINATE;
+		}
+		return CONTINUE;
+	}
+	private static Dir asDir(FileEntity f) {
+		return (Dir)f;
+	}
+
+	public static void setErrorHandler(BiConsumer<Object, Exception> errorHandler) {
+		if(Utils.errorHandler != null)
+			throw new IllegalStateException();
+		Utils.errorHandler = errorHandler;
 	}
 }

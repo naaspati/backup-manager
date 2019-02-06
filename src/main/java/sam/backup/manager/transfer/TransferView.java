@@ -28,12 +28,10 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.config.Config;
-import sam.backup.manager.config.view.FilesView;
-import sam.backup.manager.config.view.FilesViewSelector;
-import sam.backup.manager.extra.ICanceler;
-import sam.backup.manager.extra.IStartOnComplete;
-import sam.backup.manager.extra.IStopStart;
+import sam.backup.manager.api.ICanceler;
+import sam.backup.manager.api.IStartOnComplete;
+import sam.backup.manager.api.Startable;
+import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.State;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.FilteredFileTree;
@@ -42,13 +40,15 @@ import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.view.IUpdatable;
 import sam.backup.manager.view.StatusView;
+import sam.backup.manager.view.config.FilesView;
+import sam.backup.manager.view.config.FilesViewSelector;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.MyUtilsCmd;
 import sam.myutils.MyUtilsPath;
 import sam.string.BasicFormat;
 
 
-public class TransferView extends VBox implements Runnable, IStopStart, ButtonAction, ICanceler, IUpdatable, TransferListener {
+public class TransferView extends VBox implements Runnable, Startable, ButtonAction, ICanceler, IUpdatable, TransferListener {
 	private static final Logger LOGGER = Utils.getLogger(TransferView.class);
 
 	private TextArea sourceTargetTa ;

@@ -2,7 +2,6 @@ package sam.backup.manager.file;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.ArrayList;
 
 import sam.backup.manager.extra.TreeType;
 import sam.myutils.Checker;

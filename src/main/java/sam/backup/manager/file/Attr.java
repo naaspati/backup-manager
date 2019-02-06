@@ -17,5 +17,11 @@ public class Attr {
 	public String toString() {
 		return "Attr [lastModified=" + lastModified + ", size=" + size + "]";
 	}
+	public long size() {
+		return size;
+	}
+	public long lastModified() {
+		return lastModified;
+	}
 }
  

@@ -5,5 +5,4 @@ public interface WalkConfig {
 	public boolean skipDirNotModified() ;
 	public boolean skipFiles() ;
 	public int getDepth() ;
-	public boolean saveExcludeList() ;
 }

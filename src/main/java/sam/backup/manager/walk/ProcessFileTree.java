@@ -7,24 +7,27 @@ import java.nio.file.FileVisitResult;
 import java.util.ArrayList;
 import java.util.List;
 
-import sam.backup.manager.config.Config;
+import sam.backup.manager.config.api.Config;
+import sam.backup.manager.extra.Utils;
+import sam.backup.manager.file.Attr;
 import sam.backup.manager.file.Attrs;
 import sam.backup.manager.file.Dir;
 import sam.backup.manager.file.FileEntity;
+import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeWalker;
 
-public class ProcessFileTree implements FileTreeWalker {
+class ProcessFileTree implements FileTreeWalker {
 	private final boolean checkModified;
 	private final boolean hardSync;
 	private final boolean backupWalked;
 	private final List<FileEntity> willRemoved = new ArrayList<>();
 
-	public ProcessFileTree(Config config, boolean backupWalked) {
+	public ProcessFileTree(FileTree filetree, Config config, boolean backupWalked) {
 		this.backupWalked = backupWalked;
 		this.checkModified = config.getBackupConfig().checkModified();
 		this.hardSync = config.getBackupConfig().hardSync();
-
-		config.getFileTree().walk(this);
+		
+		Utils.walk(filetree, this);
 		willRemoved.forEach(FileEntity::remove);
 	}
 
@@ -35,7 +38,7 @@ public class ProcessFileTree implements FileTreeWalker {
 
 		if(source == null) {
 			if(hardSync)
-				ft.setBackupDeletable(true);
+				ft.getStatus().setBackupDeletable(true);
 			else
 				willRemoved.add(ft);
 
@@ -56,7 +59,7 @@ public class ProcessFileTree implements FileTreeWalker {
 
 	private boolean check(FileEntity f, boolean condition, String reason) {
 		if(condition)
-			f.setBackupable(true, reason);
+			f.getStatus().setBackupable(true, reason);
 		return condition;
 	}
 
@@ -73,7 +76,7 @@ public class ProcessFileTree implements FileTreeWalker {
 	}
 	private boolean hardSyncCheck(FileEntity ft) {
 		boolean delete = hardSync && ft.getSourceAttrs().current() == null;
-		ft.setBackupDeletable(delete);
+		ft.getStatus().setBackupDeletable(delete);
 		return delete;
 	}
 	private boolean isNew(FileEntity ft) {

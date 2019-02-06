@@ -8,10 +8,8 @@ repositories {
     jcenter()
 }
 dependencies {
-   // compile 'org.xerial:sqlite-jdbc:3.7.2'
-   // compile 'com.google.code.gson:gson:2.8.2'
-   compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
- // compile files('myutils.jar')
+  compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
+  compile files('myutils.jar')
   compile 'org.slf4j:slf4j-jdk14:1.8.0-beta2'
   compile 'org.json:json:20180813'
 }

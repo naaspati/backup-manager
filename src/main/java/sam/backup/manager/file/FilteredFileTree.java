@@ -1,10 +1,8 @@
 package sam.backup.manager.file;
 
-import java.util.IdentityHashMap;
 import java.util.function.Predicate;
 
-import sam.backup.manager.config.PathWrap;
-import sam.backup.manager.config.view.Deleter;
+import sam.backup.manager.view.config.Deleter;
 import sam.nopkg.Junk;
 
 

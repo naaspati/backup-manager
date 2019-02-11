@@ -16,9 +16,9 @@ import java.util.concurrent.Callable;
 
 import org.slf4j.Logger;
 
-import sam.backup.manager.config.IFilter;
 import sam.backup.manager.config.WalkConfig;
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.Attr;
 import sam.backup.manager.file.Attrs;
@@ -69,7 +69,7 @@ class Walker implements FileVisitor<Path>, Callable<FileTree> {
 			rootTree.setAttr(new Attr(attrs.lastModifiedTime().toMillis(), 0), walkMode, dir);
 			isRoot = false;
 		} else if(include(dir)) {
-			Dir ft = rootTree.addDirectory(dir, new Attr(attrs.lastModifiedTime().toMillis(), 0), walkMode);
+			Dir ft = rootTree.addDir(dir, new Attr(attrs.lastModifiedTime().toMillis(), 0), walkMode);
 			listener.onDirFound(ft, walkMode);
 
 			/**
@@ -83,7 +83,7 @@ class Walker implements FileVisitor<Path>, Callable<FileTree> {
 				LOGGER.debug("source walk skipped: {}", ft.getSourcePath());
 				return SKIP_SUBTREE;
 			}
-			ft.setWalked(true);
+			rootTree.setWalked(ft, true);
 		} else {
 			excludeFilesList.add(dir);
 			return SKIP_SUBTREE;

@@ -18,7 +18,6 @@ import static sam.fx.helpers.FxMenu.menuitem;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 
@@ -45,7 +44,6 @@ import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.FilteredFileTree;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
-import sam.backup.manager.view.ConfigViews;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.view.WalkHandler;
 import sam.backup.manager.walk.WalkListener;

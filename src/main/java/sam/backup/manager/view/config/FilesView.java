@@ -65,10 +65,10 @@ import sam.io.fileutils.FileOpenerNE;
 import sam.io.serilizers.StringWriter2;
 import sam.myutils.Checker;
 import sam.nopkg.Junk;
-import sam.reference.WeakQueue;
+import sam.reference.WeakPool;
 
 public class FilesView extends BorderPane {
-	private static WeakQueue<FilesView> views = new WeakQueue<>(() -> new FilesView(null, null, null, null)); 
+	private static WeakPool<FilesView> views = new WeakPool<>(() -> new FilesView(null, null, null, null)); 
 	private static WeakReference<Stage> weakStage = new WeakReference<Stage>(null);
 	private static final Session SESSION = Session.getSession(FilesView.class);
 

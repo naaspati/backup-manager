@@ -22,10 +22,9 @@ public class FilteredDir implements Dir {
 	public boolean updateDirAttrs() {
 		boolean b = true;
 		for (FileEntity f : this)
-			b = (f.isDirectory() ? ((FilteredDir)f).updateDirAttrs() : f.isCopied()) && b;
+			b = (f.isDirectory() ? ((FilteredDir)f).updateDirAttrs() : f.getStatus().isCopied()) && b;
 		
-		if(b)
-			markUpdated();
+		//FIXME if(b)  markUpdated();
 		
 		return b;
 	}
@@ -71,4 +70,34 @@ public class FilteredDir implements Dir {
 	@Override public String getName() { return dir.getName(); }
 	@Override public String getSourcePath() { return dir.getSourcePath(); }
 	@Override public String getBackupPath() { return dir.getBackupPath(); }
+	@Override
+	public int getId() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	@Override
+	public boolean delete() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	@Override
+	public int childrenCount() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	@Override
+	public boolean isEmpty() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+	@Override
+	public FileEntity addFile(String filename) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public Dir addDir(String dirname) {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

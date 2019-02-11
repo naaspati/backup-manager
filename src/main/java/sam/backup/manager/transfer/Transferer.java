@@ -35,8 +35,8 @@ import java.util.zip.ZipOutputStream;
 
 import org.slf4j.Logger;
 
-import sam.backup.manager.api.ICanceler;
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.extra.State;
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.Dir;
@@ -45,11 +45,10 @@ import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.FileTreeWalker;
 import sam.backup.manager.file.FilteredDir;
 import sam.backup.manager.file.FilteredFileTree;
-import sam.backup.manager.file.SimpleFileTreeWalker;
 import sam.myutils.MyUtilsBytes;
 import sam.myutils.MyUtilsException;
 import sam.myutils.MyUtilsPath;
-import sam.reference.WeakQueue;
+import sam.reference.WeakPool;
 
 class Transferer implements Callable<State> {
 	private static final Logger LOGGER =  Utils.getLogger(Transferer.class);
@@ -65,13 +64,12 @@ class Transferer implements Callable<State> {
 	private static final long MAX_ZIP_ENTRIES_COUNT = 65535;
 	private static final long FILENAME_MAX = 260;
 
-	private static final WeakQueue<ByteBuffer> byteBuffers = new WeakQueue<>(true, () -> ByteBuffer.allocate(BUFFER_SIZE));
-	private static final WeakQueue<byte[]> buffers = new WeakQueue<>(true, () -> new byte[BUFFER_SIZE]);
+	private static final WeakPool<ByteBuffer> byteBuffers = new WeakPool<>(true, () -> ByteBuffer.allocate(BUFFER_SIZE));
+	private static final WeakPool<byte[]> buffers = new WeakPool<>(true, () -> new byte[BUFFER_SIZE]);
 
-	private final Filter zipFilter;
+	private final IFilter zipFilter;
 
 	private final FilteredFileTree filesTree;
-	private final ICanceler canceler;
 	private final TransferListener listener;
 	private final Set<Path> createdDirs = new HashSet<>();
 
@@ -87,10 +85,9 @@ class Transferer implements Callable<State> {
 	private List<FileEntity> toBeRemoved;
 	private final Config config;
 
-	public Transferer(Config config, FilteredFileTree filesTree, ICanceler canceler, TransferListener listener) {
+	public Transferer(Config config, FilteredFileTree filesTree, TransferListener listener) {
 		this.config = config;
 		this.filesTree = filesTree;
-		this.canceler = canceler;
 		this.listener = listener;
 		this.zipFilter = config.getZipFilter();
 	}

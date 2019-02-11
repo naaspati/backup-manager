@@ -75,9 +75,9 @@ public class FileImpl implements FileEntity {
 		return null;
 	}
 	@Override
-	public void delete() {
+	public boolean delete() {
 		// FIXME Auto-generated method stub
-				Junk.notYetImplemented();
+				return Junk.notYetImplemented();
 	}
 }
 

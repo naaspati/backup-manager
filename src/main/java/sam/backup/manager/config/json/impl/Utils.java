@@ -34,7 +34,7 @@ interface Utils {
 		throw new IllegalArgumentException("bad type: "+obj);
 	}
 
-	public static Filter getFilter(Object obj, String jsonKey) {
+	public static FilterImpl getFilter(Object obj, String jsonKey) {
 		// TODO Auto-generated method stub
 		return Junk.notYetImplemented();
 	}

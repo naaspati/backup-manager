@@ -2,12 +2,8 @@ package sam.backup.manager.view;
 
 import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.putBackupLastPerformed;
-import static sam.backup.manager.extra.Utils.run;
+import static sam.backup.manager.extra.Utils.runAsync;
 
-import java.util.Collection;
-
-import sam.backup.manager.api.IStartOnComplete;
-import sam.backup.manager.api.Stoppable;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.extra.State;
@@ -19,7 +15,7 @@ import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
 import sam.fx.alert.FxAlert;
 
-public class ConfigViews implements IStartOnComplete<ConfigView> {
+public class ConfigViews  {
 //	private static final Logger LOGGER = Utils.getLogger(ConfigManager.class);
 	
 	private final ViewSwitcher centerView;
@@ -48,7 +44,7 @@ public class ConfigViews implements IStartOnComplete<ConfigView> {
 	private final IStartOnComplete<TransferView>  transferAction = new IStartOnComplete<TransferView>() {
 		@Override
 		public void start(TransferView view) {
-			run(view);
+			runAsync(view);
 			statusView.addSummery(view.getSummery());
 		}
 		@Override

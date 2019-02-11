@@ -1,4 +1,4 @@
-package sam.backup.manager.config.json.impl;
+package sam.backup.manager.config.api;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -20,24 +20,16 @@ import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 
-import sam.backup.manager.config.HasFilterArrays;
-import sam.backup.manager.config.IFilter;
 import sam.backup.manager.extra.Utils;
 import sam.myutils.System2;
 import sam.string.StringUtils;
 
-class Filter implements IFilter, HasFilterArrays {
+public abstract class Filter implements IFilter, HasFilterArrays {
 	private transient static final Logger LOGGER = Utils.getLogger(Filter.class);
 
-	private String[] name, glob, regex, path, startsWith, endsWith, classes;
-	private Filter invert;
-	private ConfigImpl config;
+	protected String[] name, glob, regex, path, startsWith, endsWith, classes;
+	protected Filter invert;
 
-	public void setConfig(ConfigImpl config) {
-		this.config  = config;
-		if(invert != null)
-			invert.setConfig(config);
-	}
 	@Override
 	public boolean test(Path p) {
 		if(invert != null && invert.test(p)){
@@ -154,12 +146,14 @@ class Filter implements IFilter, HasFilterArrays {
 		
 		if(isNull(paths)) {
 			paths = stream(path)
-					.map(config::resolve)
+					.map(this::resolve)
 					.collect(Collectors.toSet());
 		}
 
 		return paths.contains(p);
 	}
+	protected abstract Path resolve(String path);
+	
 	private Set<Path> names;
 	private boolean name(Path p) {
 		if(invalidArray(name))
@@ -199,7 +193,6 @@ class Filter implements IFilter, HasFilterArrays {
 	public boolean isAlwaysFalse() {
 		return Stream.of(name, glob, regex, path, startsWith, endsWith, classes).allMatch(Filter::invalidArray);
 	}
-
 	@Override
 	public String toString() {
 		return asString();

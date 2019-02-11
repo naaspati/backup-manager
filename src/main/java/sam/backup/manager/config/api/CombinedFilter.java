@@ -1,4 +1,4 @@
-package sam.backup.manager.config;
+package sam.backup.manager.config.api;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;

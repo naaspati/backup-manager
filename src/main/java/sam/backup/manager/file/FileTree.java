@@ -13,7 +13,11 @@ public interface FileTree extends Dir {
 	void forcedMarkUpdated();
 	void walkCompleted();
 	void walkStarted(Path start);
-	Dir addDirectory(Path dir, Attr attr, WalkMode walkMode);
-	void setAttr(Attr attr, WalkMode walkMode, Path dir);
+	
 	FileEntity addFile(Path file, Attr af, WalkMode walkMode);
+	Dir addDir(Path dir, Attr attr, WalkMode walkMode);
+	void setWalked(Dir dir, boolean walked);
+	boolean isWalked(Dir dir);
+	
+	void setAttr(Attr attr, WalkMode walkMode, Path dir);
 }

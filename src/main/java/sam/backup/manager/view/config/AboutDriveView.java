@@ -33,7 +33,7 @@ public class AboutDriveView extends VBox  implements EventHandler<MouseEvent> {
 						" | Free Space: "+Utils.bytesToString(fs.getUnallocatedSpace())
 						);
 			} catch (IOException e) {
-				setText(MyUtilsException.exceptionToString(e));
+				setText(MyUtilsException.toString(e));
 			}
 		}
 	}

@@ -9,7 +9,6 @@ public class WalkConfigImpl implements Settable,WalkConfig {
 	private Boolean walkBackup;
 	private Boolean skipDirNotModified;
 	private Boolean skipFiles;
-	private Boolean saveExcludeList;
 
 	private final WalkConfigImpl global;
 
@@ -32,9 +31,6 @@ public class WalkConfigImpl implements Settable,WalkConfig {
 			case "skipFiles": 
 				skipFiles = (Boolean)value;
 				break;
-			case "saveExcludeList": 
-				saveExcludeList = (Boolean)value;
-				break;
 			default:
 				throw new IllegalArgumentException("unknown key: "+key);
 		}
@@ -56,9 +52,4 @@ public class WalkConfigImpl implements Settable,WalkConfig {
 	public int getDepth() {
 		return depth == null ? Integer.MAX_VALUE : depth;
 	}
-	@Override
-	public boolean saveExcludeList() {
-		return either(saveExcludeList, global.saveExcludeList, false);
-	}
-
 }

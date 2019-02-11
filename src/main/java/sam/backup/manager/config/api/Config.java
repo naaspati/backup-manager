@@ -3,7 +3,6 @@ package sam.backup.manager.config.api;
 import java.util.List;
 import java.util.Map;
 
-import sam.backup.manager.config.IFilter;
 import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.config.WalkConfig;
 import sam.backup.manager.file.FileTree;
@@ -24,6 +23,7 @@ public interface Config {
 	public IFilter getSourceFilter();
 	public IFilter getTargetFilter();
 	public Map<PathWrap, FileTree> getFileTree();
+	public IFilter getZipFilter();
 }
 
 

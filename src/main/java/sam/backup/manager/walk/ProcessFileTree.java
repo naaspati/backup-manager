@@ -15,20 +15,25 @@ import sam.backup.manager.file.Dir;
 import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeWalker;
+import sam.nopkg.Junk;
 
 class ProcessFileTree implements FileTreeWalker {
 	private final boolean checkModified;
 	private final boolean hardSync;
 	private final boolean backupWalked;
+	private final FileTree filetree;
 	private final List<FileEntity> willRemoved = new ArrayList<>();
 
 	public ProcessFileTree(FileTree filetree, Config config, boolean backupWalked) {
+		this.filetree = filetree;
 		this.backupWalked = backupWalked;
 		this.checkModified = config.getBackupConfig().checkModified();
 		this.hardSync = config.getBackupConfig().hardSync();
 		
 		Utils.walk(filetree, this);
-		willRemoved.forEach(FileEntity::remove);
+		Junk.notYetImplemented();
+		
+		//FIXME willRemoved.forEach(FileEntity::remove); 
 	}
 
 	@Override
@@ -68,7 +73,7 @@ class ProcessFileTree implements FileTreeWalker {
 		if(hardSyncCheck(ft))
 			return SKIP_SUBTREE;
 
-		if(!ft.isWalked())
+		if(!filetree.isWalked(ft))
 			return SKIP_SUBTREE;
 
 		isBackable(ft, false);

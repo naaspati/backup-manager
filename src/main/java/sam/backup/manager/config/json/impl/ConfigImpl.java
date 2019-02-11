@@ -28,9 +28,9 @@ class ConfigImpl {
 	protected final String target;
 	protected final boolean disable;
 	
-	protected final Filter zip;
-	protected final Filter excludes;
-	protected final Filter targetExcludes;
+	protected final FilterImpl zip;
+	protected final FilterImpl excludes;
+	protected final FilterImpl targetExcludes;
 	protected final BackupConfigImpl backupConfig;
 	protected final WalkConfigImpl walkConfig;
 	
@@ -57,9 +57,9 @@ class ConfigImpl {
 	public List<String> getSource() { return source; }
 	public String getTarget() { return target; }
 	public boolean isDisable() { return disable; }
-	public Filter getZip() { return zip; }
-	public Filter getExcludes() { return excludes; }
-	public Filter getTargetExcludes() { return targetExcludes; }
+	public FilterImpl getZip() { return zip; }
+	public FilterImpl getExcludes() { return excludes; }
+	public FilterImpl getTargetExcludes() { return targetExcludes; }
 	public BackupConfig getBackupConfig() { return backupConfig; }
 	public WalkConfig getWalkConfig() { return walkConfig; }
 

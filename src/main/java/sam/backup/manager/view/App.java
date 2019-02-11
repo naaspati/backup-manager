@@ -4,8 +4,6 @@ import static javafx.application.Platform.runLater;
 import static sam.fx.helpers.FxMenu.menuitem;
 
 import java.io.File;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javafx.application.Application;
@@ -16,8 +14,6 @@ import javafx.scene.control.MenuBar;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
-import sam.backup.manager.api.Startable;
-import sam.backup.manager.api.Stoppable;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.ConfigManagerFactory;
 import sam.backup.manager.extra.Utils;
@@ -100,7 +96,6 @@ public class App extends Application {
 		if(!stopping.compareAndSet(false, true))
 			return;
 		
-		stoppableTasks.forEach(Stoppable::stop);
 		Utils.stop();
 		System.exit(0); 
 	}

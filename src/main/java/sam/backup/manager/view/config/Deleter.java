@@ -20,10 +20,10 @@ import javafx.scene.text.Text;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.Dir;
 import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FilteredFileTree;
-import sam.backup.manager.view.App;
 
 public class Deleter extends Stage {
 	private final TextArea view = new TextArea();

@@ -3,16 +3,11 @@ package sam.backup.manager.view;
 import static javafx.application.Platform.runLater;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
 
-import java.util.Collection;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 
-import sam.backup.manager.api.IStartOnComplete;
-import sam.backup.manager.api.Startable;
-import sam.backup.manager.api.Stoppable;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.extra.TreeType;

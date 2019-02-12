@@ -5,5 +5,7 @@ public interface  Dir extends FileEntity, Iterable<FileEntity> {
 	boolean isEmpty();
 	FileEntity addFile(String filename);
 	Dir addDir(String dirname);
+	public void walk(FileTreeWalker walker); //was removed
+	int filesInTree(); // was removed
 }
 

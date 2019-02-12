@@ -1,25 +1,35 @@
 package sam.backup.manager.config;
 
 import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import sam.myutils.Checker;
 
 public class PathWrap {
-	private final String raw;
-	private final Path path;
+	private String string;
+	private Path path;
 	
-	public PathWrap(Path path, String raw) {
+	public PathWrap(Path path) {
+		Checker.requireNonNull("path", path);
 		this.path = path;
-		this.raw = raw;
+	}
+	public PathWrap(String string) {
+		Checker.requireNonNull("string", string);
+		this.string = string;
 	}
 	
 	public Path path() {
+		if(path == null)
+			path = Paths.get(string);
 		return path;
 	} 
-	public String raw() {
-		return raw;
+	public String string() {
+		if(string == null)
+			string = path.toString();
+		return string;
 	}
-
 	@Override
 	public String toString() {
-		return "PathWrap [raw=\"" + raw + "\", path=\"" + path + "\"]";
+		return (string == null ? path : string).toString();
 	}
 }

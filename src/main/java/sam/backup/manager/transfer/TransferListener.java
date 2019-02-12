@@ -1,10 +1,10 @@
 package sam.backup.manager.transfer;
 
-import java.nio.file.Path;
+import sam.backup.manager.config.PathWrap;
 
 interface TransferListener {
-	void copyStarted(Path src, Path target);
-	void copyCompleted(Path src, Path target);
+	void copyStarted(PathWrap src, PathWrap target);
+	void copyCompleted(PathWrap src, PathWrap target);
 	void addBytesRead(long bytes);
 	void newTask();
 }

@@ -3,6 +3,8 @@ package sam.backup.manager.file;
 import java.util.Iterator;
 import java.util.function.Predicate;
 
+import sam.backup.manager.config.PathWrap;
+
 public class FilteredDir implements Dir {
 	private final Dir dir;
 	private final FilteredDir parent;
@@ -68,8 +70,8 @@ public class FilteredDir implements Dir {
 	@Override public boolean isDirectory() { return true; }
 	@Override public Status getStatus() { return dir.getStatus(); }
 	@Override public String getName() { return dir.getName(); }
-	@Override public String getSourcePath() { return dir.getSourcePath(); }
-	@Override public String getBackupPath() { return dir.getBackupPath(); }
+	@Override public PathWrap getSourcePath() { return dir.getSourcePath(); }
+	@Override public PathWrap getBackupPath() { return dir.getBackupPath(); }
 	@Override
 	public int getId() {
 		// TODO Auto-generated method stub

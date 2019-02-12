@@ -32,5 +32,4 @@ public class FilteredFileTree extends FilteredDir {
 		// FIXME Auto-generated method stub
 		
 	}
-
 }

@@ -35,6 +35,7 @@ import java.util.zip.ZipOutputStream;
 
 import org.slf4j.Logger;
 
+import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.extra.State;
@@ -48,6 +49,7 @@ import sam.backup.manager.file.FilteredFileTree;
 import sam.myutils.MyUtilsBytes;
 import sam.myutils.MyUtilsException;
 import sam.myutils.MyUtilsPath;
+import sam.nopkg.Junk;
 import sam.reference.WeakPool;
 
 class Transferer implements Callable<State> {
@@ -113,7 +115,7 @@ class Transferer implements Callable<State> {
 		filesTree.walk(new FileTreeWalker() {
 			@Override
 			public FileVisitResult file(FileEntity ft) {
-				if(ft.isCopied()) {
+				if(ft.getStatus().isCopied()) {
 					long size = ft.getSourceSize();
 
 					filesSelected++;
@@ -121,7 +123,7 @@ class Transferer implements Callable<State> {
 
 					filesCopied++;
 					filesCopiedSize += size;
-				} else if (ft.isBackupable()) {
+				} else if (ft.getStatus().isBackupable()) {
 					filesSelected++;
 					filesSelectedSize += ft.getSourceSize();
 					files.add(ft);
@@ -133,10 +135,10 @@ class Transferer implements Callable<State> {
 				if(zipFilter == null)
 					return CONTINUE;
 
-				if(!ft.isBackupable())
+				if(!ft.getStatus().isBackupable())
 					return SKIP_SUBTREE;
 
-				if(zipFilter.test(ft.getSourcePath())) {
+				if(zipFilter.test(ft.getSourcePath().path())) {
 					FilteredDir fdir = (FilteredDir) ft;
 					long size = fdir.getDir().getSourceSize();
 					int count = fdir.getDir().filesInTree();
@@ -176,7 +178,7 @@ class Transferer implements Callable<State> {
 		State state = copyFiles();
 
 		if(toBeRemoved != null)
-			toBeRemoved.forEach(FileEntity::remove);
+			toBeRemoved.forEach(FileEntity::delete); //FIXME toBeRemoved.forEach(FileEntity::remove); 
 
 		filesTree.updateDirAttrs();
 		return state;
@@ -206,20 +208,20 @@ class Transferer implements Callable<State> {
 	}
 	private State copyFiles() {
 		for (FileEntity f : files) {
-			if(canceler.isCancelled())
+			if(isCancelled())
 				return CANCELLED;
 
-			if(!f.isBackupable())
+			if(!f.getStatus().isBackupable())
 				continue;
 
-			Path src = f.getSourcePath();
-			Path target = f.getBackupPath();
+			PathWrap src = f.getSourcePath();
+			PathWrap target = f.getBackupPath();
 			newTask(f);
 			copyStart(f);
 
 			try {
-				if(copy(src, target))
-					f.setCopied(true);
+				if(copy(src.path(), target.path()))
+					f.getStatus().setCopied(true);
 			} catch (IOException e) {
 				LOGGER.error("file copy failed {} -> {}", src, target, e);
 				addFailed(f, e);
@@ -249,13 +251,13 @@ class Transferer implements Callable<State> {
 		if(dir.getSourceSize() > MAX_ZIP_SIZE)
 			throw new IOException(String.format("zipfile size (%s) exceeds max allows size (%s)", MyUtilsBytes.bytesToHumanReadableUnits(dir.getSourceSize(), false), MyUtilsBytes.bytesToHumanReadableUnits(MAX_ZIP_SIZE, false)));
 
-		final int nameCount = dir.getSourcePath().getNameCount();
-		Path target = dir.getBackupPath();
+		final int nameCount = dir.getSourcePath().path().getNameCount();
+		Path target = dir.getBackupPath().path();
 
 		if(target.toString().length() > FILENAME_MAX)
 			throw new IOException(new IOException("filepath length exceeds FILENAME_MAX ("+FILENAME_MAX+"): "+target));
 
-		if(!createDir(dir.getBackupPath().getParent()))
+		if(!createDir(dir.getBackupPath().path().getParent()))
 			return COMPLETED;
 
 		boolean[] delete = {false};
@@ -267,17 +269,17 @@ class Transferer implements Callable<State> {
 				ZipOutputStream zos = new ZipOutputStream(os); ) {
 			zos.setLevel(Deflater.BEST_SPEED);
 
-			dir.walk(new SimpleFileTreeWalker() {
+			dir.walk(new FileTreeWalker() {
 				@Override
 				public FileVisitResult file(FileEntity ft) {
 					if(removeFromFileTree(ft))
 						return CONTINUE;
 
-					if(canceler.isCancelled()) {
+					if(isCancelled()) {
 						cancel();
 						return TERMINATE;
 					}
-					Path src = ft.getSourcePath();
+					Path src = ft.getSourcePath().path();
 					if(Files.notExists(src)) {
 						LOGGER.warn("file not found: {}", src);
 						return CONTINUE;
@@ -290,7 +292,7 @@ class Transferer implements Callable<State> {
 						error[0] = e;
 						return TERMINATE;
 					}
-					if(canceler.isCancelled()) {
+					if(isCancelled()) {
 						cancel();
 						return TERMINATE;
 					}
@@ -303,7 +305,7 @@ class Transferer implements Callable<State> {
 					if(removeFromFileTree(dir))
 						return SKIP_SUBTREE;
 
-					if(Files.notExists(ft.getSourcePath())) {
+					if(Files.notExists(ft.getSourcePath().path())) {
 						LOGGER.warn("file not found: {}", ft.getSourcePath());
 						return SKIP_SUBTREE;
 					}
@@ -317,7 +319,7 @@ class Transferer implements Callable<State> {
 			if(error[0] != null)
 				throw error[0];
 		} catch (IOException e) {
-			fdir.setCopied(false);
+			fdir.getStatus().setCopied(false);
 			delete[0] = true;
 			throw e;
 		} finally {
@@ -333,17 +335,18 @@ class Transferer implements Callable<State> {
 	}
 
 	private void moveZip(FilteredDir fdir, Path src) throws IOException {
-		Path target = fdir.getBackupPath();
+		PathWrap targetPW = fdir.getBackupPath();
+		Path target = fdir.getBackupPath().path();
 		target = target.resolveSibling(target.getFileName()+".zip");
 		newTask(MyUtilsException.noError(() -> Files.size(src)), src, target);
-		Path src2 = fdir.getSourcePath();
-		listener.copyStarted(src2, target);
+		PathWrap src2 = fdir.getSourcePath();
+		listener.copyStarted(src2, targetPW);
 		if(copy(src, target)){
-			fdir.setCopied(true);
+			fdir.getStatus().setCopied(true);
 			zipsCopied.add(fdir);
 			delete(src, null);
 		}
-		listener.copyCompleted(src2, target);
+		listener.copyCompleted(src2, targetPW);
 	}
 
 	private void rename(Path src, Path target, String msg) throws IOException {
@@ -381,7 +384,7 @@ class Transferer implements Callable<State> {
 
 			try(InputStream strm = Files.newInputStream(src, READ);) {
 				while((n = strm.read(buffer)) != -1) {
-					if(canceler.isCancelled()) return;
+					if(isCancelled()) return;
 					zos.write(buffer, 0, n);
 					addBytesRead(n);
 				}
@@ -408,7 +411,7 @@ class Transferer implements Callable<State> {
 	// private Path src, target;
 
 	private Path newTask(FileEntity f) {
-		return newTask(f.getSourceSize(), f.getSourcePath(), f.getBackupPath());
+		return newTask(f.getSourceSize(), f.getSourcePath().path(), f.getBackupPath().path());
 	}
 	private Path newTask(long size, Path src, Path target) {
 		currentFileSize = size;
@@ -418,15 +421,15 @@ class Transferer implements Callable<State> {
 		return target;
 	}
 	private boolean copy(Path src, Path target) throws IOException {
-		if(canceler.isCancelled()) return false;
+		if(isCancelled()) return false;
 
 		if(target.toString().length() > FILENAME_MAX)
 			throw new IOException("filepath length exceeds FILENAME_MAX ("+FILENAME_MAX+"): "+target);
-
+		
 		if(!createDir(target.getParent()))
 			return false;
 
-		if(canceler.isCancelled()) return false;
+		if(isCancelled()) return false;
 
 		ByteBuffer buffer = byteBuffers.poll();
 		buffer.clear();
@@ -446,7 +449,7 @@ class Transferer implements Callable<State> {
 				} else {
 					int n = 0;
 					while((n = in.read(buffer)) != -1) {
-						if(canceler.isCancelled()) return false;
+						if(isCancelled()) return false;
 
 						buffer.flip();
 						out.write(buffer);
@@ -467,6 +470,11 @@ class Transferer implements Callable<State> {
 		if(!directCopy)
 			rename(temp, target, "copied file");
 		return true;
+	}
+
+	private boolean isCancelled() {
+		return Junk.notYetImplemented();
+		// FIXME Auto-generated method stub
 	}
 
 	private boolean createDir(Path parent) throws IOException {

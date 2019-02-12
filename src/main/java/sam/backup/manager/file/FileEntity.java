@@ -1,5 +1,7 @@
 package sam.backup.manager.file;
 
+import sam.backup.manager.config.PathWrap;
+
 public interface FileEntity {
 	int getId();
 	Dir getParent();
@@ -8,7 +10,8 @@ public interface FileEntity {
 	boolean isDirectory();
 	Status getStatus();
 	String getName();
-	String getSourcePath();
-	String getBackupPath();
+	PathWrap getSourcePath();
+	PathWrap getBackupPath();
 	boolean delete();
+	long getSourceSize();
 }

@@ -165,7 +165,7 @@ public class DirImpl extends FileImpl implements Dir {
 		return CONTINUE;
 	}
 
-	private static DirImpl dir(FileEntity f) {
+	static DirImpl dir(FileEntity f) {
 		return (DirImpl)f;
 	}
 

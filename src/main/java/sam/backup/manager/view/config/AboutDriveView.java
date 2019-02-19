@@ -1,6 +1,6 @@
 package sam.backup.manager.view.config;
 
-import static javafx.application.Platform.runLater;
+import static sam.backup.manager.extra.Utils.fx;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -37,16 +37,15 @@ public class AboutDriveView extends VBox  implements EventHandler<MouseEvent> {
 			}
 		}
 	}
-	
 
-	public AboutDriveView(ConfigManager root) {
+	public AboutDriveView() {
 		setClass(this, "AboutDriveView");
 		setOnMouseClicked(this);
 		
 		for(FileStore fs: FileSystems.getDefault().getFileStores()) 
 			getChildren().add(new FileStoreView(fs));
 		
-		runLater(() -> getChildren().stream().map(FileStoreView.class::cast).forEach(FileStoreView::updateText));
+		fx(() -> getChildren().stream().map(FileStoreView.class::cast).forEach(FileStoreView::updateText));
 	}
 
 	@Override

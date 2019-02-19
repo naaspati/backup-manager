@@ -1,6 +1,6 @@
 package sam.backup.manager.view.config;
 
-import static javafx.application.Platform.runLater;
+import static sam.backup.manager.extra.Utils.fx;
 import static sam.backup.manager.extra.Utils.hashedName;
 import static sam.backup.manager.extra.Utils.hyperlink;
 import static sam.backup.manager.extra.Utils.millsToTimeString;
@@ -124,7 +124,7 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 
 			treeText.append(names[names.length - 1]).append('\n');
 
-			runLater(() ->{
+			fx(() ->{
 				dirCountT.setText(null);
 				fileCountT.setText("All count: "+names.length);
 			});
@@ -161,11 +161,11 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 
 	@Override
 	public void onFileFound(FileEntity ft, long size, WalkMode mode) {
-		runLater(() -> fileCountT.setText("  Files: "+(++fileCount)));
+		fx(() -> fileCountT.setText("  Files: "+(++fileCount)));
 	}
 	@Override
 	public void onDirFound(Dir ft, WalkMode mode) {
-		runLater(() -> dirCountT.setText("  Dirs: "+(++dirCount)));
+		fx(() -> dirCountT.setText("  Dirs: "+(++dirCount)));
 	}
 	@Override
 	public void walkCompleted() {
@@ -173,7 +173,7 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 			treeText = new FileTreeString(config.getFileTree());
 			Utils.saveFileTree(config);
 		}
-		runLater(() -> {
+		fx(() -> {
 			getChildren().remove(button);
 			button.setType(ButtonType.OPEN);
 			getChildren().add(new HBox(3, button, new CustomButton(ButtonType.SAVE, this)));
@@ -234,7 +234,7 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 	}
 
 	private void listCreated() {
-		runLater(() -> {
+		fx(() -> {
 			FxPopupShop.showHidePopup("List created\nfor: "+config.getSource(), 3000);
 			startEnd.onComplete(this);
 		});

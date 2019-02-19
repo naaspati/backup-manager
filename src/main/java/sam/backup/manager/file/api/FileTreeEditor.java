@@ -21,6 +21,5 @@ public interface FileTreeEditor extends AutoCloseable {
 	void setWalked(Dir dir, boolean walked);
 	boolean isWalked(Dir dir);
 	void setAttr(Attr attr, WalkMode walkMode, Path dir);
-	boolean delete(FileEntity f);
 	void close() throws IOException;
 }

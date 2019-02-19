@@ -1,6 +1,6 @@
 package sam.backup.manager.transfer;
 
-import static javafx.application.Platform.runLater;
+import static sam.backup.manager.extra.Utils.fx;
 import static sam.backup.manager.extra.State.CANCELLED;
 import static sam.backup.manager.extra.State.COMPLETED;
 import static sam.backup.manager.extra.State.QUEUED;
@@ -34,7 +34,7 @@ import sam.backup.manager.api.Startable;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.State;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.api.FilteredFileTree;
+import sam.backup.manager.file.api.FilteredDir;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
@@ -70,9 +70,9 @@ public class TransferView extends VBox implements Runnable, Startable, ButtonAct
 	private final Path source, target;
 	private final Function<Path, Path> sourceSubpather, targetSubpather;
 	private Transferer transferer;
-	private final FilteredFileTree fileTree;
+	private final FilteredDir fileTree;
 
-	public TransferView(Config config, FilteredFileTree filesTree, StatusView statusView, IStartOnComplete<TransferView> startCompleteAction) {
+	public TransferView(Config config, FilteredDir filesTree, StatusView statusView, IStartOnComplete<TransferView> startCompleteAction) {
 		super(3);
 		addClass(this, "transfer-view");
 		this.startEndAction = startCompleteAction;
@@ -184,7 +184,7 @@ public class TransferView extends VBox implements Runnable, Startable, ButtonAct
 	}
 
 	public State run2() {
-		runLater(() -> getChildren().setAll(getHeaderText(),sourceTargetTa, currentProgressT, currentProgressBar, totalProgressT, totalProgressBar, uploadCancelBtn));
+		fx(() -> getChildren().setAll(getHeaderText(),sourceTargetTa, currentProgressT, currentProgressBar, totalProgressT, totalProgressBar, uploadCancelBtn));
 
 		summery.start();
 
@@ -207,7 +207,7 @@ public class TransferView extends VBox implements Runnable, Startable, ButtonAct
 		if(isState(COMPLETED))
 			throw new IllegalStateException("trying to change state after COMPLETED");
 
-		runLater(() -> {
+		fx(() -> {
 			this.state.set(state);
 
 			if(isState(COMPLETED))
@@ -240,7 +240,7 @@ public class TransferView extends VBox implements Runnable, Startable, ButtonAct
 		getChildren().addAll(top, t);
 
 		MyUtilsCmd.beep(4);
-		runLater(() -> FxPopupShop.showHidePopup("transfer completed", 1500));
+		fx(() -> FxPopupShop.showHidePopup("transfer completed", 1500));
 		startEndAction.onComplete(this);
 
 		if(sourceTargetTa != null)
@@ -260,7 +260,7 @@ public class TransferView extends VBox implements Runnable, Startable, ButtonAct
 	}
 	@Override
 	public void copyStarted(Path src, Path target) {
-		runLater(() -> sourceTargetTa.appendText("src: "+sourceSubpather.apply(src)+"\ntarget: "+targetSubpather.apply(target)+"\n---------\n"));
+		fx(() -> sourceTargetTa.appendText("src: "+sourceSubpather.apply(src)+"\ntarget: "+targetSubpather.apply(target)+"\n---------\n"));
 	}
 	@Override
 	public void copyCompleted(Path src, Path target) { }
@@ -277,7 +277,7 @@ public class TransferView extends VBox implements Runnable, Startable, ButtonAct
 	private volatile LongConsumer currentProgressFormat;
 
 	private void updateProgress() {
-		runLater(() -> {
+		fx(() -> {
 			setProgressBar(currentProgressBar, bytesRead(), currentSize());
 			setProgressBar(totalProgressBar, summery.getBytesRead(), summery.getTotalSize());
 			currentProgressFormat.accept(bytesRead());

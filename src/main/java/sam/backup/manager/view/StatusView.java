@@ -1,6 +1,6 @@
 package sam.backup.manager.view;
 
-import static javafx.application.Platform.runLater;
+import static sam.backup.manager.extra.Utils.fx;
 import static sam.backup.manager.extra.Utils.bytesToString;
 import static sam.backup.manager.extra.Utils.divide;
 import static sam.backup.manager.extra.Utils.durationToString;
@@ -66,7 +66,7 @@ public class StatusView extends HBox {
 		totalString = "/"+ bytesToString(total.addAndGet(value));
 	}
 	public void update(OldNewLong bytesReadOnl, OldNewLong speedOnl) {
-		runLater(() -> {
+		fx(() -> {
 			totalProgressT.setText(bytesToString(bytesRead.addAndGet(bytesReadOnl.difference()))+totalString);
 
 			if(speedOnl != null)

@@ -1,6 +1,8 @@
 package sam.backup.manager.view.config;
 
-import java.io.File;
+import static sam.backup.manager.extra.Utils.fx;
+
+import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -11,107 +13,107 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
-import javafx.application.Platform;
 import javafx.geometry.Insets;
-import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Text;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import sam.backup.manager.extra.Utils;
+import sam.backup.manager.config.PathWrap;
+import sam.backup.manager.file.FileTreeDeleter;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
-import sam.backup.manager.file.api.FilteredFileTree;
+import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FileTreeWalker;
+import sam.backup.manager.file.api.FilteredDir;
+import sam.myutils.MyUtilsException;
 
-public class Deleter extends Stage {
+public class Deleter extends BorderPane implements FileTreeWalker {
 	private final TextArea view = new TextArea();
 	private final Text text = new Text(), path = new Text();
 	private final Set<Dir> dirs = new HashSet<>();
 	private final List<FileEntity> files = new ArrayList<>();
+	private final Button back = new Button("back");
 
-	private Deleter() {
-		super(StageStyle.UTILITY);
-		initModality(Modality.WINDOW_MODAL);
-		initOwner(Utils.window());
-
+	public Deleter() {
 		view.setEditable(false);
 
-		BorderPane pane = new BorderPane(view);
-		pane.setBottom(text);
-		pane.setTop(path);
+		setBottom(text);
+		setTop(path);
+		setCenter(view);
+		
 		BorderPane.setMargin(text, new Insets(5));
 		BorderPane.setMargin(path, new Insets(5));
-
-		setOnCloseRequest(e -> {});
-		setScene(new Scene(pane));
-		setWidth(300);
-		setHeight(500);
-		show();
 	}
 
-	public static CompletableFuture<Void> process(FilteredFileTree tree) {
-		Deleter d = new Deleter();
+	public CompletableFuture<Void> start(FileTree filetree, FilteredDir tree) {
 		String root = tree.getBackupPath() == null ? null : tree.getBackupPath().toString();
-		d.path.setText(root);
+		this.path.setText(root);
+		
+		back.setDisable(true);
+		
+		//FIXME switch view 
 		
 		return CompletableFuture.runAsync(() -> {
-			tree.walk(d);
+			try {
+				tree.walk(this);
 
-			Iterator<FileEntity> iter = Stream.concat(
-					d.files.stream(), 
-					d.dirs.stream().sorted(Comparator.comparingInt((Dir dir) -> dir.getBackupPath().length()).reversed())
-					)
-					.iterator();
+				Iterator<FileEntity> iter = Stream.concat(
+						this.files.stream(), 
+						this.dirs.stream().sorted(Comparator.comparingInt((Dir dir) -> dir.getBackupPath().string().length()).reversed())
+						)
+						.iterator();
 
-			StringBuilder sb = new StringBuilder();
-			long time = System.currentTimeMillis() + 1000;
-			int success = 0, total = 0;
+				StringBuilder sb = new StringBuilder();
+				long time = System.currentTimeMillis() + 1000;
+				int success = 0, total = 0;
+				
+				try(FileTreeDeleter editor = filetree.getDeleter()) {
+					while (iter.hasNext()) {
+						FileEntity fte = iter.next();
+						PathWrap p = fte.getBackupPath();
+						
+						if(!fte.isDirectory()) {
+							try {
+								editor.delete(fte, p);
+								success++;
+								sb.append("success").append("  ").append(p.string()).append('\n');
+							} catch (IOException e) {
+								sb.append("failed ").append("  ").append(p.string()).append(", error: ").append(MyUtilsException.toString(e)).append('\n');
+								// TODO: handle exception
+							}
+							total++;	
+						}
 
-			while (iter.hasNext()) {
-				FileEntity fte = iter.next();
-				File file = new File(fte.getBackupPath());
-				//FIXME move this code to FileEntityImpl
-				boolean b = !file.exists() || file.delete();
-				if(b) {
-					fte.delete();
-				} 
-
-				String s = file.toString();
-				if(root != null && s.length() > root.length() && s.startsWith(root))
-					s = s.substring(root.length());
-
-				if(b || !fte.isDirectory()) {
-					if(b)
-						success++;
-					total++;
-					sb.append(b).append("  ").append(s).append('\n');
+						if(System.currentTimeMillis() >= time) {
+							time = System.currentTimeMillis() + 1000;
+							String ss = sb.toString();
+							sb.setLength(0);
+							String st = success+"/"+total;
+							fx(() -> {
+								this.view.appendText(ss);
+								this.text.setText(st);
+							});
+						}
+					}				
+				} catch (Exception e2) {
+					e2.printStackTrace();
+					// TODO: handle exception
 				}
-
-				if(System.currentTimeMillis() >= time) {
-					time = System.currentTimeMillis() + 1000;
+				
+				if(sb.length() != 0) {
 					String ss = sb.toString();
-					sb.setLength(0);
 					String st = success+"/"+total;
-					Platform.runLater(() -> {
-						d.view.appendText(ss);
-						d.text.setText(st);
+					fx(() -> {
+						this.view.appendText(ss);
+						this.text.setText(st);
 					});
 				}
-			} 
-			if(sb.length() != 0) {
-				String ss = sb.toString();
-				String st = success+"/"+total;
-				Platform.runLater(() -> {
-					d.view.appendText(ss);
-					d.text.setText(st);
-				});
+			} finally {
+				fx(() -> back.setDisable(false));
 			}
-			Platform.runLater(() -> d.setOnCloseRequest(e -> d.close()));
 		});
 	}
-	// FIXME @Override
+	@Override
 	public FileVisitResult file(FileEntity ft) {
 		if(ft.getStatus().isBackupDeletable()) {
 			dirs.add(ft.getParent());
@@ -120,9 +122,8 @@ public class Deleter extends Stage {
 		return FileVisitResult.CONTINUE;
 	}
 
-	// FIXME @Override
+	@Override
 	public FileVisitResult dir(Dir ft) {
 		return FileVisitResult.CONTINUE;
 	}
-
 }

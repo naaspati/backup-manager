@@ -1,6 +1,7 @@
 package sam.backup.manager.file;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.BitSet;
 
@@ -15,6 +16,7 @@ import sam.backup.manager.file.api.FileTreeEditor;
 import sam.backup.manager.walk.WalkMode;
 import sam.myutils.Checker;
 import sam.nopkg.Junk;
+import static sam.backup.manager.file.FileEntityWithId.*;
 
 final class FileTreeImpl extends DirImpl implements FileTree {
 	private TreeType treetype;
@@ -39,6 +41,26 @@ final class FileTreeImpl extends DirImpl implements FileTree {
 	}
 	
 	@Override
+	public FileTreeDeleter getDeleter() {
+		return new FileTreeDeleter() {
+			
+			@Override
+			public void delete(FileEntity f, PathWrap file) throws IOException {
+				Files.deleteIfExists(file.path());
+				
+				// TODO Auto-generated method stub
+				Junk.notYetImplemented();
+			}
+			
+			@Override
+			public void close() throws IOException {
+				// TODO Auto-generated method stub
+				
+			}
+		};
+	}
+	
+	@Override
 	public FileTreeEditor getEditor(Path start) {
 		return new FileTreeEditor() {
 			@Override
@@ -46,11 +68,7 @@ final class FileTreeImpl extends DirImpl implements FileTree {
 				// TODO Auto-generated method stub
 				
 			}
-			@Override
-			public boolean delete(FileEntity f) {
-				// TODO Auto-generated method stub
-				return Junk.notYetImplemented();
-			}
+			
 			@Override
 			public Dir addDir(Path dir, Attr attr, WalkMode walkMode) {
 				//FIXME
@@ -68,11 +86,11 @@ final class FileTreeImpl extends DirImpl implements FileTree {
 			}
 			@Override
 			public void setWalked(Dir dir, boolean walked) {
-				dirWalked.set(dir.getId(), walked);
+				dirWalked.set(id(dir), walked);
 			}
 			@Override
 			public boolean isWalked(Dir dir) {
-				return dirWalked.get(dir.getId());
+				return dirWalked.get(id(dir));
 			}
 			
 			@Override
@@ -81,7 +99,7 @@ final class FileTreeImpl extends DirImpl implements FileTree {
 			}
 			@SuppressWarnings("unchecked")
 			private <E extends FileImpl> E add(Dir parent, E file) {
-				return (E) ((DirImpl)parent).add(file);
+				return (E) dir(parent).add(file);
 			}
 			@Override
 			public DirImpl addDir(Dir parent, String dirname) {
@@ -92,7 +110,7 @@ final class FileTreeImpl extends DirImpl implements FileTree {
 	
 	@Override
 	public boolean isWalked(Dir dir) {
-		return dirWalked.get(dir.getId());
+		return dirWalked.get(id(dir));
 	}
 	@Override
 	protected void modified() {

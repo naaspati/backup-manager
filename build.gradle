@@ -19,7 +19,7 @@ version = 1.12
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
-mainClassName = 'Main'
+mainClassName = 'sam.backup.manager.app.App'
 ext.appdir = file(System.env.SAM_PROGRAMS+'/backup/backup.beta/bin')
 	
 task combineCss {

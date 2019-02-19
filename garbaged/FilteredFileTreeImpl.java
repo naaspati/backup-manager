@@ -7,7 +7,7 @@ import java.util.function.Predicate;
 import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
-import sam.backup.manager.file.api.FileEntityFilter;
+import sam.backup.manager.file.api.Predicate<FileEntity>;
 import sam.backup.manager.file.api.FilteredFileTree;
 import sam.backup.manager.walk.WalkMode;
 import sam.myutils.ThrowException;
@@ -61,7 +61,7 @@ class FilteredFileTreeImpl extends FilteredDirImpl implements FilteredFileTree {
 	}
 
 	@Override
-	public FilteredFileTree filtered(FileEntityFilter filter) {
+	public FilteredFileTree filtered(Predicate<FileEntity> filter) {
 		// TODO Auto-generated method stub
 		return null;
 	}

@@ -68,32 +68,7 @@ import sam.nopkg.Junk;
 import sam.reference.WeakPool;
 
 public class FilesView extends BorderPane {
-	private static WeakPool<FilesView> views = new WeakPool<>(() -> new FilesView(null, null, null, null)); 
-	private static WeakReference<Stage> weakStage = new WeakReference<Stage>(null);
-	private static final Session SESSION = Session.getSession(FilesView.class);
-
-	private static Stage getStage() {
-		Stage stage = weakStage.get();
-
-		if(stage == null) {
-			stage = new Stage();
-			Scene scene = new Scene(new HBox());
-			scene.getStylesheets().add("styles.css");
-			stage.initModality(Modality.WINDOW_MODAL);
-			stage.initOwner(Utils.window());
-			stage.initStyle(StageStyle.UTILITY);
-			stage.setScene(scene);
-			stage.setWidth(600);
-
-			weakStage = new WeakReference<Stage>(stage);
-		}
-		return stage;
-	}
-	public static void open(String string, IdentityHashMap<PathWrap, FileTree> fileTree2, FilesViewSelector all) {
-		//TODO
-		Junk.notYetImplemented();
-	}
-	public static Stage open(String title, FileTree filetree, Config config, Dir treeToDisplay, FilesViewSelector selector,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
+	public static Stage open(String title, Config config, Dir treeToDisplay, FilesViewSelector selector,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
 		Stage stage = getStage();
 		FilesView[] vs = {null};
 		
@@ -105,7 +80,7 @@ public class FilesView extends BorderPane {
 		FilesView v = vs[0];
 		
 		if(v == null) {
-			v = new FilesView(filetree, treeToDisplay, selector, buttons);
+			v = new FilesView(config, treeToDisplay, selector, buttons);
 			views.add(v);
 		}
 
@@ -117,6 +92,9 @@ public class FilesView extends BorderPane {
 
 		return stage;
 	}
+	
+	
+	
 	private static final String separator = "    ";
 
 	private final TreeView<FileEntity> treeView;
@@ -130,7 +108,7 @@ public class FilesView extends BorderPane {
 	private final FilesViewSelector selector;
 	private final FileTree fileTree;
 
-	private FilesView(FileTree filetree, Dir treeToDisplay, FilesViewSelector selector, Button[] buttons) {
+	private FilesView(Config config, Dir treeToDisplay, FilesViewSelector selector, Button[] buttons) {
 		addClass(this, "files-view");
 		this.fileTree = filetree; 
 		sourceRoot = fileTree.getSourcePath();
@@ -421,5 +399,10 @@ public class FilesView extends BorderPane {
 
 			return prefix + p.substring(start.length());
 		}
+	}
+
+	public void setButtons(CustomButton button) {
+		// TODO Auto-generated method stub
+		Junk.notYetImplemented();
 	}
 }

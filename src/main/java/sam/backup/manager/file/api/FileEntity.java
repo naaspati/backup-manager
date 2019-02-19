@@ -4,7 +4,6 @@ import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.file.Status;
 
 public interface FileEntity {
-	int getId();
 	Dir getParent();
 	Attrs getBackupAttrs();
 	Attrs getSourceAttrs();

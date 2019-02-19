@@ -7,7 +7,6 @@ import static java.nio.file.FileVisitResult.TERMINATE;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
-import static javafx.application.Platform.runLater;
 
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
@@ -26,9 +25,11 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +45,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.application.HostServices;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
@@ -219,7 +221,7 @@ public final class Utils {
 
 	public static void showErrorAndWait(Object text, Object header, Exception e) {
 		AtomicBoolean b = new AtomicBoolean();
-		runLater(() -> {
+		fx(() -> {
 			FxAlert.showErrorDialog(text, header, e);
 			b.set(true);
 		});
@@ -266,13 +268,13 @@ public final class Utils {
 		stg.getScene().getStylesheets().setAll(window.getScene().getStylesheets());
 		stg.setWidth(300);
 		stg.setHeight(400);
-		runLater(stg::show);
+		fx(stg::show);
 
 		return stg;
 	}
 
 	public static void showErrorDialog(Object text, String header, Exception error) {
-		runLater(() -> FxAlert.showErrorDialog(text, header, error));
+		fx(() -> FxAlert.showErrorDialog(text, header, error));
 	}
 	public static FileChooser selectFile(File expectedDir, String expectedName, String title) {
 		return FxUtils.fileChooser(expectedDir, expectedName, title, null);
@@ -306,7 +308,7 @@ public final class Utils {
 		try {
 			writeInTempDir0(config, prefix, suffix, data, logger);
 		} catch (IOException e) {
-			runLater(() -> FxAlert.showErrorDialog(null, "failed to save", e));
+			fx(() -> FxAlert.showErrorDialog(null, "failed to save", e));
 		}
 	}
 
@@ -485,5 +487,8 @@ public final class Utils {
 		if(Utils.errorHandler != null)
 			throw new IllegalStateException();
 		Utils.errorHandler = errorHandler;
+	}
+	public static void fx(Runnable runnable) {
+		Platform.runLater(runnable);
 	}
 }

@@ -6,12 +6,12 @@ import sam.nopkg.Junk;
 
 public class FilteredFileTree extends FilteredDir {
 
-	FilteredFileTree(Dir dir, FilteredDir parent, FileEntityFilter filter) {
+	FilteredFileTree(Dir dir, FilteredDir parent, Predicate<FileEntity> filter) {
 		super(dir, parent, filter);
 		// TODO Auto-generated constructor stub
 	}
 
-	public FilteredFileTree(FileTree fileTree, FileEntityFilter filter) {
+	public FilteredFileTree(FileTree fileTree, Predicate<FileEntity> filter) {
 		// super(dir, parent, filter);
 		super(null, null, filter);
 		Junk .notYetImplemented();

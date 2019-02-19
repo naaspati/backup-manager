@@ -1,6 +1,6 @@
 package sam.backup.manager.view;
 
-import static javafx.application.Platform.runLater;
+import static sam.backup.manager.extra.Utils.fx;
 import static sam.backup.manager.extra.Utils.showErrorDialog;
 
 import java.util.List;
@@ -25,15 +25,15 @@ public class ListsViews {
 	public static ListsViews getInstance() {
 		return instance;
 	}
-	static void init(ConfigManager root, ViewSwitcher centerView) {
+	static void init(ConfigManager root, CenterViewImpl centerView) {
 		instance = new ListsViews(root, centerView);
 	}
-	public ListsViews(ConfigManager root, ViewSwitcher centerView) {
+	public ListsViews(ConfigManager root, CenterViewImpl centerView) {
 
 		List<ListingView> list = root.getLists().stream()
 				.map(c -> new ListingView(c,Utils.getBackupLastPerformed("list:"+c.getSource())))
 				.collect(Collectors.toList());
-		runLater(() -> centerView.addAllListView(list));
+		fx(() -> centerView.addAllListView(list));
 	}
 
 	public void start(ListingView e) {

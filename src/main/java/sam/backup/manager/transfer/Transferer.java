@@ -45,7 +45,7 @@ import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTreeWalker;
 import sam.backup.manager.file.api.FilteredDir;
-import sam.backup.manager.file.api.FilteredFileTree;
+import sam.backup.manager.file.api.FilteredDir;
 import sam.myutils.MyUtilsBytes;
 import sam.myutils.MyUtilsException;
 import sam.myutils.MyUtilsPath;
@@ -71,7 +71,7 @@ class Transferer implements Callable<State> {
 
 	private final IFilter zipFilter;
 
-	private final FilteredFileTree filesTree;
+	private final FilteredDir filesTree;
 	private final TransferListener listener;
 	private final Set<Path> createdDirs = new HashSet<>();
 
@@ -87,7 +87,7 @@ class Transferer implements Callable<State> {
 	private List<FileEntity> toBeRemoved;
 	private final Config config;
 
-	public Transferer(Config config, FilteredFileTree filesTree, TransferListener listener) {
+	public Transferer(Config config, FilteredDir filesTree, TransferListener listener) {
 		this.config = config;
 		this.filesTree = filesTree;
 		this.listener = listener;

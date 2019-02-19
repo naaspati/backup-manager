@@ -1,6 +1,6 @@
 package sam.backup.manager.view;
 
-import static javafx.application.Platform.runLater;
+import static sam.backup.manager.extra.Utils.fx;
 import static sam.backup.manager.extra.Utils.putBackupLastPerformed;
 import static sam.backup.manager.extra.Utils.runAsync;
 
@@ -18,7 +18,7 @@ import sam.fx.alert.FxAlert;
 public class ConfigViews  {
 //	private static final Logger LOGGER = Utils.getLogger(ConfigManager.class);
 	
-	private final ViewSwitcher centerView;
+	private final CenterViewImpl centerView;
 	private final StatusView statusView;
 	// private final AboutDriveView aboutDriveView;
 
@@ -27,15 +27,15 @@ public class ConfigViews  {
 	public static ConfigViews getInstance() {
 		return instance;
 	}
-	static void init(StatusView statusView, AboutDriveView aboutDriveView, ViewSwitcher centerView, ConfigManager root) {
+	static void init(StatusView statusView, AboutDriveView aboutDriveView, CenterViewImpl centerView, ConfigManager root) {
 		instance = new ConfigViews(statusView, aboutDriveView, centerView, root);
 	}
-	private ConfigViews(StatusView statusView, AboutDriveView aboutDriveView, ViewSwitcher centerView, ConfigManager root) {
+	private ConfigViews(StatusView statusView, AboutDriveView aboutDriveView, CenterViewImpl centerView, ConfigManager root) {
 		this.centerView = centerView;
 		this.statusView = statusView;
 		// this.aboutDriveView = aboutDriveView;
 
-		runLater(() -> root.getBackups().stream()
+		fx(() -> root.getBackups().stream()
 				.map(c -> new ConfigView(c, this, Utils.getBackupLastPerformed("backup:"+c.getSource())))
 				.forEach(centerView::add)
 				);
@@ -69,7 +69,7 @@ public class ConfigViews  {
 	@Override
 	public void onComplete(ConfigView view) {
 		if(view.hashBackups())
-			runLater(() -> {
+			fx(() -> {
 				TransferView v = new TransferView(view.getConfig(), view.getBackupFileTree(), statusView, transferAction);
 				centerView.add(v);
 				v.stateProperty().addListener((p, o, n) -> {

@@ -17,7 +17,7 @@ import sam.backup.manager.transfer.TransferView;
 import sam.backup.manager.view.config.ConfigView;
 import sam.backup.manager.view.config.ListingView;
 
-public class ViewSwitcher extends BorderPane implements EventHandler<ActionEvent> {
+public class CenterViewImpl extends BorderPane implements EventHandler<ActionEvent> {
 	private final Button backupBtn = button("Backups");
 	private final Button transferBtn = button("Transfer");
 	private final Button listingBtn = button("Listings");
@@ -25,7 +25,7 @@ public class ViewSwitcher extends BorderPane implements EventHandler<ActionEvent
 
 	private Button activeBtn;
 
-	public ViewSwitcher() {
+	public CenterViewImpl() {
 		addClass(this, "center-viewer");
 		addClass(buttonBox, "top");
 		setTop(buttonBox);

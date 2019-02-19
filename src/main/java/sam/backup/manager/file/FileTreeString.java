@@ -2,28 +2,28 @@ package sam.backup.manager.file;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.function.Predicate;
 
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
-import sam.backup.manager.file.api.FileEntityFilter;
 import sam.myutils.MyUtilsBytes;
 
 public class FileTreeString implements CharSequence {
 	private final StringBuilder sb = new StringBuilder();
-	private final FileEntityFilter filter;
+	private final Predicate<FileEntity> filter;
 	
-	public FileTreeString(Dir dir, FileEntityFilter filter) {
+	public FileTreeString(Dir dir, Predicate<FileEntity> filter) {
 		this.filter = filter;
 		
 		appendDetails(dir, new char[0]);
 		walk(new char[] {' ', '|'}, dir);
 	}
 	public FileTreeString(Dir dir) {
-		this(dir, (FileEntityFilter)null);
+		this(dir, (Predicate<FileEntity>)null);
 	}
 	public FileTreeString(Dir dir, Collection<? extends FileEntity> containsIn) {
-		this(dir, new ContainsInFilter(containsIn));
+		this(dir, FileUtils.containsInFilter(containsIn));
 	}
 	
 	//TODO private static final AlphanumericComparator ALPHANUMERIC_COMPARATOR = new AlphanumericComparator();

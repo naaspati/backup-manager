@@ -5,11 +5,10 @@ import java.util.Objects;
 import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
-import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.nopkg.Junk;
 
-public class FileImpl implements FileEntity {
+public class FileImpl implements FileEntityWithId {
 	protected final int id;
 	protected final DirImpl parent;
 	protected final String filename;
@@ -87,5 +86,23 @@ public class FileImpl implements FileEntity {
 		// TODO Auto-generated method stub
 		return 0;
 	}
+	@Override
+	public int hashCode() {
+		return id;
+	}
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		
+		if (getClass() != obj.getClass())
+			return false;
+		FileImpl other = (FileImpl) obj;
+		return id == other.id;
+	}
+	
 }
+
 

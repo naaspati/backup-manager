@@ -15,7 +15,7 @@ import sam.backup.manager.file.api.FileTreeWalker;
 import sam.backup.manager.file.api.FilteredDir;
 import sam.collection.Iterators;
 
-class FilteredDirImpl implements FilteredDir {
+class FilteredDirImpl implements FilteredDir, FileEntityWithId {
 	private final DirImpl dir;
 	private final FilteredDirImpl parent;
 	private final Predicate<FileEntity> filter;

@@ -8,14 +8,14 @@ import sam.backup.manager.config.PathWrap;
 public class FilteredDirImpl implements FilteredDir {
 	private final Dir dir;
 	private final FilteredDirImpl parent;
-	private final FileEntityFilter filter;
+	private final Predicate<FileEntity> filter;
 
-	FilteredDirImpl(Dir dir, FilteredDirImpl parent, FileEntityFilter filter) {
+	FilteredDirImpl(Dir dir, FilteredDirImpl parent, Predicate<FileEntity> filter) {
 		this.dir = dir;
 		this.filter = filter;
 		this.parent = parent;
 	}
-	public FileEntityFilter getFilter() {
+	public Predicate<FileEntity> getFilter() {
 		return filter;
 	}
 	public Dir getDir() {
@@ -118,7 +118,7 @@ public class FilteredDirImpl implements FilteredDir {
 		return 0;
 	}
 	@Override
-	public FilteredDir filtered(FileEntityFilter filter) {
+	public FilteredDir filtered(Predicate<FileEntity> filter) {
 		// TODO Auto-generated method stub
 		return null;
 	}

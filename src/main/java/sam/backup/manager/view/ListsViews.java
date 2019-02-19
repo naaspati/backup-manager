@@ -6,13 +6,13 @@ import static sam.backup.manager.extra.Utils.showErrorDialog;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.view.config.ListingView;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;

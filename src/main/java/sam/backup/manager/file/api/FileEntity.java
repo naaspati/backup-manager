@@ -1,6 +1,7 @@
-package sam.backup.manager.file;
+package sam.backup.manager.file.api;
 
 import sam.backup.manager.config.PathWrap;
+import sam.backup.manager.file.Status;
 
 public interface FileEntity {
 	int getId();
@@ -12,6 +13,5 @@ public interface FileEntity {
 	String getName();
 	PathWrap getSourcePath();
 	PathWrap getBackupPath();
-	boolean delete();
 	long getSourceSize();
 }

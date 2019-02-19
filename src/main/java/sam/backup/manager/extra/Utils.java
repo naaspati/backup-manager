@@ -40,8 +40,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javafx.application.HostServices;
 import javafx.event.ActionEvent;
@@ -63,10 +63,10 @@ import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.file.Dir;
-import sam.backup.manager.file.FileEntity;
-import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeWalker;
+import sam.backup.manager.file.api.Dir;
+import sam.backup.manager.file.api.FileEntity;
+import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FileTreeWalker;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxHyperlink;
 import sam.fx.helpers.FxUtils;
@@ -358,7 +358,7 @@ public final class Utils {
 			hyperlink.setMinWidth(400);
 			return hyperlink;
 		} else {
-			Text t = new Text(wrap == null ? "--" : wrap.raw());
+			Text t = new Text(wrap == null ? "--" : wrap.string());
 			t.setDisable(true);
 			return t;
 		}
@@ -388,7 +388,7 @@ public final class Utils {
 		return button;
 	}
 	public static Logger getLogger(Class<?> cls) {
-		return LoggerFactory.getLogger(cls);
+		return LogManager.getLogger(cls);
 	}
 	public static FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
 		//FIXME 

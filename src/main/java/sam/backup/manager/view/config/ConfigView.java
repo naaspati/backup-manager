@@ -19,7 +19,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableList;
@@ -37,11 +37,11 @@ import javafx.stage.Stage;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.Dir;
-import sam.backup.manager.file.FileEntity;
-import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.FileTreeString;
-import sam.backup.manager.file.FilteredFileTree;
+import sam.backup.manager.file.api.Dir;
+import sam.backup.manager.file.api.FileEntity;
+import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FilteredFileTree;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;

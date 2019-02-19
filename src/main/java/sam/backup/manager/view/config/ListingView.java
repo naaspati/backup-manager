@@ -16,7 +16,7 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import javafx.scene.Node;
 import javafx.scene.control.TextArea;
@@ -26,9 +26,9 @@ import javafx.scene.text.Text;
 import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.Dir;
-import sam.backup.manager.file.FileEntity;
 import sam.backup.manager.file.FileTreeString;
+import sam.backup.manager.file.api.Dir;
+import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;

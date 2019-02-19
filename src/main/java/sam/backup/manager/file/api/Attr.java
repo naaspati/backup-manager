@@ -1,4 +1,4 @@
-package sam.backup.manager.file;
+package sam.backup.manager.file.api;
 
 public class Attr {
 	public final long lastModified;

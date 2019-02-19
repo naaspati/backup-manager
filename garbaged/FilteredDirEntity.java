@@ -15,8 +15,8 @@ public class FilteredDirEntity extends DirImpl {
 
 		dir.stream()
 		.filter(filter)
-		.map(f -> f.isDirectory() ? new FilteredDirImpl(f.asDir(), this, filter) : f)
-		.filter(f -> f.isDirectory() ? !((FilteredDirImpl)f).isEmpty() : true)
+		.map(f -> f.isDirectory() ? new FilteredDir(f.asDir(), this, filter) : f)
+		.filter(f -> f.isDirectory() ? !((FilteredDir)f).isEmpty() : true)
 		.forEach(this::add);
 
 		this.dir = dir;
@@ -31,7 +31,7 @@ public class FilteredDirEntity extends DirImpl {
 	public boolean updateDirAttrs() {
 		boolean b = true;
 		for (FileTreeEntity f : this)
-			b = (f.isDirectory() ? ((FilteredDirImpl)f).updateDirAttrs() : f.isCopied()) && b;
+			b = (f.isDirectory() ? ((FilteredDir)f).updateDirAttrs() : f.isCopied()) && b;
 		
 		if(b)
 			markUpdated();

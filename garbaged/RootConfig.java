@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.filter.IFilter;
 import sam.backup.manager.extra.Utils;

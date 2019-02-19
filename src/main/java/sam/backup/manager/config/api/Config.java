@@ -5,7 +5,7 @@ import java.util.Map;
 
 import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.config.WalkConfig;
-import sam.backup.manager.file.FileTree;
+import sam.backup.manager.file.api.FileTree;
 
 public interface Config {
 	public String getName() ;

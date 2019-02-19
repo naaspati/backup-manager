@@ -21,7 +21,7 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.event.ActionEvent;

@@ -1,24 +1,42 @@
-package sam.backup.manager.file;
+package sam.backup.manager.file.api;
 
+import java.io.IOException;
 import java.nio.file.Path;
-import java.util.function.Predicate;
 
-import sam.backup.manager.walk.WalkMode;
+import sam.myutils.ThrowException;
 
-
-public class FilteredFileTree extends FilteredDirEntity {
-	private final FileTree ft;
-
-	public FilteredFileTree(FileTree ft, WalkMode mode, Predicate<FileImpl> filter) {
-		super(ft, null, filter);
-		this.ft = ft;
-		
-		// FIXME
-	//	ft.computeSize(mode);
-	//	computeSize(mode);
-	}
+public interface FilteredFileTree extends FileTree, FilteredDir {
+	
+	/**
+	 *  access not allowed
+	 */
+	@Deprecated
 	@Override
-	public Path getBackupPath() {
-		return ft.getBackupPath();
+	default void save() throws IOException {
+		ThrowException.illegalAccessError();
+	}
+
+	/**
+	 *  access not allowed
+	 */
+	@Override
+	default void forcedMarkUpdated() {
+		ThrowException.illegalAccessError();
+	}
+
+	/**
+	 *  access not allowed
+	 */
+	@Override
+	default void walkCompleted() {
+		ThrowException.illegalAccessError();
+	}
+
+	/**
+	 *  access not allowed
+	 */
+	@Override
+	default void walkStarted(Path start) {
+		ThrowException.illegalAccessError();
 	}
 }

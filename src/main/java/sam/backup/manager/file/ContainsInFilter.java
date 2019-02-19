@@ -1,40 +1,53 @@
 package sam.backup.manager.file;
 
 import java.util.Collection;
-import java.util.function.Predicate;
 
+import sam.backup.manager.file.api.FileEntity;
+import sam.backup.manager.file.api.FileEntityFilter;
 import sam.collection.IntSet;
 
-public class ContainsInFilter implements Predicate<FileEntity> {
-	private IntSet files;
-	private IntSet dirs;
-	
+public class ContainsInFilter implements FileEntityFilter {
+	private final IntSet files;
+	private final IntSet dirs;
+
 	public ContainsInFilter(Collection<? extends FileEntity> containsIn) {
 		if(containsIn.isEmpty()) {
-			return;
-		}
-		
-		dirs = new IntSet();
-		files = new IntSet();
-		
-		for (FileEntity f : containsIn) {
-			if(f.isDirectory())
-				dirs.add(f.getId());
-			else
-				files.add(f.getId());
-			
-			while((f = f.getParent()) != null) dirs.add(f.getId());
+			this.files = null;
+			this.dirs = null;
+		} else {
+			IntSet files = new IntSet();
+			IntSet dirs = new IntSet();
+
+			for (FileEntity f : containsIn) {
+				if(f.isDirectory())
+					dirs.add(f.getId());
+				else
+					files.add(f.getId());
+
+				while((f = f.getParent()) != null) 
+					dirs.add(f.getId());
+			}
+
+			this.files = files.isEmpty() ? null : files;
+			this.dirs =  dirs.isEmpty()  ? null : dirs;	
 		}
 	}
+	private static boolean check(IntSet set, FileEntity f) {
+		if(set == null)
+			return false;
 
+		return set.contains(f.getId());
+	}
+	
 	@Override
-	public boolean test(FileEntity f) {
-		if(files == null && dirs == null)
+	public boolean test(FileEntity t) {
+		if(t == null)
 			return false;
 		
-		if(f.isDirectory())
-			return dirs.contains(f.getId());
-		else 
-			return files.contains(f.getId());
+		if(t.isDirectory())
+			return check(dirs, t);
+		else
+			return check(files, t);			
 	}
+
 }

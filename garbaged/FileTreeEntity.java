@@ -5,7 +5,7 @@ import static sam.backup.manager.walk.WalkMode.BACKUP;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.extra.Utils;
 import sam.backup.manager.walk.WalkMode;

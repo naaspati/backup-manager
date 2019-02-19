@@ -1,7 +1,7 @@
 package sam.backup.manager.walk;
 
-import sam.backup.manager.file.Dir;
-import sam.backup.manager.file.FileEntity;
+import sam.backup.manager.file.api.Dir;
+import sam.backup.manager.file.api.FileEntity;
 
 public interface WalkListener {
 	public void onFileFound(FileEntity ft, long size, WalkMode mode);

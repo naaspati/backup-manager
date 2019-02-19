@@ -1,21 +1,21 @@
 package sam.backup.manager.file;
 
 import java.util.Iterator;
-import java.util.function.Predicate;
 
 import sam.backup.manager.config.PathWrap;
 
-public class FilteredDir implements Dir {
+//FIXME move into DirImpl 
+public class FilteredDirImpl implements FilteredDir {
 	private final Dir dir;
-	private final FilteredDir parent;
-	private final Predicate<FileEntity> filter;
+	private final FilteredDirImpl parent;
+	private final FileEntityFilter filter;
 
-	FilteredDir(Dir dir, FilteredDir parent, Predicate<FileEntity> filter) {
+	FilteredDirImpl(Dir dir, FilteredDirImpl parent, FileEntityFilter filter) {
 		this.dir = dir;
 		this.filter = filter;
 		this.parent = parent;
 	}
-	public Predicate<FileEntity> getFilter() {
+	public FileEntityFilter getFilter() {
 		return filter;
 	}
 	public Dir getDir() {
@@ -24,7 +24,7 @@ public class FilteredDir implements Dir {
 	public boolean updateDirAttrs() {
 		boolean b = true;
 		for (FileEntity f : this)
-			b = (f.isDirectory() ? ((FilteredDir)f).updateDirAttrs() : f.getStatus().isCopied()) && b;
+			b = (f.isDirectory() ? ((FilteredDirImpl)f).updateDirAttrs() : f.getStatus().isCopied()) && b;
 		
 		//FIXME if(b)  markUpdated();
 		
@@ -58,7 +58,7 @@ public class FilteredDir implements Dir {
 				FileEntity f = next;
 				next0();
 				if(f.isDirectory())
-					return new FilteredDir((Dir)f, FilteredDir.this, filter);
+					return new FilteredDirImpl((Dir)f, FilteredDirImpl.this, filter);
 				return f;
 			}
 		};
@@ -99,6 +99,26 @@ public class FilteredDir implements Dir {
 	}
 	@Override
 	public Dir addDir(String dirname) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+	@Override
+	public long getSourceSize() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	@Override
+	public void walk(FileTreeWalker walker) {
+		// TODO Auto-generated method stub
+		
+	}
+	@Override
+	public int filesInTree() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+	@Override
+	public FilteredDir filtered(FileEntityFilter filter) {
 		// TODO Auto-generated method stub
 		return null;
 	}

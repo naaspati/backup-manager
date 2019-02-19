@@ -1,19 +1,17 @@
 package sam.backup.manager.file;
 
-import java.util.function.Predicate;
-
 import sam.backup.manager.view.config.Deleter;
 import sam.nopkg.Junk;
 
 
 public class FilteredFileTree extends FilteredDir {
 
-	FilteredFileTree(Dir dir, FilteredDir parent, Predicate<FileEntity> filter) {
+	FilteredFileTree(Dir dir, FilteredDir parent, FileEntityFilter filter) {
 		super(dir, parent, filter);
 		// TODO Auto-generated constructor stub
 	}
 
-	public FilteredFileTree(FileTree fileTree, Predicate<FileEntity> filter) {
+	public FilteredFileTree(FileTree fileTree, FileEntityFilter filter) {
 		// super(dir, parent, filter);
 		super(null, null, filter);
 		Junk .notYetImplemented();

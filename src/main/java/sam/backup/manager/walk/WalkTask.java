@@ -9,12 +9,12 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.FileTree;
 import sam.backup.manager.file.PathListToFileTree;
+import sam.backup.manager.file.api.FileTree;
 
 public class WalkTask implements Callable<FileTree> {
 	public static final Logger logger = Utils.getLogger(WalkTask.class); 
@@ -77,7 +77,6 @@ public class WalkTask implements Callable<FileTree> {
 			throw new IOException(s, e);
 		}
 
-		rootTree.walkCompleted();
 		if(!exucludePaths.isEmpty() && Utils.SAVE_EXCLUDE_LIST)
 			Utils.saveInTempDirHideError(new PathListToFileTree(exucludePaths), config, "excluded", source.getFileName()+".txt");
 		
@@ -87,9 +86,9 @@ public class WalkTask implements Callable<FileTree> {
 
 	private Walker walker(WalkMode w, List<Path> exucludePaths) {
 		if(w == WalkMode.SOURCE)
-			return new Walker(config, listener, source, config.getSourceFilter(), w, exucludePaths);
+			return new Walker(rootTree, config, listener, source, config.getSourceFilter(), w, exucludePaths);
 		else if(w == WalkMode.BACKUP) 
-			return new Walker(config, listener, target, config.getTargetFilter(), w, exucludePaths);
+			return new Walker(rootTree, config, listener, target, config.getTargetFilter(), w, exucludePaths);
 		else 
 			throw new IllegalStateException("unknown walk mode: "+w);
 	}

@@ -9,12 +9,12 @@ import java.util.List;
 
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.Attr;
-import sam.backup.manager.file.Attrs;
-import sam.backup.manager.file.Dir;
-import sam.backup.manager.file.FileEntity;
-import sam.backup.manager.file.FileTree;
-import sam.backup.manager.file.FileTreeWalker;
+import sam.backup.manager.file.api.Attr;
+import sam.backup.manager.file.api.Attrs;
+import sam.backup.manager.file.api.Dir;
+import sam.backup.manager.file.api.FileEntity;
+import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FileTreeWalker;
 import sam.nopkg.Junk;
 
 class ProcessFileTree implements FileTreeWalker {

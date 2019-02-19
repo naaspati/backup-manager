@@ -2,17 +2,35 @@ package sam.backup.manager.file;
 
 import java.util.Objects;
 
+import sam.backup.manager.config.PathWrap;
+import sam.backup.manager.file.api.Attrs;
+import sam.backup.manager.file.api.Dir;
+import sam.backup.manager.file.api.FileEntity;
+import sam.backup.manager.file.api.FileTree;
 import sam.nopkg.Junk;
 
 public class FileImpl implements FileEntity {
 	protected final int id;
-	protected final Dir parent;
+	protected final DirImpl parent;
 	protected final String filename;
-	protected final Attrs srcAttrs, backupAttrs; // direct 
-
-	FileImpl(int id, Dir parent, String filename, Attrs source, Attrs backup) {
+	protected final Attrs srcAttrs, backupAttrs; // direct
+	protected PathWrap sourcePath;
+	protected PathWrap backupPath;
+	
+	// to used by FileTree
+	protected FileImpl(int id, String filename, Attrs source, Attrs backup) {
 		this.id = id;
-		this.parent = parent;
+		this.parent = null;
+		this.filename = Objects.requireNonNull(filename);
+		this.srcAttrs = source;
+		this.backupAttrs = backup;
+		
+		if(!(this instanceof FileTree))
+			throw new IllegalAccessError("can on be accessed by FileTree");
+	}
+	FileImpl(int id, DirImpl parent, String filename, Attrs source, Attrs backup) {
+		this.id = id;
+		this.parent = Objects.requireNonNull(parent);
 		this.filename = Objects.requireNonNull(filename);
 		this.srcAttrs = source;
 		this.backupAttrs = backup; 
@@ -46,38 +64,28 @@ public class FileImpl implements FileEntity {
 		return filename;
 	}
 	
-	private String sourcePath;
 	@Override
-	public String getSourcePath() {
+	public PathWrap getSourcePath() {
 		if(sourcePath == null)
-			sourcePath = concat(parent.getSourcePath(), filename);
+			sourcePath = parent.getSourcePath().resolve(filename);
 		return sourcePath;
 	}
-	private String backupPath;
 	@Override
-	public String getBackupPath() {
+	public PathWrap getBackupPath() {
 		if(backupPath == null)
-			backupPath = concat(parent.getBackupPath(), filename);
+			backupPath = parent.getBackupPath().resolve(filename);
 		return backupPath;
 	}
-	private static final StringBuilder sb = new StringBuilder();
 	
-	private String concat(String s, String t) {
-		synchronized (sb) {
-			sb.setLength(0);
-			return sb.append(s).append('\\').append(t).toString();
-		}
-	}
-
 	public Status getStatus() {
 		// FIXME Auto-generated method stub
 		Junk.notYetImplemented();
 		return null;
 	}
 	@Override
-	public boolean delete() {
-		// FIXME Auto-generated method stub
-				return Junk.notYetImplemented();
+	public long getSourceSize() {
+		// TODO Auto-generated method stub
+		return 0;
 	}
 }
 

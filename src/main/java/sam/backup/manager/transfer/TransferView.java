@@ -15,7 +15,7 @@ import java.nio.file.Path;
 import java.util.function.Function;
 import java.util.function.LongConsumer;
 
-import org.slf4j.Logger;
+import org.apache.logging.log4j.Logger;
 
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -34,7 +34,7 @@ import sam.backup.manager.api.Startable;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.State;
 import sam.backup.manager.extra.Utils;
-import sam.backup.manager.file.FilteredFileTree;
+import sam.backup.manager.file.api.FilteredFileTree;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;

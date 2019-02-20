@@ -76,39 +76,40 @@ public class ListsViews extends BorderPane implements SelectionListener {
 		this.fx = feather.instance(UtilsFx.class);
 
 		Node banner = fx.headerBanner("Lists"+(backups.isEmpty() ? "" : " ("+backups.size()+")"));
+		
 		if(backups.isEmpty()) {
 			setTop(banner);
 			setCenter(fx.bigPlaceholder("Nothing Specified"));
-			return;
+		} else {
+			this.utils = feather.instance(Utils.class);
+			this.factory = feather.instance(FileTreeFactory.class);
+			Helper helper = feather.instance(Helper.class);
+			this.umv = new WeakAndLazy<>(UpdateMultipleView::new);
+
+			CheckBox cb = new CheckBox("save without asking");
+			cb.setOnAction(e -> ListConfigView.saveWithoutAsking = cb.isSelected());
+
+			Button updateMultiple = new Button("Update Multiple");
+			updateMultiple.setOnAction(e -> umv.get().show());
+
+			HBox buttons = new HBox(10, cb, updateMultiple);
+			buttons.setPadding(new Insets(2, 5, 2, 5));
+			buttons.setBorder(FxUtils.border(Color.LIGHTGRAY, BorderStrokeStyle.SOLID, new BorderWidths(1, 0, 1, 0)));
+			buttons.setAlignment(Pos.CENTER_LEFT);
+
+			root  = new VBox(2);
+			rootSp = new ScrollPane(root);
+
+			root.setFillWidth(true);
+			rootSp.setFitToWidth(true);
+			rootSp.setHbarPolicy(ScrollBarPolicy.NEVER);
+
+			backups.forEach(c -> root.getChildren().add(new ListConfigView(c,utils.getBackupLastPerformed("list:"+c.getSource()), helper)));
+
+			setTop(new BorderPane(banner, null, null, buttons, null));
+			setCenter(root);
 		}
 
-		this.utils = feather.instance(Utils.class);
-		this.factory = feather.instance(FileTreeFactory.class);
-		Helper helper = feather.instance(Helper.class);
-		this.umv = new WeakAndLazy<>(UpdateMultipleView::new);
-
-		CheckBox cb = new CheckBox("save without asking");
-		cb.setOnAction(e -> ListConfigView.saveWithoutAsking = cb.isSelected());
-
-		Button updateMultiple = new Button("Update Multiple");
-		updateMultiple.setOnAction(e -> umv.get().show());
-
-		HBox buttons = new HBox(10, cb, updateMultiple);
-		buttons.setPadding(new Insets(2, 5, 2, 5));
-		buttons.setBorder(FxUtils.border(Color.LIGHTGRAY, BorderStrokeStyle.SOLID, new BorderWidths(1, 0, 1, 0)));
-		buttons.setAlignment(Pos.CENTER_LEFT);
-
-		root  = new VBox(2);
-		rootSp = new ScrollPane(root);
-
-		root.setFillWidth(true);
-		rootSp.setFitToWidth(true);
-		rootSp.setHbarPolicy(ScrollBarPolicy.NEVER);
-
-		backups.forEach(c -> root.getChildren().add(new ListConfigView(c,utils.getBackupLastPerformed("list:"+c.getSource()), helper)));
-
-		setTop(new BorderPane(banner, null, null, buttons, null));
-		setCenter(root);
 		this.feather = null;
 	}
 	public void start(ListConfigView e) {

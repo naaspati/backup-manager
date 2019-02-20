@@ -26,8 +26,10 @@ public interface UtilsFx {
 	Node button(String tooltip, String icon, EventHandler<ActionEvent> action) ;
 	void runAsync(@SuppressWarnings("rawtypes") Task runnable) ;
 	Node headerBanner(String text);
+	Node bigPlaceholder(String string);
 	
 	public static void fx(Runnable runnable) {
 		Platform.runLater(runnable);
 	}
+	
 }

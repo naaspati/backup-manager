@@ -42,13 +42,13 @@ import sam.nopkg.EnsureSingleton;
 @Singleton
 class UtilsFxImpl implements UtilsFx, Stoppable {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
-	
+
 	private final Logger logger = LogManager.getLogger(UtilsFxImpl.class);
 	private final ExecutorService POOL;
-	
+
 	public UtilsFxImpl() {
 		singleton.init();
-		
+
 		String s = System2.lookup("THREAD_COUNT");
 		int size = 1;
 		if(s == null) 
@@ -67,7 +67,7 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 
 		POOL = size == 1 ? Executors.newSingleThreadScheduledExecutor() : Executors.newFixedThreadPool(size);
 	}
-	
+
 	public Stage showStage(Window parent, Parent content) {
 		Stage stg = new Stage();
 		stg.initModality(Modality.WINDOW_MODAL);
@@ -137,7 +137,7 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 		button.setOnAction(action);
 		return button;
 	}
-	
+
 	@Override
 	public void stop() throws Exception {
 		POOL.shutdownNow();
@@ -150,4 +150,10 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 		// FIXME something beutiful 
 		return new Text(text);
 	}
+	@Override
+	public Node bigPlaceholder(String text) {
+		// FIXME something beutiful 
+		return new Text(text);
+	}
+
 }

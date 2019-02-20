@@ -9,10 +9,10 @@ import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 
-abstract class ScrollPane2<E extends Node> extends ScrollPane  {
+public class ScrollPane2<E extends Node> extends ScrollPane {
 	protected final VBox container = new VBox(2);
 
-	protected ScrollPane2() {
+	public ScrollPane2() {
 		setClass(this, "scroll-pane2");
 		setClass(container, "container");
 

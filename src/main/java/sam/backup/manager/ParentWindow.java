@@ -12,6 +12,6 @@ import javax.inject.Qualifier;
 @Qualifier
 @Retention(RUNTIME)
 @Target({ METHOD, PARAMETER })
-public @interface Parent {
+public @interface ParentWindow {
 
 }

@@ -42,7 +42,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Window;
-import sam.backup.manager.Parent;
+import sam.backup.manager.ParentWindow;
 import sam.backup.manager.StopTasksQueue;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
@@ -83,7 +83,7 @@ public class FilesView extends BorderPane {
 	
 
 	@Inject
-	public FilesView(UtilsFx fx, Utils utils, StopTasksQueue queue, @Parent Provider<Window> parent) {
+	public FilesView(UtilsFx fx, Utils utils, StopTasksQueue queue, @ParentWindow Provider<Window> parent) {
 		this.fx = fx;
 		this.parent = parent;
 		this.utils = utils;

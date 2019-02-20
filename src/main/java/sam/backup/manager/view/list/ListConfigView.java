@@ -39,8 +39,8 @@ import sam.myutils.Checker;
 import sam.myutils.System2;
 import sam.string.StringUtils;
 
-public class ListingView extends VBox implements ButtonAction, WalkListener {
-	private static final Logger LOGGER =  LogManager.getLogger(ListingView.class);
+public class ListConfigView extends VBox implements ButtonAction, WalkListener {
+	private static final Logger LOGGER =  LogManager.getLogger(ListConfigView.class);
 
 	public static boolean saveWithoutAsking;
 
@@ -49,10 +49,10 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 	private CharSequence treeText;
 	private CustomButton button;
 	private Text fileCountT, dirCountT;  
-	private Consumer<ListingView> onWalkCompleted;
+	private Consumer<ListConfigView> onWalkCompleted;
 	private final Helper helper;
 
-	public ListingView(Config c, Long lastUpdated, Helper helper) {
+	public ListConfigView(Config c, Long lastUpdated, Helper helper) {
 		setClass(this, "listing-view");
 		config = c;
 		this.helper = helper;
@@ -181,7 +181,7 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 				onWalkCompleted.accept(this);
 		});
 	}
-	public void setOnWalkCompleted(Consumer<ListingView> onWalkCompleted) {
+	public void setOnWalkCompleted(Consumer<ListConfigView> onWalkCompleted) {
 		this.onWalkCompleted = onWalkCompleted;
 	}
 	public void save() {

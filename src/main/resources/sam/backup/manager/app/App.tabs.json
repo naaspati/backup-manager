@@ -2,7 +2,11 @@
   "Backups": {
     "class": "sam.backup.manager.view.backup.BackupViews"
   },
+  "Lists": {
+    "class": "sam.backup.manager.view.list.ListsViews"
+  },
   "About Drive": {
     "class":"sam.backup.manager.view.AboutDriveView"
-  }
+  },
+  
 }

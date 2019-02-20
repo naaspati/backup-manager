@@ -246,7 +246,7 @@ public class App extends Application implements StopTasksQueue {
 	}
 	
 	@Provides
-	@sam.backup.manager.Parent
+	@sam.backup.manager.ParentWindow
 	private Window stage() {
 		return stage;
 	}

@@ -18,8 +18,8 @@ import java.util.List;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import sam.backup.manager.config.WalkConfig;
 import sam.backup.manager.config.api.BackupConfig;
+import sam.backup.manager.config.api.WalkConfig;
 import sam.nopkg.Junk;
 
 class ConfigImpl {

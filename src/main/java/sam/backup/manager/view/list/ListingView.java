@@ -1,11 +1,11 @@
-package sam.backup.manager.view.config;
+package sam.backup.manager.view.list;
 
-import static sam.backup.manager.extra.Utils.fx;
-import static sam.backup.manager.extra.Utils.hashedName;
-import static sam.backup.manager.extra.Utils.hyperlink;
-import static sam.backup.manager.extra.Utils.millsToTimeString;
-import static sam.backup.manager.extra.Utils.showErrorDialog;
-import static sam.backup.manager.extra.Utils.showStage;
+import static sam.backup.manager.Utils.fx;
+import static sam.backup.manager.Utils.hashedName;
+import static sam.backup.manager.Utils.hyperlink;
+import static sam.backup.manager.Utils.millsToTimeString;
+import static sam.backup.manager.Utils.showErrorDialog;
+import static sam.backup.manager.Utils.showStage;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -23,9 +23,8 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.extra.Utils;
+import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;

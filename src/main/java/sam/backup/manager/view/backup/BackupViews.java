@@ -1,44 +1,42 @@
-package sam.backup.manager.view;
+package sam.backup.manager.view.backup;
 
-import static sam.backup.manager.extra.Utils.fx;
-import static sam.backup.manager.extra.Utils.putBackupLastPerformed;
-import static sam.backup.manager.extra.Utils.runAsync;
+import static sam.backup.manager.Utils.fx;
+import static sam.backup.manager.Utils.putBackupLastPerformed;
+import static sam.backup.manager.Utils.runAsync;
 
+import java.util.Collection;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.VBox;
+import sam.backup.manager.Utils;
+import sam.backup.manager.config.api.Backups;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.extra.State;
-import sam.backup.manager.extra.Utils;
+import sam.backup.manager.file.api.FileTreeFactory;
 import sam.backup.manager.transfer.TransferView;
-import sam.backup.manager.view.config.AboutDriveView;
-import sam.backup.manager.view.config.ConfigView;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
 import sam.fx.alert.FxAlert;
+import sam.nopkg.EnsureSingleton;
 
-public class ConfigViews  {
-//	private static final Logger LOGGER = Utils.getLogger(ConfigManager.class);
+@Singleton
+public class BackupViews extends BorderPane {
+	private static final EnsureSingleton singleton = new EnsureSingleton();
 	
-	private final CenterViewImpl centerView;
-	private final StatusView statusView;
-	// private final AboutDriveView aboutDriveView;
+//	private static final Logger LOGGER = Utils.getLogger(ConfigManager.class);
+	private final FileTreeFactory factory;
+	private final ConfigManager configManager;
+	private final VBox root = new VBox();
 
-	private static ConfigViews instance;
-
-	public static ConfigViews getInstance() {
-		return instance;
-	}
-	static void init(StatusView statusView, AboutDriveView aboutDriveView, CenterViewImpl centerView, ConfigManager root) {
-		instance = new ConfigViews(statusView, aboutDriveView, centerView, root);
-	}
-	private ConfigViews(StatusView statusView, AboutDriveView aboutDriveView, CenterViewImpl centerView, ConfigManager root) {
-		this.centerView = centerView;
-		this.statusView = statusView;
-		// this.aboutDriveView = aboutDriveView;
-
-		fx(() -> root.getBackups().stream()
-				.map(c -> new ConfigView(c, this, Utils.getBackupLastPerformed("backup:"+c.getSource())))
-				.forEach(centerView::add)
-				);
+	@Inject
+	public BackupViews(FileTreeFactory factory, @Backups Collection<? extends Config> backups) {
+		singleton.init();
+		configManager.getBackups()
+		.forEach(c -> root.getChildren().add(new BackupView(c, Utils.getBackupLastPerformed("backup:"+c.getSource()))));
 	}
 
 	private final IStartOnComplete<TransferView>  transferAction = new IStartOnComplete<TransferView>() {
@@ -59,7 +57,7 @@ public class ConfigViews  {
 		}
 	};
 
-	public void start(ConfigView view) {
+	public void start(BackupView view) {
 		if(!view.getConfig().isDisabled()) {
 			Config c = view.getConfig();
 			if(view.loadFileTree()) // FIXME
@@ -67,7 +65,7 @@ public class ConfigViews  {
 		}
 	}
 	@Override
-	public void onComplete(ConfigView view) {
+	public void onComplete(BackupView view) {
 		if(view.hashBackups())
 			fx(() -> {
 				TransferView v = new TransferView(view.getConfig(), view.getBackupFileTree(), statusView, transferAction);

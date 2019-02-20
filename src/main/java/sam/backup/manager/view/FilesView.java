@@ -1,18 +1,16 @@
-package sam.backup.manager.view.config;
+package sam.backup.manager.view;
 
-import static sam.backup.manager.extra.Utils.bytesToString;
-import static sam.backup.manager.extra.Utils.millsToTimeString;
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.millsToTimeString;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +21,6 @@ import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBoxTreeItem;
 import javafx.scene.control.ContextMenu;
@@ -41,13 +38,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
-import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.Status;
 import sam.backup.manager.file.api.Attr;
@@ -55,9 +48,6 @@ import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
-import sam.backup.manager.view.ButtonType;
-import sam.backup.manager.view.CustomButton;
-import sam.config.Session;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxGridPane;
 import sam.fx.popup.FxPopupShop;
@@ -65,7 +55,6 @@ import sam.io.fileutils.FileOpenerNE;
 import sam.io.serilizers.StringWriter2;
 import sam.myutils.Checker;
 import sam.nopkg.Junk;
-import sam.reference.WeakPool;
 
 public class FilesView extends BorderPane {
 	public static Stage open(String title, Config config, Dir treeToDisplay, FilesViewSelector selector,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {

@@ -1,0 +1,5 @@
+{
+  "backups": {
+    "class": "sam.backup.manager.view.backup.BackupViews"
+  }
+}

@@ -4,7 +4,7 @@ import java.nio.file.Path;
 
 import sam.backup.manager.config.api.Filter;
 
-public class FilterImpl extends Filter {
+class FilterImpl extends Filter {
 	private ConfigImpl config;
 
 	public void setConfig(ConfigImpl config) {

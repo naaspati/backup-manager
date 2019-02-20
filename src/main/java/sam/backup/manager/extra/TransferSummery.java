@@ -1,7 +1,7 @@
 package sam.backup.manager.extra;
 
-import static sam.backup.manager.extra.Utils.bytesToString;
-import static sam.backup.manager.extra.Utils.divide;
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.divide;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;

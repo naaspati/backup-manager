@@ -7,16 +7,17 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.concurrent.Callable;
 
 import org.apache.logging.log4j.Logger;
 
+import javafx.concurrent.Task;
+import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.PathListToFileTree;
 import sam.backup.manager.file.api.FileTree;
 
-public class WalkTask implements Callable<FileTree> {
+//FIXME implement tasks
+public class WalkTask extends Task<FileTree> {
 	public static final Logger logger = Utils.getLogger(WalkTask.class); 
 
 	private final Config config;

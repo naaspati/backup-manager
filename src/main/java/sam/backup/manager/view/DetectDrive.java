@@ -8,8 +8,6 @@ import java.util.Properties;
 
 import org.apache.logging.log4j.Logger;
 
-import sam.backup.manager.extra.Utils;
-
 
 
 public class DetectDrive {

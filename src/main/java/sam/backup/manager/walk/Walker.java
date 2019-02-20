@@ -16,10 +16,9 @@ import java.util.concurrent.Callable;
 
 import org.apache.logging.log4j.Logger;
 
-import sam.backup.manager.config.WalkConfig;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.IFilter;
-import sam.backup.manager.extra.Utils;
+import sam.backup.manager.config.api.WalkConfig;
 import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;

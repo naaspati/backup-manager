@@ -1,9 +1,9 @@
 package sam.backup.manager.view;
 
-import static sam.backup.manager.extra.Utils.fx;
-import static sam.backup.manager.extra.Utils.bytesToString;
-import static sam.backup.manager.extra.Utils.divide;
-import static sam.backup.manager.extra.Utils.durationToString;
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.divide;
+import static sam.backup.manager.Utils.durationToString;
+import static sam.backup.manager.Utils.fx;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
 import java.time.Duration;

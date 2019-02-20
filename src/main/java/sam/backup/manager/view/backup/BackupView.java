@@ -1,13 +1,12 @@
-package sam.backup.manager.view.config;
+package sam.backup.manager.view.backup;
 
 
-import static java.lang.String.valueOf;
-import static sam.backup.manager.extra.Utils.fx;
-import static sam.backup.manager.extra.Utils.bytesToString;
-import static sam.backup.manager.extra.Utils.hyperlink;
-import static sam.backup.manager.extra.Utils.millsToTimeString;
-import static sam.backup.manager.extra.Utils.showErrorDialog;
-import static sam.backup.manager.extra.Utils.writeInTempDir;
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.fx;
+import static sam.backup.manager.Utils.hyperlink;
+import static sam.backup.manager.Utils.millsToTimeString;
+import static sam.backup.manager.Utils.showErrorDialog;
+import static sam.backup.manager.Utils.writeInTempDir;
 import static sam.backup.manager.view.ButtonType.DELETE;
 import static sam.backup.manager.view.ButtonType.FILES;
 import static sam.backup.manager.view.ButtonType.WALK;
@@ -18,8 +17,6 @@ import static sam.fx.helpers.FxMenu.menuitem;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
-
-import javax.swing.filechooser.FileView;
 
 import org.apache.logging.log4j.Logger;
 
@@ -36,10 +33,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import javafx.stage.Stage;
+import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.TreeType;
-import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
@@ -49,6 +45,9 @@ import sam.backup.manager.file.api.ForcedMarkable;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
+import sam.backup.manager.view.Deleter;
+import sam.backup.manager.view.FilesView;
+import sam.backup.manager.view.FilesViewSelector;
 import sam.backup.manager.view.WalkHandler;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
@@ -58,8 +57,8 @@ import sam.fx.popup.FxPopupShop;
 import sam.nopkg.Junk;
 import sam.reference.WeakAndLazy;
 
-public class ConfigView extends BorderPane implements ButtonAction, WalkListener {
-	private static final Logger LOGGER = Utils.getLogger(ConfigView.class);
+class BackupView extends BorderPane implements ButtonAction, WalkListener {
+	private static final Logger LOGGER = Utils.getLogger(BackupView.class);
 
 	private final Config config;
 	private final VBox container = new VBox(5);
@@ -74,12 +73,12 @@ public class ConfigView extends BorderPane implements ButtonAction, WalkListener
 
 	private final Text bottomText;
 
-	public ConfigView(Config config, Long lastUpdated, WalkHandler handler) {
+	public BackupView(Config config, Long lastUpdated) {
 		this.config = config;
 		addClass(this, "config-view");
 		addClass(container, "grid");
 		setContextMenu();
-		this.handler = handler;
+		this.handler = Junk.notYetImplemented(); //FIXME
 
 		Label l = FxLabel.label(String.valueOf(config.getSource()),"title");
 		l.setMaxWidth(Double.MAX_VALUE);

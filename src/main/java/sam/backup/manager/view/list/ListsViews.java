@@ -1,41 +1,41 @@
-package sam.backup.manager.view;
+package sam.backup.manager.view.list;
 
-import static sam.backup.manager.extra.Utils.fx;
-import static sam.backup.manager.extra.Utils.showErrorDialog;
+import static sam.backup.manager.Utils.fx;
+import static sam.backup.manager.Utils.showErrorDialog;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+
+import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import org.apache.logging.log4j.Logger;
 
+import javafx.scene.layout.VBox;
+import sam.backup.manager.Utils;
+import sam.backup.manager.config.api.Backups;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
+import sam.backup.manager.config.api.Lists;
 import sam.backup.manager.extra.TreeType;
-import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.api.FileTree;
-import sam.backup.manager.view.config.ListingView;
+import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.view.CenterViewImpl;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
 
-public class ListsViews {
+@Singleton
+public class ListsViews extends VBox {
 	private static final Logger LOGGER = Utils.getLogger(ListsViews.class);
+	private final FileTreeFactory factory;
 
-	private static volatile ListsViews instance;
-
-	public static ListsViews getInstance() {
-		return instance;
+	@Inject
+	public ListsViews(FileTreeFactory factory, @Lists Collection<? extends Config> backups) {
+		this.factory = Objects.requireNonNull(factory);
+		backups.forEach(c -> getChildren().add(new ListingView(c,Utils.getBackupLastPerformed("list:"+c.getSource()))));
 	}
-	static void init(ConfigManager root, CenterViewImpl centerView) {
-		instance = new ListsViews(root, centerView);
-	}
-	public ListsViews(ConfigManager root, CenterViewImpl centerView) {
-
-		List<ListingView> list = root.getLists().stream()
-				.map(c -> new ListingView(c,Utils.getBackupLastPerformed("list:"+c.getSource())))
-				.collect(Collectors.toList());
-		fx(() -> centerView.addAllListView(list));
-	}
-
 	public void start(ListingView e) {
 		Config c = e.getConfig();
 
@@ -44,7 +44,7 @@ public class ListsViews {
 			return;
 		}
 		try {
-			FileTree f = Utils.readFiletree(c, TreeType.LIST, true);
+			FileTree f = factory.readFiletree(c, TreeType.LIST, true);
 			c.setFileTree(f);
 		} catch (Exception e1) {
 			showErrorDialog(null, "failed to read TreeFile: ", e1);

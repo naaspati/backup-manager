@@ -1,10 +1,10 @@
 package sam.backup.manager.view;
 
 import javafx.scene.Node;
-import sam.backup.manager.view.config.ConfigView;
+import sam.backup.manager.view.backup.BackupView;
 import sam.fx.helpers.FxText;
 
-public class ConfigViewer extends ScrollPane2<ConfigView> implements Viewer {
+public class ConfigViewer extends ScrollPane2<BackupView> implements Viewer {
 	private static volatile ConfigViewer instance;
 
 	public static ConfigViewer getInstance() {

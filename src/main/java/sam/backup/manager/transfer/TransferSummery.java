@@ -1,7 +1,7 @@
 package sam.backup.manager.transfer;
 
-import static sam.backup.manager.extra.Utils.bytesToString;
-import static sam.backup.manager.extra.Utils.divide;
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.divide;
 
 import sam.backup.manager.view.StatusView;
 

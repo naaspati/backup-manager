@@ -1,4 +1,4 @@
-package sam.backup.manager.view.config;
+package sam.backup.manager.view;
 
 import sam.backup.manager.file.api.FileEntity;
 

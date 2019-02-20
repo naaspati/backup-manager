@@ -1,6 +1,6 @@
-package sam.backup.manager.view.config;
+package sam.backup.manager.view;
 
-import static sam.backup.manager.extra.Utils.fx;
+import static sam.backup.manager.Utils.fx;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -12,8 +12,6 @@ import javafx.event.EventHandler;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
-import sam.backup.manager.config.api.ConfigManager;
-import sam.backup.manager.extra.Utils;
 import sam.fx.helpers.FxUtils;
 import sam.myutils.MyUtilsException;
 

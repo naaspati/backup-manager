@@ -9,7 +9,7 @@ import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 import static sam.backup.manager.extra.State.CANCELLED;
 import static sam.backup.manager.extra.State.COMPLETED;
-import static sam.backup.manager.extra.Utils.writeInTempDir;
+import static sam.backup.manager.Utils.writeInTempDir;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,16 +35,14 @@ import java.util.zip.ZipOutputStream;
 
 import org.apache.logging.log4j.Logger;
 
-import sam.backup.manager.config.PathWrap;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.IFilter;
+import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.extra.State;
-import sam.backup.manager.extra.Utils;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTreeWalker;
-import sam.backup.manager.file.api.FilteredDir;
 import sam.backup.manager.file.api.FilteredDir;
 import sam.myutils.MyUtilsBytes;
 import sam.myutils.MyUtilsException;

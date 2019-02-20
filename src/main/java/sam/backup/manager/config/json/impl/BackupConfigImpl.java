@@ -1,10 +1,10 @@
 package sam.backup.manager.config.json.impl;
 
-import static sam.backup.manager.extra.Utils.either;
+import static sam.backup.manager.Utils.either;
 
 import sam.backup.manager.config.api.BackupConfig;
 
-public class BackupConfigImpl implements Settable, BackupConfig {
+class BackupConfigImpl implements Settable, BackupConfig {
 	private Boolean checkModified, hardSync;
 	private final BackupConfigImpl global;
 	

@@ -1,9 +1,11 @@
 package sam.backup.manager.file;
-import static java.util.Spliterator.*;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.FileVisitResult.SKIP_SIBLINGS;
 import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
 import static java.nio.file.FileVisitResult.TERMINATE;
+import static java.util.Spliterator.DISTINCT;
+import static java.util.Spliterator.IMMUTABLE;
+import static java.util.Spliterator.SIZED;
 
 import java.nio.file.FileVisitResult;
 import java.util.ArrayList;

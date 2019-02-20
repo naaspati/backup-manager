@@ -1,11 +1,13 @@
 package sam.backup.manager.file;
 
+import static sam.backup.manager.file.FileEntityWithId.id;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.BitSet;
 
-import sam.backup.manager.config.PathWrap;
+import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Attrs;
@@ -16,7 +18,6 @@ import sam.backup.manager.file.api.FileTreeEditor;
 import sam.backup.manager.walk.WalkMode;
 import sam.myutils.Checker;
 import sam.nopkg.Junk;
-import static sam.backup.manager.file.FileEntityWithId.*;
 
 final class FileTreeImpl extends DirImpl implements FileTree {
 	private TreeType treetype;

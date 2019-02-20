@@ -14,9 +14,11 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import sam.backup.manager.transfer.TransferView;
-import sam.backup.manager.view.config.ConfigView;
-import sam.backup.manager.view.config.ListingView;
+import sam.backup.manager.view.list.ListViewer;
+import sam.backup.manager.view.list.ListingView;
 
+// FIXME no App handle view swithing, and Views handles their own history 
+@Deprecated 
 public class CenterViewImpl extends BorderPane implements EventHandler<ActionEvent> {
 	private final Button backupBtn = button("Backups");
 	private final Button transferBtn = button("Transfer");
@@ -55,8 +57,8 @@ public class CenterViewImpl extends BorderPane implements EventHandler<ActionEve
 			activeBtn = source;
 		}
 	}
-	public void add(ConfigView c) {
-		config().add((ConfigView) c);
+	public void add(BackupView c) {
+		config().add((BackupView) c);
 	}
 	public void add(ListingView c) {
 		list().add(c);

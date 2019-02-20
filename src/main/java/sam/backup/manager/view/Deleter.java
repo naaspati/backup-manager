@@ -1,6 +1,6 @@
-package sam.backup.manager.view.config;
+package sam.backup.manager.view;
 
-import static sam.backup.manager.extra.Utils.fx;
+import static sam.backup.manager.Utils.fx;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -18,7 +18,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Text;
-import sam.backup.manager.config.PathWrap;
+import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.file.FileTreeDeleter;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;

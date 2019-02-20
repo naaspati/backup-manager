@@ -1,6 +1,5 @@
-package sam.backup.manager.app;
+package sam.backup.manager;
 
-import javafx.application.Platform;
 import javafx.application.Preloader;
 import javafx.application.Preloader.StateChangeNotification.Type;
 import javafx.scene.Scene;
@@ -8,9 +7,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
 import sam.fx.alert.FxAlert;
-import sam.myutils.MyUtilsException;
 import sam.thread.MyUtilsThread;
 
 class PreloaderImpl extends Preloader {

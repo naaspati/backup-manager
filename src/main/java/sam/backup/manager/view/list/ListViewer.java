@@ -1,4 +1,4 @@
-package sam.backup.manager.view;
+package sam.backup.manager.view.list;
 
 import java.util.List;
 
@@ -13,8 +13,6 @@ import javafx.scene.control.cell.CheckBoxListCell;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
-import sam.backup.manager.extra.Utils;
-import sam.backup.manager.view.config.ListingView;
 import sam.fx.helpers.FxClassHelper;
 import sam.fx.helpers.FxText;
 

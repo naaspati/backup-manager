@@ -1,6 +1,6 @@
 package sam.backup.manager.config.json.impl;
 
-public interface JsonKeys {
+interface JsonKeys {
 	String SOURCE = "source";
 	String TARGET = "target";
 	String BACKUP_CONFIG = "backupConfig";

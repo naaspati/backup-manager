@@ -1,6 +1,6 @@
 package sam.backup.manager.transfer;
 
-import sam.backup.manager.config.PathWrap;
+import sam.backup.manager.config.api.PathWrap;
 
 interface TransferListener {
 	void copyStarted(PathWrap src, PathWrap target);

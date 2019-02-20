@@ -1,10 +1,10 @@
 package sam.backup.manager.config.json.impl;
 
-import static sam.backup.manager.extra.Utils.either;
+import static sam.backup.manager.Utils.either;
 
-import sam.backup.manager.config.WalkConfig;
+import sam.backup.manager.config.api.WalkConfig;
 
-public class WalkConfigImpl implements Settable,WalkConfig {
+class WalkConfigImpl implements Settable,WalkConfig {
 	private Integer depth;
 	private Boolean walkBackup;
 	private Boolean skipDirNotModified;

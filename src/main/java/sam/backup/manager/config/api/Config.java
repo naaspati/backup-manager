@@ -2,8 +2,6 @@ package sam.backup.manager.config.api;
 
 import java.util.List;
 
-import sam.backup.manager.config.PathWrap;
-import sam.backup.manager.config.WalkConfig;
 import sam.backup.manager.file.api.FileTree;
 
 public interface Config {

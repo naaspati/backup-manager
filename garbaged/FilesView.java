@@ -1,5 +1,7 @@
 package sam.backup.manager.view;
 
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.millsToTimeString;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -11,11 +13,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-
-import javax.inject.Inject;
-import javax.inject.Provider;
-import javax.swing.filechooser.FileView;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -41,13 +38,9 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import javafx.stage.Window;
-import sam.backup.manager.Parent;
-import sam.backup.manager.StopTasksQueue;
-import sam.backup.manager.Utils;
-import sam.backup.manager.UtilsFx;
+import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.Status;
 import sam.backup.manager.file.api.Attr;
@@ -55,52 +48,64 @@ import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
+import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxGridPane;
-import sam.fx.helpers.FxHBox;
-import sam.fx.helpers.FxUtils;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
+import sam.io.serilizers.StringWriter2;
 import sam.myutils.Checker;
-import sam.nopkg.SavedAsStringResource;
+import sam.nopkg.Junk;
 
 public class FilesView extends BorderPane {
+	public static Stage open(String title, Config config, Dir treeToDisplay, FilesViewSelector selector,  EventHandler<WindowEvent> onCloseRequest, Button...buttons) {
+		Stage stage = getStage();
+		FilesView[] vs = {null};
+		
+		views.forEach(f -> {
+			if(vs[0] != null && f.treeToDisplay == treeToDisplay && f.selector == selector)
+				vs[0] = f;
+		});
+		
+		FilesView v = vs[0];
+		
+		if(v == null) {
+			v = new FilesView(config, treeToDisplay, selector, buttons);
+			views.add(v);
+		}
+
+		stage.getScene().setRoot(v);
+		stage.setTitle(title);
+		if(onCloseRequest != null)
+			stage.setOnCloseRequest(onCloseRequest);
+		stage.show();
+
+		return stage;
+	}
+	
+	
+	
 	private static final String separator = "    ";
 
-	private final TreeView<FileEntity> treeView = new TreeView<>();;
+	private final TreeView<FileEntity> treeView;
 	private final ToggleButton expandAll = new ToggleButton("Expand All");
 	private final SimpleIntegerProperty selectedCount = new SimpleIntegerProperty();
 	private final SimpleIntegerProperty totalCount = new SimpleIntegerProperty();
+	private final String sourceRoot, targetRoot;
+
+	private final Dir treeToDisplay;
 	private final AboutPane aboutPane = new AboutPane();
-	private final UtilsFx fx;
-	
-	private PathWrap sourceRoot, targetRoot;
-	private Dir treeToDisplay;
-	private FilesViewSelector selector;
-	private FileTree fileTree;
-	private final Provider<Window> parent;
-	private final Utils utils;
-	private static SavedAsStringResource<String> lastVisited;
-	
+	private final FilesViewSelector selector;
+	private final FileTree fileTree;
 
-	@Inject
-	public FilesView(UtilsFx fx, Utils utils, StopTasksQueue queue, @Parent Provider<Window> parent) {
-		this.fx = fx;
-		this.parent = parent;
-		this.utils = utils;
-		
-		if(lastVisited == null) {
-			lastVisited = new SavedAsStringResource<>(utils.appDataDir().resolve(getClass().getName()+".last.visited"), s -> s);
-			queue.add(() -> {
-				try {
-					lastVisited.close();
-				} catch (IOException e1) {
-					utils.getLogger(FileView.class).warn("failed to save: {}", lastVisited.getSavePath(), e1);
-				}
-			});
-		}
-		
+	private FilesView(Config config, Dir treeToDisplay, FilesViewSelector selector, Button[] buttons) {
 		addClass(this, "files-view");
+		this.fileTree = filetree; 
+		sourceRoot = fileTree.getSourcePath();
+		targetRoot = fileTree.getBackupPath();
+		this.treeToDisplay = treeToDisplay;
+		this.selector = selector;
 
+		treeView = new TreeView<>();
 		treeView.getSelectionModel()
 		.selectedItemProperty()
 		.addListener((p, o, n) -> aboutPane.reset(n == null ? null : n.getValue()));
@@ -118,28 +123,9 @@ public class FilesView extends BorderPane {
 		aboutPane.setMinWidth(300);
 		setCenter(new SplitPane(treeView, aboutPane));
 		setTop(top());
+		setBottom(bottom(buttons));
+		init();
 	}
-
-	public void init(Config config, FileTree filetree, Dir treeToDisplay, FilesViewSelector selector, Button[] buttons) {
-		this.fileTree = filetree; 
-		this.sourceRoot = fileTree.getSourcePath();
-		this.targetRoot = fileTree.getBackupPath();
-		this.treeToDisplay = treeToDisplay;
-		this.selector = selector;
-		
-		bottom(buttons);
-		init();		
-	}
-	private void init() {
-		TreeItem<FileEntity> root = item(treeToDisplay);
-		root.setExpanded(true);
-		int total = walk(root, treeToDisplay);
-
-		selectedCount.set(total);
-		totalCount.set(total);
-		treeView.setRoot(root);
-	}
-
 	private Node top() {
 		GridPane grid = new GridPane();
 
@@ -158,12 +144,11 @@ public class FilesView extends BorderPane {
 
 		return grid;
 	}
-	private Node link(PathWrap p) {
+	private Node link(String p) {
 		if(p == null)
 			return new Text("--");
-		
-		Hyperlink link = new Hyperlink(p.string());
-		link.setOnAction(e -> FileOpenerNE.openFile(p.path().toFile()));
+		Hyperlink link = new Hyperlink(p.toString());
+		link.setOnAction(e -> FileOpenerNE.openFile(new File(p)));
 		link.setWrapText(true);
 		return link;
 	}
@@ -173,64 +158,52 @@ public class FilesView extends BorderPane {
 			expand(expand, item.getChildren());
 		}
 	}
-	
-	private final CustomButton save = new CustomButton(ButtonType.SAVE, e -> saveAction());
-	private HBox button_box;
-	{
+	private Node bottom(Button[] buttons) {
+		CustomButton save = new CustomButton(ButtonType.SAVE, e -> saveAction());
 		save.disableProperty().bind(selectedCount.isEqualTo(0));
-		BorderPane.setAlignment(save, Pos.CENTER_RIGHT);
-		BorderPane.setMargin(save, new Insets(5));
-	}
-	
-	private void bottom(Button[] buttons) {
-		clearBottom();
-		
-		if(Checker.isEmpty(buttons)) 
-			setBottom(save);
-		 else 
-			setButtons0(buttons);
-	}
-	public void setButtons(Node... buttons) {
-		clearBottom();
-		setButtons(buttons);	
-	}
-	private void setButtons0(Node[] buttons) {
-		if(button_box == null)
-			button_box = FxHBox.buttonBox(buttons);
-		else {
-			FxUtils.edit(button_box.getChildren(), list -> {
-				list.clear();
-				list.add(save);
-				list.addAll(buttons);	
-			});	
-		}
-		setBottom(button_box);
-	}
-	
-	private void clearBottom() {
-		setBottom(null);
-		if(button_box != null)
-			button_box.getChildren().removeIf(e -> e == save);
-	}
 
+		if(buttons.length == 0) {
+			setBottom(save);
+			BorderPane.setAlignment(save, Pos.CENTER_RIGHT);
+			BorderPane.setMargin(save, new Insets(5));
+			return save;
+		}
+		else {
+			HBox box = new HBox(5, buttons);
+			box.getChildren().add(0, save);
+			box.setAlignment(Pos.CENTER_RIGHT);
+			box.setPadding(new Insets(5));
+			return box;
+		}
+	}
 	private void saveAction() {
 		FileTreeString ft = new FileTreeString(treeToDisplay);
-		String s = Optional.ofNullable(lastVisited.get()).orElseGet(() -> Optional.ofNullable(System.getenv("USERPROFILE")).filter(Checker::isNotEmptyTrimmed).orElse("."));
-		
-		File parent = new File(s);
-		if(!parent.exists())
-			parent = new File(".");
+		String s = SESSION.getProperty("last.visited", System.getenv("USERPROFILE"));
+		if(s == null)
+			s = ".";
 
 		//FIXME Utils.saveToFile2()
 
-		File file = fx.fileChooser(parent, new File(treeToDisplay.getName()).getName()+".txt", "save File Tree").showSaveDialog(this.parent.get());
+		File file = Utils.selectFile(new File(s), new File(treeToDisplay.getName()).getName()+".txt", "save File Tree").showSaveDialog(Utils.window());
 		if(file == null) {
 			FxPopupShop.showHidePopup("CANCELLED", 1500);
 			return;
 		}
-		
-		lastVisited.set(file.getParent());
-		utils.setTextNoError(file.toPath(), ft, "failed to save filetree: ");
+		SESSION.put("last.visited", file.getParent());
+		try {
+			StringWriter2.setText(file.toPath(), ft.toString());
+		} catch (IOException e) {
+			FxAlert.showErrorDialog(file, "failed to save filetree", e);
+		}
+	}
+	private void init() {
+		TreeItem<FileEntity> root = item(treeToDisplay);
+		root.setExpanded(true);
+		int total = walk(root, treeToDisplay);
+
+		selectedCount.set(total);
+		totalCount.set(total);
+		treeView.setRoot(root);
 	}
 	private class Unit extends CheckBoxTreeItem<FileEntity> {
 		final FileEntity file;
@@ -317,8 +290,8 @@ public class FilesView extends BorderPane {
 
 			name.setText(file.getName());
 
-			PathWrap s = file.getSourcePath();
-			PathWrap b = file.getBackupPath();
+			String s = file.getSourcePath();
+			String b = file.getBackupPath();
 
 			set(sourceLink, s, true);
 			set(trgtLink, b, false);
@@ -375,8 +348,8 @@ public class FilesView extends BorderPane {
 		private void append(String heading, Attr a) {
 			if(a != null && (a.size != 0 || a.lastModified != 0)) {
 				sb.append(separator).append(heading)
-				.append(separator).append(separator).append("size: ").append(a.size == 0 ? "0" : utils.bytesToString(a.size)).append('\n')
-				.append(separator).append(separator).append("last-modified: ").append(a.lastModified == 0 ? "--" : utils.millsToTimeString(a.lastModified)).append('\n');
+				.append(separator).append(separator).append("size: ").append(a.size == 0 ? "0" : bytesToString(a.size)).append('\n')
+				.append(separator).append(separator).append("last-modified: ").append(a.lastModified == 0 ? "--" : millsToTimeString(a.lastModified)).append('\n');
 			}
 		}
 
@@ -393,7 +366,7 @@ public class FilesView extends BorderPane {
 				}
 			}
 		}
-		private void set(Hyperlink h, PathWrap path, boolean isSource) {
+		private void set(Hyperlink h, String path, boolean isSource) {
 			if(path == null) {
 				h.setText("--");
 				h.setDisable(true);
@@ -403,17 +376,22 @@ public class FilesView extends BorderPane {
 			h.setDisable(false);
 			h.setUserData(path);
 		}
-		private Object subpath(PathWrap p, boolean isSource) {
+		private Object subpath(String p, boolean isSource) {
 			if(p == null)
 				return "--";
 
 			String prefix = isSource ? "%source%\\" : "%target%\\";   
-			PathWrap start = isSource ? sourceRoot : targetRoot;
+			String start = isSource ? sourceRoot : targetRoot;
 
-			if(start == null || !p.path().startsWith(start.path()))
+			if(start == null || !p.startsWith(start))
 				return p;
 
-			return prefix + p.path().subpath(start.path().getNameCount(), p.path().getNameCount());
+			return prefix + p.substring(start.length());
 		}
+	}
+
+	public void setButtons(CustomButton button) {
+		// TODO Auto-generated method stub
+		Junk.notYetImplemented();
 	}
 }

@@ -62,17 +62,15 @@ public class AboutDriveView extends VBox implements EventHandler<MouseEvent>, Se
 	
 	@Override
 	public void selected() {
-		if(init)
-			return;
+		if(!init) {
+			setClass(this, "AboutDriveView");
+			setOnMouseClicked(this);
+			
+			for(FileStore fs: FileSystems.getDefault().getFileStores()) 
+				getChildren().add(new FileStoreView(fs));
+		}
 		
 		init = true;
-		
-		setClass(this, "AboutDriveView");
-		setOnMouseClicked(this);
-		
-		for(FileStore fs: FileSystems.getDefault().getFileStores()) 
-			getChildren().add(new FileStoreView(fs));
-		
 		fx(() -> getChildren().stream().map(FileStoreView.class::cast).forEach(FileStoreView::updateText));
 	}
 }

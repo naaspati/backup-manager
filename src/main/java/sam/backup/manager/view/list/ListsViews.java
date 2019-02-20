@@ -1,7 +1,5 @@
 package sam.backup.manager.view.list;
 
-import static sam.backup.manager.Utils.showErrorDialog;
-
 import java.util.Collection;
 import java.util.Objects;
 
@@ -13,6 +11,7 @@ import org.apache.logging.log4j.Logger;
 
 import javafx.scene.layout.VBox;
 import sam.backup.manager.Utils;
+import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.Lists;
 import sam.backup.manager.extra.TreeType;
@@ -25,31 +24,36 @@ import sam.backup.manager.walk.WalkTask;
 public class ListsViews extends VBox {
 	private static final Logger LOGGER = LogManager.getLogger(ListsViews.class);
 	private final FileTreeFactory factory;
+	private final Utils utils;
+	private final UtilsFx fx;
 
 	@Inject
-	public ListsViews(FileTreeFactory factory, @Lists Collection<? extends Config> backups) {
+	public ListsViews(Utils utils, UtilsFx fx, FileTreeFactory factory, @Lists Collection<? extends Config> backups) {
 		this.factory = Objects.requireNonNull(factory);
-		backups.forEach(c -> getChildren().add(new ListingView(c,Utils.getBackupLastPerformed("list:"+c.getSource()))));
+		this.utils = utils;
+		this.fx = fx;
+		
+		backups.forEach(c -> getChildren().add(new ListingView(c,utils.getBackupLastPerformed("list:"+c.getSource()))));
 	}
 	public void start(ListingView e) {
 		Config c = e.getConfig();
 
 		if(c.getWalkConfig().getDepth() <= 0) {
-			showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getWalkConfig().getDepth(), null);
+			fx.showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getWalkConfig().getDepth(), null);
 			return;
 		}
 		try {
 			FileTree f = factory.readFiletree(c, TreeType.LIST, true);
 			c.setFileTree(f);
 		} catch (Exception e1) {
-			showErrorDialog(null, "failed to read TreeFile: ", e1);
+			fx.showErrorDialog(null, "failed to read TreeFile: ", e1);
 			LOGGER.error("failed to read TreeFile	", e1);
 			return;
 		}
-		Utils.runAsync(new WalkTask(c, WalkMode.SOURCE, e, e));
+		fx.runAsync(new WalkTask(c, WalkMode.SOURCE, e, e));
 	}
 	@Override
 	public void onComplete(ListingView e) {
-		Utils.putBackupLastPerformed("list:"+e.getConfig().getSource(), System.currentTimeMillis());
+		utils.putBackupLastPerformed("list:"+e.getConfig().getSource(), System.currentTimeMillis());
 	}
 }

@@ -1,49 +1,46 @@
-package sam.backup.manager.view.backup;
+package sam.backup.manager.view;
 
-import sam.backup.manager.Utils;
 
-class TransferSummery {
-	private volatile long lastTime ;
-	private volatile long oldTotal ;
-	private volatile int speed ;
-	private volatile long bytesRead ;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
+public class TransferSummery {
+	private final AtomicLong lastTime = new AtomicLong();
+	private final AtomicLong lastTotal = new AtomicLong();
+	private final AtomicInteger speed = new AtomicInteger();
+	private final AtomicLong bytesRead = new AtomicLong();
 	private volatile long startTime, stoppedTime, pauseTime;
 
-	private volatile long totalSize ;
+	private final AtomicLong total = new AtomicLong();
 	private volatile boolean running;
 	private TransferRateView statusView;
-	private final Utils utils;
-	
-	public TransferSummery(Utils utils) {
-		this.utils = utils;
-	}
 
 	public void update(long bytesRead) {
 		if(!running)
 			throw new IllegalStateException("not yet started");
 
-		long timepassed = System.currentTimeMillis() - lastTime;
-		OldNewLong bytesReadOnl = new OldNewLong(this.bytesRead, this.bytesRead += bytesRead);
+		long timepassed = System.currentTimeMillis() - lastTime.get();
+		OldNewLong bytesReadOnl = new OldNewLong(this.bytesRead.get(), this.bytesRead.addAndGet(bytesRead));
+
 		OldNewLong speedOnl = null;
 
 		if (timepassed >= 1000) {
-			double downloaded = bytesReadOnl.getNew() - oldTotal;
-			long old = speed;
-			speed = (int)((downloaded / timepassed)*1000);
-			speedOnl = new OldNewLong(old, speed); 
+			double downloaded = bytesReadOnl.getNew() - lastTotal.get();
+			long old = speed.get();
+			speed.set((int)((downloaded / timepassed)*1000));
+			speedOnl = new OldNewLong(old, speed.get()); 
 
-			oldTotal = bytesReadOnl.getNew();
-			lastTime = System.currentTimeMillis();
+			lastTotal.set(bytesReadOnl.getNew());
+			lastTime.set(System.currentTimeMillis());
 		}
 		if(statusView != null)
 			statusView.update(bytesReadOnl, speedOnl);
 	}
-	void set(long total, long completed) {
-		totalSize = total;
-		oldTotal = completed;
+	public void setTotal(long value) {
+		total.set(value);
 	}
-	public long getTotalSize() {
-		return totalSize;
+	public long getTotal() {
+		return total.get();
 	}
 	public void start() {
 		if(running) return;
@@ -63,13 +60,13 @@ class TransferSummery {
 	}
 
 	public String getSpeedString() {
-		return utils.bytesToString(speed)+"/s";
+		return bytesToString(speed.get())+"/s";
 	}
 	public long getBytesRead() {
-		return bytesRead;
+		return bytesRead.get();
 	}
 	public long getAverageSpeed() {
-		return (long)(utils.divide(totalSize, getTimePassed())*1000);
+		return (long)(divide(total.get(), getTimePassed())*1000);
 	}
 	private long getTimePassed() {
 		return (running ? System.currentTimeMillis() : stoppedTime) - startTime - pauseTime;
@@ -80,7 +77,7 @@ class TransferSummery {
 		return stoppedTime - startTime - pauseTime;
 	}
 	public int getSpeed() {
-		return speed;
+		return speed.get();
 	}
 	public void setStatusView(TransferRateView statusView) {
 		this.statusView = statusView;

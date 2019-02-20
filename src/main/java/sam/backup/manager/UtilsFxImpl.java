@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 
 import javax.inject.Singleton;
 
@@ -46,7 +45,6 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 	
 	private final Logger logger = LogManager.getLogger(UtilsFxImpl.class);
 	private final ExecutorService POOL;
-	private BiConsumer<Object, Exception> errorHandler = (o, e) -> {throw new RuntimeException(e);};
 	
 	public UtilsFxImpl() {
 		singleton.init();
@@ -89,10 +87,9 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 		fx(() -> FxAlert.showErrorDialog(text, header, error));
 	}
 	@Override
-	public FileChooser selectFile(File expectedDir, String expectedName, String title) {
+	public FileChooser fileChooser(File expectedDir, String expectedName, String title) {
 		return FxUtils.fileChooser(expectedDir, expectedName, title, null);
 	}
-
 	@Override
 	public void stylesheet(Parent node) {
 		String name = "stylesheet/" + node.getClass().getSimpleName() + ".css";
@@ -146,11 +143,6 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 		POOL.shutdownNow();
 		logger.warn("waiting thread to die");
 		POOL.awaitTermination(2, TimeUnit.SECONDS);
-	}
-	
-	@Override
-	public void setErrorHandler(BiConsumer<Object, Exception> errorHandler) {
-		this.errorHandler = errorHandler;
 	}
 
 	@Override

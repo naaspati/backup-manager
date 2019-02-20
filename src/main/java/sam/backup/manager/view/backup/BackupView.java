@@ -177,9 +177,8 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 				view = openFilesView("select files to backup", backupFFT.get(), FilesViewSelector.backup());
 				break;
 			case DELETE:
-				CustomButton button = new CustomButton(ButtonType.DELETE, e -> deleteAction());
 				view = openFilesView("select files to delete", deleteFFT.get(), FilesViewSelector.delete());
-				view.setButtons(button);
+				view.setButtons(new CustomButton(ButtonType.DELETE, e -> deleteAction()));
 				break;
 			case WALK:
 				walk.setType(ButtonType.LOADING);

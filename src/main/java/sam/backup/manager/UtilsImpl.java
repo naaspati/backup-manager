@@ -24,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
@@ -50,7 +51,7 @@ import sam.nopkg.EnsureSingleton;
 import sam.nopkg.SavedResource;
 
 @Singleton
-public class UtilsImpl implements Utils {
+public class UtilsImpl implements Utils, ErrorHandlerRequired, Stoppable {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 
 	private final Logger logger = LogManager.getLogger(UtilsImpl.class);
@@ -267,7 +268,7 @@ public class UtilsImpl implements Utils {
 		}
 	}
 	@Override
-	public void close() throws IOException {
+	public void stop() throws IOException {
 		backupLastPerformed.close();
 	}
 	@Override
@@ -330,8 +331,15 @@ public class UtilsImpl implements Utils {
 
 	@Override
 	public void setErrorHandler(BiConsumer<Object, Exception> errorHandler) {
-		if(errorHandler != null)
-			throw new IllegalStateException();
-		this.errorHandler = errorHandler;
+		this.errorHandler = Objects.requireNonNull(errorHandler);
+	}
+	
+	@Override
+	public void setTextNoError(Path target, CharSequence content, String errorMessage) {
+		try {
+			StringWriter2.setText(target, content);
+		} catch (IOException e) {
+			errorHandler.accept(errorMessage+target, e);
+		}
 	}
 }

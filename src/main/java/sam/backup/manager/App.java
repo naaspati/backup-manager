@@ -12,6 +12,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+import javax.inject.Singleton;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codejargon.feather.Feather;
@@ -29,6 +31,7 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.ConfigManagerProvider;
 import sam.backup.manager.file.api.FileTreeFactory;
@@ -38,7 +41,8 @@ import sam.io.fileutils.FileOpenerNE;
 import sam.nopkg.EnsureSingleton;
 
 @SuppressWarnings("restriction")
-public class App extends Application {
+@Singleton
+public class App extends Application implements StopTasksQueue {
 	private final Logger logger = LogManager.getLogger(App.class);
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 
@@ -49,7 +53,16 @@ public class App extends Application {
 	public static void main(String[] args) throws URISyntaxException, IOException, SQLException {
 		LauncherImpl.launchApplication(App.class, PreloaderImpl.class, args);
 	}
-
+	private static class RunWrap {
+		private final String location;
+		private final Runnable task ;
+		
+		public RunWrap(String location, Runnable task) {
+			this.location = location;
+			this.task = task;
+		}
+	}  
+	
 	private final AtomicBoolean stopping = new AtomicBoolean(false);
 	private final List<ViewWrap> tabs = new ArrayList<>();
 	private final Scene scene = new Scene(new Group(new Text("NOTHING TO VIEW")));
@@ -59,6 +72,7 @@ public class App extends Application {
 	private Stage stage;
 	private Utils utils;
 	private UtilsFx fx;
+	private ArrayList<RunWrap> stops = new ArrayList<>();
 
 	@Override
 	public void init() throws Exception {
@@ -120,16 +134,12 @@ public class App extends Application {
 		notifyPreloader(new Preloader.ProgressNotification(1));
 	}
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public void start(Stage stage) throws Exception {
 		this.stage = stage;
 		FxAlert.setParent(stage);
 		FxPopupShop.setParent(stage);
-		BiConsumer handler = (file, e) -> FxAlert.showErrorDialog(file, "Failed to open File", e);
-		FileOpenerNE.setErrorHandler(handler);
-		utils.setErrorHandler(handler);
-		fx.setErrorHandler(handler);
+		setErrorHandler();
 
 		scene.getStylesheets().add("styles.css");
 
@@ -145,10 +155,24 @@ public class App extends Application {
 		}
 	}
 
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private void setErrorHandler() {
+		BiConsumer handler = (file, e) -> FxAlert.showErrorDialog(file, "Failed to open File", e);
+		FileOpenerNE.setErrorHandler(handler);
+		
+		Consumer c = o -> {
+			if( o instanceof ErrorHandlerRequired)
+				((ErrorHandlerRequired) o).setErrorHandler(handler);	
+		};
+		
+		c.accept(utils);
+		c.accept(fx);
+	}
+
 	private void setView(ViewWrap tab) {
 		try {
 			scene.setRoot(tab.instance());
-		} catch (InstantiationException | IllegalAccessException e) {
+		} catch (Exception e) {
 			FxAlert.showErrorDialog(tab, "failed to load view", e);
 		}
 	}
@@ -164,15 +188,30 @@ public class App extends Application {
 	}(non-Javadoc)
 	 * @see javafx.application.Application#stop()
 	 */
+	
+	@Override
+	public void add(Runnable runnable) {
+		stops.add(new RunWrap(Thread.currentThread().getStackTrace()[2].toString(), runnable));
+	}
 
+	//TODO
 	@Override
 	public void stop() throws Exception {
 		if(!stopping.compareAndSet(false, true))
 			return;
 
-		tabs.forEach(view -> stop(view.instance, view));
-		stop(utils, utils);
-		stop(fx, fx);
+		tabs.forEach(view -> stop(view.instance(), view));
+		
+		for (Object o : new Object[]{fileTreeFactory, configManager, utils, fx}) 
+			stop(o, o);
+		
+		stops.forEach(r -> {
+			try {
+				r.task.run();
+			} catch (Exception e) {
+				logger.error("failed to run: {}", r.location, e);
+			}
+		});
 		
 		System.exit(0); 
 	}
@@ -206,13 +245,18 @@ public class App extends Application {
 		return fx;
 	}
 	
+	@Provides
+	@sam.backup.manager.Parent
+	private Window stage() {
+		return stage;
+	}
+	
 	
 	private class ViewWrap {
 		final Class<? extends Parent> cls;
 		final String key;
 		
 		JSONObject json;
-		Parent instance;
 
 		@SuppressWarnings({ "unchecked"})
 		public ViewWrap(String key, JSONObject json) throws ClassNotFoundException, JSONException {
@@ -225,17 +269,12 @@ public class App extends Application {
 		public String toString() {
 			return json == null ? "ViewWrap []" : (key+":"+ json.toString());
 		}
-
-		public Parent instance() throws InstantiationException, IllegalAccessException {
-			if(instance != null)
-				return instance;
-
-			instance = feather.instance(cls);
-			json.put("instance", instance.toString());
+		
+		public Parent instance() {
+			Parent instance = feather.instance(cls);
+			
 			if(instance instanceof JsonRequired)
 				((JsonRequired) instance).setJson(key, json);
-			
-			json = null; // free the json
 			
 			return instance; 
 		}

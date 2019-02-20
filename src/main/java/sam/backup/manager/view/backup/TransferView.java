@@ -35,7 +35,6 @@ import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.view.FilesView;
 import sam.backup.manager.view.FilesViewSelector;
 import sam.backup.manager.view.IUpdatable;
-import sam.backup.manager.view.StatusView;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.MyUtilsCmd;
 import sam.myutils.MyUtilsPath;
@@ -66,7 +65,7 @@ class TransferView extends VBox implements Runnable, Startable, ButtonAction, IC
 	private Transferer transferer;
 	private final FilteredDir fileTree;
 
-	public TransferView(Config config, FilteredDir filesTree, StatusView statusView, IStartOnComplete<TransferView> startCompleteAction) {
+	public TransferView(Config config, FilteredDir filesTree, TransferRateView statusView, IStartOnComplete<TransferView> startCompleteAction) {
 		super(3);
 		addClass(this, "transfer-view");
 		this.startEndAction = startCompleteAction;

@@ -1,11 +1,6 @@
 package sam.backup.manager.view.list;
 
-import static sam.backup.manager.Utils.fx;
-import static sam.backup.manager.Utils.hashedName;
-import static sam.backup.manager.Utils.hyperlink;
-import static sam.backup.manager.Utils.millsToTimeString;
-import static sam.backup.manager.Utils.showErrorDialog;
-import static sam.backup.manager.Utils.showStage;
+import static sam.backup.manager.UtilsFx.*;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -24,6 +19,9 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import javafx.stage.Window;
+import sam.backup.manager.Utils;
+import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.file.FileTreeString;
@@ -52,26 +50,28 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 	private CustomButton button;
 	private Text fileCountT, dirCountT;  
 	private Consumer<ListingView> onWalkCompleted;
+	private final Helper helper;
 
-	public ListingView(Config c, Long lastUpdated) {
+	public ListingView(Config c, Long lastUpdated, Helper helper) {
 		setClass(this, "listing-view");
 		config = c;
+		this.helper = helper;
 		
-		Node src = hyperlink(config.getSource());
+		Node src = helper.fx.hyperlink(config.getSource());
 		if(src instanceof VBox)
 			((VBox) src).getChildren().forEach(h -> addClass(h, "header"));
 		else
 			addClass(src, "header");
 
 		if(Checker.isEmpty(config.getSource())) {
-			getChildren().addAll(src, FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)));
+			getChildren().addAll(src, FxText.ofString("Last updated: "+helper.utils.millsToTimeString(lastUpdated)));
 			setDisable(true);
 		} else {
 			button = new CustomButton(ButtonType.WALK, this);
 			fileCountT = FxText.text("  Files: --", "count-text");
 			dirCountT = FxText.text("  Dirs: --", "count-text");
 
-			getChildren().addAll(src, new HBox(10, fileCountT, dirCountT), FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)), button);
+			getChildren().addAll(src, new HBox(10, fileCountT, dirCountT), FxText.ofString("Last updated: "+helper.utils.millsToTimeString(lastUpdated)), button);
 		}
 	}
 
@@ -87,7 +87,7 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 			case OPEN:
 				TextArea ta = new TextArea(treeText == null ? null : treeText.toString());
 				ta.setEditable(false);
-				showStage(ta);
+				helper.fx.showStage(helper.window.get(), ta);
 				break;
 			case SAVE:
 				save();
@@ -171,7 +171,7 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 	public void walkCompleted() {
 		if(treeText == null) {
 			treeText = new FileTreeString(config.getFileTree());
-			Utils.saveFileTree(config);
+			helper.utils.saveFileTree(config);
 		}
 		fx(() -> {
 			getChildren().remove(button);
@@ -200,7 +200,7 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 			if(listbackDirs == null)
 				LOGGER.warn("no var specified for: LIST_BACKUP_DIR, thus no list saving performed in defaults dirs");
 			else {
-				for(String str: StringUtils.split(listbackDirs, ';')) 
+				for(String str: Stringhelper.utils.split(listbackDirs, ';')) 
 					write(Paths.get(str).resolve(name), treeText);
 			}
 
@@ -218,7 +218,7 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 			listCreated();
 	}
 	private boolean saveToFile2(CharSequence text, Path p) {
-		return Utils.saveToFile2(p.getParent().toFile(), p.getFileName().toString(), "Save File Tree", text);
+		return helper.utils.saveToFile2(p.getParent().toFile(), p.getFileName().toString(), "Save File Tree", text);
 	}
 	private void write(Path p, CharSequence data) {
 		if(p == null)
@@ -226,10 +226,10 @@ public class ListingView extends VBox implements ButtonAction, WalkListener {
 
 		try {
 			Files.createDirectories(p.getParent());
-			Utils.write(p, data);
+			helper.utils.write(p, data);
 			LOGGER.info("files-tree created: {}", p);
 		} catch (IOException e) {
-			showErrorDialog(p, "failed to save tree", e);
+			helper.fx.showErrorDialog(p, "failed to save tree", e);
 		}
 	}
 

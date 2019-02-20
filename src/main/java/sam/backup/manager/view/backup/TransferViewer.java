@@ -1,7 +1,8 @@
-package sam.backup.manager.view;
+package sam.backup.manager.view.backup;
 
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
+import sam.backup.manager.view.IUpdatable;
 import sam.fx.helpers.FxClassHelper;
 import sam.fx.helpers.FxText;
 
@@ -32,7 +33,7 @@ public class TransferViewer extends BorderPane implements Viewer, IUpdatable {
 	public Node disabledView() {
 		return FxText.text("Nothing To Transfer", DISABLE_TEXT_CLASS);
 	}
-	public void setStatusView(StatusView statusView) {
+	public void setStatusView(TransferRateView statusView) {
 		setBottom(statusView);
 	}
 	@Override

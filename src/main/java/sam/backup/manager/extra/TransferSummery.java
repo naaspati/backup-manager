@@ -6,7 +6,6 @@ import static sam.backup.manager.Utils.divide;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import sam.backup.manager.transfer.OldNewLong;
 import sam.backup.manager.view.StatusView;
 
 public class TransferSummery {

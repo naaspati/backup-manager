@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.concurrent.Task;
@@ -18,7 +19,7 @@ import sam.backup.manager.file.api.FileTree;
 
 //FIXME implement tasks
 public class WalkTask extends Task<FileTree> {
-	public static final Logger logger = Utils.getLogger(WalkTask.class); 
+	public static final Logger logger = LogManager.getLogger(WalkTask.class); 
 
 	private final Config config;
 	private FileTree rootTree;

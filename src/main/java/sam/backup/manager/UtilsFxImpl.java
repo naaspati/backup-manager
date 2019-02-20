@@ -8,6 +8,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
+import javax.inject.Singleton;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -37,14 +39,15 @@ import sam.myutils.Checker;
 import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 
-public class IFxUtilsImpl implements IFxUtils {
+@Singleton
+class UtilsFxImpl implements UtilsFx, Stoppable {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 	
-	private final Logger logger = LogManager.getLogger(IFxUtilsImpl.class);
+	private final Logger logger = LogManager.getLogger(UtilsFxImpl.class);
 	private final ExecutorService POOL;
 	private BiConsumer<Object, Exception> errorHandler = (o, e) -> {throw new RuntimeException(e);};
 	
-	public IFxUtilsImpl() {
+	public UtilsFxImpl() {
 		singleton.init();
 		
 		String s = System2.lookup("THREAD_COUNT");
@@ -138,17 +141,20 @@ public class IFxUtilsImpl implements IFxUtils {
 	}
 	
 	@Override
-	public void close() throws Exception {
+	public void stop() throws Exception {
 		POOL.shutdownNow();
-		System.out.println("waiting thread to die");
+		logger.warn("waiting thread to die");
 		POOL.awaitTermination(2, TimeUnit.SECONDS);
 	}
-	@Override
-	public void fx(Runnable runnable) {
-		Platform.runLater(runnable);
-	}
+	
 	@Override
 	public void setErrorHandler(BiConsumer<Object, Exception> errorHandler) {
 		this.errorHandler = errorHandler;
+	}
+
+	@Override
+	public Node headerBanner(String text) {
+		// FIXME something beutiful 
+		return new Text(text);
 	}
 }

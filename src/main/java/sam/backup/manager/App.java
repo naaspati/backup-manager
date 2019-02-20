@@ -55,7 +55,10 @@ public class App extends Application {
 	private final Scene scene = new Scene(new Group(new Text("NOTHING TO VIEW")));
 	private FileTreeFactory fileTreeFactory;
 	private ConfigManager configManager;
+	private Feather feather;
 	private Stage stage;
+	private Utils utils;
+	private UtilsFx fx;
 
 	@Override
 	public void init() throws Exception {
@@ -83,8 +86,9 @@ public class App extends Application {
 		}
 		
 		s.accept("start Utils.init()");
-		Utils.init();
-		s.accept("end Utils.init()");
+		this.utils = SingleLoader.load(Utils.class, UtilsImpl.class);
+		this.fx = SingleLoader.load(UtilsFx.class, UtilsFxImpl.class);
+		s.accept("end \n  Utils: "+utils.getClass()+"\n  UtilsFx: "+fx.getClass());
 		
 		s.accept("find ConfigManagerProvider");
 		ConfigManagerProvider cmp = load(ConfigManagerProvider.class);
@@ -111,6 +115,8 @@ public class App extends Application {
 				return super.put(key, value);
 			};
 		};
+		
+		feather = Feather.with(this, configManager);
 		notifyPreloader(new Preloader.ProgressNotification(1));
 	}
 
@@ -122,7 +128,8 @@ public class App extends Application {
 		FxPopupShop.setParent(stage);
 		BiConsumer handler = (file, e) -> FxAlert.showErrorDialog(file, "Failed to open File", e);
 		FileOpenerNE.setErrorHandler(handler);
-		Utils.setErrorHandler(handler);
+		utils.setErrorHandler(handler);
+		fx.setErrorHandler(handler);
 
 		scene.getStylesheets().add("styles.css");
 
@@ -163,65 +170,72 @@ public class App extends Application {
 		if(!stopping.compareAndSet(false, true))
 			return;
 
-		tabs.forEach(view -> {
-			Object f = view.instance; 
-			if(f != null && f instanceof AutoCloseable) {
-				try {
-					((AutoCloseable)f).close();
-				} catch (Exception e1) {
-					logger.error("failed to close: {}", view, e1);
-				}
-			}
-		});
-
-		Utils.stop();
+		tabs.forEach(view -> stop(view.instance, view));
+		stop(utils, utils);
+		stop(fx, fx);
+		
 		System.exit(0); 
 	}
 
+	private void stop(Object tostop, Object message) {
+		if(tostop == null)
+			return;
+		
+		try {
+			if(tostop instanceof Stoppable)
+				((Stoppable) tostop).stop();
+		} catch (Exception e1) {
+			logger.error("failed to stop: {}", message, e1);
+		}
+	}
+
 	@Provides
-	public ConfigManager configManager() {
+	private ConfigManager configManager() {
 		return configManager;
 	}
 	@Provides
-	public FileTreeFactory filtreeFactory() {
+	private FileTreeFactory filtreeFactory() {
 		return fileTreeFactory;
 	}
+	@Provides
+	private Utils getUtils() {
+		return utils;
+	}
+	@Provides
+	private UtilsFx getFx() {
+		return fx;
+	}
+	
 	
 	private class ViewWrap {
-		final String title;
 		final Class<? extends Parent> cls;
-		final JSONObject json;
+		final String key;
+		
+		JSONObject json;
 		Parent instance;
 
 		@SuppressWarnings({ "unchecked"})
-		public ViewWrap(String title, JSONObject json) throws ClassNotFoundException, JSONException {
-			this.title = json.optString("title", title);
+		public ViewWrap(String key, JSONObject json) throws ClassNotFoundException, JSONException {
+			this.key = key;
 			this.cls = (Class<? extends Parent>) Class.forName(json.getString("class"));
 			this.json = json;
-		}
-
-		@Provides
-		public JSONObject json() {
-			return json;
-		}
-		
-		@Provides
-		@Title
-		public String title() {
-			return title;
 		}
 		
 		@Override
 		public String toString() {
-			return json.toString();
+			return json == null ? "ViewWrap []" : (key+":"+ json.toString());
 		}
 
 		public Parent instance() throws InstantiationException, IllegalAccessException {
 			if(instance != null)
 				return instance;
 
-			instance = Feather.with(this, App.this, configManager).instance(cls);
+			instance = feather.instance(cls);
 			json.put("instance", instance.toString());
+			if(instance instanceof JsonRequired)
+				((JsonRequired) instance).setJson(key, json);
+			
+			json = null; // free the json
 			
 			return instance; 
 		}

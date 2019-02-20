@@ -1,34 +1,29 @@
 package sam.backup.manager.view.list;
 
-import static sam.backup.manager.Utils.fx;
 import static sam.backup.manager.Utils.showErrorDialog;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.scene.layout.VBox;
 import sam.backup.manager.Utils;
-import sam.backup.manager.config.api.Backups;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.Lists;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeFactory;
-import sam.backup.manager.view.CenterViewImpl;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
 
 @Singleton
 public class ListsViews extends VBox {
-	private static final Logger LOGGER = Utils.getLogger(ListsViews.class);
+	private static final Logger LOGGER = LogManager.getLogger(ListsViews.class);
 	private final FileTreeFactory factory;
 
 	@Inject

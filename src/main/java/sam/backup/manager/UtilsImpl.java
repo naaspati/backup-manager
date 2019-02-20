@@ -31,6 +31,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import javax.inject.Singleton;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -47,7 +49,8 @@ import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 import sam.nopkg.SavedResource;
 
-public class UtilsImpl implements IUtils {
+@Singleton
+public class UtilsImpl implements Utils {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 
 	private final Logger logger = LogManager.getLogger(UtilsImpl.class);

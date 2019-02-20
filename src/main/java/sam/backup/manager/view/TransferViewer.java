@@ -2,7 +2,6 @@ package sam.backup.manager.view;
 
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
-import sam.backup.manager.transfer.TransferView;
 import sam.fx.helpers.FxClassHelper;
 import sam.fx.helpers.FxText;
 

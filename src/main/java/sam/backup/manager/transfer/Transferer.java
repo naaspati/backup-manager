@@ -7,9 +7,9 @@ import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
+import static sam.backup.manager.Utils.writeInTempDir;
 import static sam.backup.manager.extra.State.CANCELLED;
 import static sam.backup.manager.extra.State.COMPLETED;
-import static sam.backup.manager.Utils.writeInTempDir;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,6 +33,7 @@ import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
@@ -51,7 +52,7 @@ import sam.nopkg.Junk;
 import sam.reference.WeakPool;
 
 class Transferer implements Callable<State> {
-	private static final Logger LOGGER =  Utils.getLogger(Transferer.class);
+	private static final Logger LOGGER =  LogManager.getLogger(Transferer.class);
 	public static final int BUFFER_SIZE = Optional.ofNullable(System.getenv("BUFFER_SIZE")).map(Integer::parseInt).orElse(2*1024*1024);
 
 	static {

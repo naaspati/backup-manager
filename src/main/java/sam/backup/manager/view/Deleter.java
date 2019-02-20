@@ -45,7 +45,7 @@ public class Deleter extends BorderPane implements FileTreeWalker {
 		BorderPane.setMargin(path, new Insets(5));
 	}
 
-	public CompletableFuture<Void> start(FileTree filetree, FilteredDir tree) {
+	public CompletableFuture<Void> start(FileTree filetree, Dir tree) {
 		String root = tree.getBackupPath() == null ? null : tree.getBackupPath().toString();
 		this.path.setText(root);
 		

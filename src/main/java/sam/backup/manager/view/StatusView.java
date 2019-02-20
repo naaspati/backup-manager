@@ -18,8 +18,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.transfer.OldNewLong;
-import sam.backup.manager.transfer.TransferSummery;
+import sam.backup.manager.extra.TransferSummery;
 public class StatusView extends HBox {
 	private final AtomicLong total = new AtomicLong();
 	private volatile String totalString;

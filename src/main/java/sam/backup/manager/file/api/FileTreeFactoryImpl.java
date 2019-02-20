@@ -1,10 +1,13 @@
 package sam.backup.manager.file.api;
 
+import javax.inject.Singleton;
+
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.TreeType;
 import sam.fx.alert.FxAlert;
 import sam.nopkg.Junk;
 
+@Singleton
 public class FileTreeFactoryImpl implements FileTreeFactory {
 	public FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
 		//FIXME 

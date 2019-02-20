@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.scene.Node;
@@ -41,7 +42,7 @@ import sam.myutils.System2;
 import sam.string.StringUtils;
 
 public class ListingView extends VBox implements ButtonAction, WalkListener {
-	private static final Logger LOGGER =  Utils.getLogger(ListingView.class);
+	private static final Logger LOGGER =  LogManager.getLogger(ListingView.class);
 
 	public static boolean saveWithoutAsking;
 

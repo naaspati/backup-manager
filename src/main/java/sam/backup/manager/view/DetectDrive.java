@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 
@@ -15,7 +16,7 @@ public class DetectDrive {
 	private final String id;
 
 	public DetectDrive() {
-		Logger log = Utils.getLogger(getClass());
+		Logger log = LogManager.getLogger(getClass());
 
 		Path drive = null;
 		for (Path p : FileSystems.getDefault().getRootDirectories()) {

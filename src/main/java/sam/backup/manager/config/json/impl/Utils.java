@@ -10,6 +10,11 @@ import org.json.JSONObject;
 import sam.nopkg.Junk;
 
 interface Utils {
+	public static <T> T either(T t1, T t2, T defaultValue) {
+		if(t1 == null && t2 == null)
+			return defaultValue;
+		return t1 != null ? t1 : t2;
+	}
 
 	public static List<String> getList(Object obj, boolean unmodifiable) {
 		if(obj == null)

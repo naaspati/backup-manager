@@ -47,8 +47,9 @@ final class FileTreeImpl extends DirImpl implements FileTree {
 			
 			@Override
 			public void delete(FileEntity f, PathWrap file) throws IOException {
-				Files.deleteIfExists(file.path());
-				
+				if(file != null) 
+					Files.deleteIfExists(file.path());
+				// if file is null, only remove from
 				// TODO Auto-generated method stub
 				Junk.notYetImplemented();
 			}

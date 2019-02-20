@@ -1,5 +1,8 @@
 {
-  "backups": {
+  "Backups": {
     "class": "sam.backup.manager.view.backup.BackupViews"
+  },
+  "About Drive": {
+    "class":"sam.backup.manager.view.AboutDriveView"
   }
 }

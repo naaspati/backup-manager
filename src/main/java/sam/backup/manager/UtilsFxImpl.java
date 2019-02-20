@@ -1,5 +1,7 @@
 package sam.backup.manager;
 
+import static sam.backup.manager.UtilsFx.fx;
+
 import java.io.File;
 import java.net.URL;
 import java.util.List;
@@ -13,7 +15,6 @@ import javax.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;

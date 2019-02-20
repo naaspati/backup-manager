@@ -1,21 +1,29 @@
 package sam.backup.manager.view;
 
-import static sam.backup.manager.Utils.fx;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
+import static sam.backup.manager.UtilsFx.fx;
 
 import java.io.IOException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystems;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 import javafx.event.EventHandler;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
+import sam.backup.manager.SelectionListener;
+import sam.backup.manager.Utils;
 import sam.fx.helpers.FxUtils;
 import sam.myutils.MyUtilsException;
 
-public class AboutDriveView extends VBox  implements EventHandler<MouseEvent> {
+@Singleton
+public class AboutDriveView extends VBox implements EventHandler<MouseEvent>, SelectionListener {
+	private final Utils utils;
+	
 	private class FileStoreView extends Label {
 		private final FileStore fs;
 		
@@ -27,25 +35,20 @@ public class AboutDriveView extends VBox  implements EventHandler<MouseEvent> {
 		}
 		private void updateText() {
 			try {
-				setText("Total Space: "+Utils.bytesToString(fs.getTotalSpace())+
-						" | Free Space: "+Utils.bytesToString(fs.getUnallocatedSpace())
+				setText("Total Space: "+utils.bytesToString(fs.getTotalSpace())+
+						" | Free Space: "+utils.bytesToString(fs.getUnallocatedSpace())
 						);
 			} catch (IOException e) {
 				setText(MyUtilsException.toString(e));
 			}
 		}
 	}
+	
 
-	public AboutDriveView() {
-		setClass(this, "AboutDriveView");
-		setOnMouseClicked(this);
-		
-		for(FileStore fs: FileSystems.getDefault().getFileStores()) 
-			getChildren().add(new FileStoreView(fs));
-		
-		fx(() -> getChildren().stream().map(FileStoreView.class::cast).forEach(FileStoreView::updateText));
+	@Inject
+	public AboutDriveView(Utils utils) {
+		this.utils = utils;
 	}
-
 	@Override
 	public void handle(MouseEvent event) {
 		if(event.getClickCount() > 1) {
@@ -53,5 +56,23 @@ public class AboutDriveView extends VBox  implements EventHandler<MouseEvent> {
 			if(fs != null)
 				fs.updateText();
 		}
+	}
+	
+	private boolean init;
+	
+	@Override
+	public void selected() {
+		if(init)
+			return;
+		
+		init = true;
+		
+		setClass(this, "AboutDriveView");
+		setOnMouseClicked(this);
+		
+		for(FileStore fs: FileSystems.getDefault().getFileStores()) 
+			getChildren().add(new FileStoreView(fs));
+		
+		fx(() -> getChildren().stream().map(FileStoreView.class::cast).forEach(FileStoreView::updateText));
 	}
 }

@@ -1,6 +1,6 @@
 package sam.backup.manager.view;
 
-import static sam.backup.manager.Utils.fx;
+import static sam.backup.manager.UtilsFx.fx;
 
 import java.io.IOException;
 import java.nio.file.FileVisitResult;
@@ -24,7 +24,6 @@ import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeWalker;
-import sam.backup.manager.file.api.FilteredDir;
 import sam.myutils.MyUtilsException;
 
 public class Deleter extends BorderPane implements FileTreeWalker {

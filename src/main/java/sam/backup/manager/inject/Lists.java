@@ -1,4 +1,4 @@
-package sam.backup.manager.config.api;
+package sam.backup.manager.inject;
 
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;
@@ -12,4 +12,4 @@ import javax.inject.Qualifier;
 @Qualifier
 @Retention(RUNTIME)
 @Target({ METHOD, PARAMETER })
-public @interface Backups { }
+public @interface Lists { }

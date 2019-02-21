@@ -7,8 +7,6 @@ import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
-import static sam.backup.manager.extra.State.CANCELLED;
-import static sam.backup.manager.extra.State.COMPLETED;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,7 +24,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
@@ -40,18 +37,15 @@ import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.config.api.PathWrap;
-import sam.backup.manager.extra.State;
 import sam.backup.manager.file.FileTreeDeleter;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeWalker;
-import sam.backup.manager.view.Deleter;
 import sam.myutils.MyUtilsBytes;
 import sam.myutils.MyUtilsException;
 import sam.myutils.MyUtilsPath;
-import sam.nopkg.Junk;
 import sam.reference.WeakPool;
 
 class Transferer extends Task<Boolean> {
@@ -198,11 +192,13 @@ class Transferer extends Task<Boolean> {
 		
 		if(toBeRemoved != null) {
 			try(FileTreeDeleter d = fileTree.getDeleter()) {
-				toBeRemoved.forEach(t -> d.delete(t, null)); //FIXME toBeRemoved.forEach(FileEntity::remove);	
+				for (FileEntity t : toBeRemoved) {
+					d.delete(t, null);
+				}
 			}
 		}
 		
-		rootDir.updateDirAttrs();
+		//FIXME rootDir.updateDirAttrs();
 		return b;
 	}
 

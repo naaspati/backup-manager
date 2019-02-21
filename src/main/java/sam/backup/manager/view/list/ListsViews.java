@@ -1,7 +1,6 @@
 package sam.backup.manager.view.list;
 
 import java.util.Collection;
-import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -9,8 +8,6 @@ import javax.inject.Singleton;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.codejargon.feather.Feather;
-import org.codejargon.feather.Key;
 
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.event.ActionEvent;
@@ -30,15 +27,15 @@ import javafx.scene.layout.BorderWidths;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import javafx.stage.Stage;
 import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
-import sam.backup.manager.config.api.Backups;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.inject.Backups;
+import sam.backup.manager.inject.Injector;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
 import sam.fx.helpers.FxHBox;
@@ -54,12 +51,12 @@ public class ListsViews extends BorderPane implements SelectionListener {
 	private FileTreeFactory factory;
 	private Utils utils;
 	private UtilsFx fx;
-	private Provider<Feather> feather;
+	private Provider<Injector> injector;
 	private WeakAndLazy<UpdateMultipleView> umv;
 
 	@Inject
-	public ListsViews(Provider<Feather> feather) {
-		this.feather = feather;
+	public ListsViews(Provider<Injector> injector) {
+		this.injector = injector;
 	}
 
 	private boolean init = false;
@@ -70,10 +67,10 @@ public class ListsViews extends BorderPane implements SelectionListener {
 			return;
 
 		init = true;
-		Feather feather = this.feather.get();
+		Injector injector = this.injector.get();
 		@SuppressWarnings("unchecked")
-		Collection<? extends Config> backups = feather.instance(Key.of(Collection.class, Backups.class));
-		this.fx = feather.instance(UtilsFx.class);
+		Collection<? extends Config> backups = injector.instance(Collection.class, Backups.class);
+		this.fx = injector.instance(UtilsFx.class);
 
 		Node banner = fx.headerBanner("Lists"+(backups.isEmpty() ? "" : " ("+backups.size()+")"));
 		
@@ -81,9 +78,9 @@ public class ListsViews extends BorderPane implements SelectionListener {
 			setTop(banner);
 			setCenter(fx.bigPlaceholder("Nothing Specified"));
 		} else {
-			this.utils = feather.instance(Utils.class);
-			this.factory = feather.instance(FileTreeFactory.class);
-			Helper helper = feather.instance(Helper.class);
+			this.utils = injector.instance(Utils.class);
+			this.factory = injector.instance(FileTreeFactory.class);
+			Helper helper = injector.instance(Helper.class);
 			this.umv = new WeakAndLazy<>(UpdateMultipleView::new);
 
 			CheckBox cb = new CheckBox("save without asking");
@@ -110,7 +107,7 @@ public class ListsViews extends BorderPane implements SelectionListener {
 			setCenter(root);
 		}
 
-		this.feather = null;
+		this.injector = null;
 	}
 	public void start(ListConfigView e) {
 		Config c = e.getConfig();
@@ -127,9 +124,9 @@ public class ListsViews extends BorderPane implements SelectionListener {
 			LOGGER.error("failed to read TreeFile	", e1);
 			return;
 		}
-		fx.runAsync(new WalkTask(c, WalkMode.SOURCE, e, e));
+		//FIXME fx.runAsync(new WalkTask(c, WalkMode.SOURCE, e, e));
 	}
-	@Override
+	//FIXME @Override
 	public void onComplete(ListConfigView e) {
 		utils.putBackupLastPerformed("list:"+e.getConfig().getSource(), System.currentTimeMillis());
 	}

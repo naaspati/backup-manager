@@ -3,9 +3,11 @@ package sam.backup.manager;
 import static sam.backup.manager.SingleLoader.load;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.PrimitiveIterator.OfDouble;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -17,6 +19,7 @@ import javax.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codejargon.feather.Feather;
+import org.codejargon.feather.Key;
 import org.codejargon.feather.Provides;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,9 +35,13 @@ import javafx.scene.Scene;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.Window;
+import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.ConfigManagerProvider;
 import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.inject.Backups;
+import sam.backup.manager.inject.Injector;
+import sam.backup.manager.inject.Lists;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
@@ -42,17 +49,18 @@ import sam.nopkg.EnsureSingleton;
 
 @SuppressWarnings("restriction")
 @Singleton
-public class App extends Application implements StopTasksQueue {
+public class App extends Application implements StopTasksQueue, Injector {
+	public static void main(String[] args) throws URISyntaxException, IOException, SQLException {
+		LauncherImpl.launchApplication(App.class, PreloaderImpl.class, args);
+	}
+	
 	private final Logger logger = LogManager.getLogger(App.class);
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 
 	{
 		singleton.init();
 	}
-
-	public static void main(String[] args) throws URISyntaxException, IOException, SQLException {
-		LauncherImpl.launchApplication(App.class, PreloaderImpl.class, args);
-	}
+	
 	private static class RunWrap {
 		private final String location;
 		private final Runnable task ;
@@ -130,7 +138,7 @@ public class App extends Application implements StopTasksQueue {
 			};
 		};
 		
-		feather = Feather.with(this, configManager);
+		feather = Feather.with(this);
 		notifyPreloader(new Preloader.ProgressNotification(1));
 	}
 
@@ -227,7 +235,20 @@ public class App extends Application implements StopTasksQueue {
 			logger.error("failed to stop: {}", message, e1);
 		}
 	}
-
+	
+	@Override
+	public <E> E instance(Class<E> type) {
+		return feather.instance(type);
+	}
+	@Override
+	public <E, F extends Annotation> E instance(Class<E> type, Class<F> qualifier) {
+		return feather.instance(Key.of(type, qualifier));
+	}
+	
+	@Provides
+	private Injector me() {
+		return this;
+	}
 	@Provides
 	private ConfigManager configManager() {
 		return configManager;
@@ -244,9 +265,19 @@ public class App extends Application implements StopTasksQueue {
 	private UtilsFx getFx() {
 		return fx;
 	}
+	@Provides
+	@Backups
+	private Collection<? extends Config> backups() {
+		return configManager.getBackups();
+	}
+	@Provides
+	@Lists
+	private Collection<? extends Config> lists() {
+		return configManager.getLists();
+	}
 	
 	@Provides
-	@sam.backup.manager.ParentWindow
+	@sam.backup.manager.inject.ParentWindow
 	private Window stage() {
 		return stage;
 	}

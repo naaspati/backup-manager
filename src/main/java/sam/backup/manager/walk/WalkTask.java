@@ -16,6 +16,8 @@ import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.file.PathListToFileTree;
 import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.inject.Injector;
 
 //FIXME implement tasks
 public class WalkTask extends Task<FileTree> {
@@ -28,8 +30,10 @@ public class WalkTask extends Task<FileTree> {
 	private final WalkListener listener;
 	private final Path source;
 	private final Path target;
+	private final Injector injector;
 
-	public WalkTask(FileTree existing, Path source, Path target, Config config, WalkMode walkMode, WalkListener listener) {
+	public WalkTask(Injector injector, FileTree existing, Path source, Path target, Config config, WalkMode walkMode, WalkListener listener) {
+		this.injector = injector;
 		this.config = config;
 		this.rootTree = existing;
 		this.initialWalkMode = walkMode;
@@ -78,11 +82,13 @@ public class WalkTask extends Task<FileTree> {
 			logger.error(s, e);
 			throw new IOException(s, e);
 		}
-
-		if(!exucludePaths.isEmpty() && Utils.SAVE_EXCLUDE_LIST)
-			Utils.saveInTempDirHideError(new PathListToFileTree(exucludePaths), config, "excluded", source.getFileName()+".txt");
 		
-		new ProcessFileTree(rootTree, config, backupWalked);
+		Utils utils = injector.instance(Utils.class);
+
+		if(!exucludePaths.isEmpty() && utils.isSaveExcludeList())
+			utils.saveInTempDirHideError(new PathListToFileTree(exucludePaths), config, "excluded", source.getFileName()+".txt");
+		
+		new ProcessFileTree(injector.instance(FileTreeFactory.class), rootTree, config, backupWalked);
 		return rootTree;
 	}
 

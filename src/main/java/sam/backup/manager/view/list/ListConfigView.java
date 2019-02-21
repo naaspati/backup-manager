@@ -1,6 +1,6 @@
 package sam.backup.manager.view.list;
 
-import static sam.backup.manager.UtilsFx.*;
+import static sam.backup.manager.UtilsFx.fx;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -19,9 +19,6 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import javafx.stage.Window;
-import sam.backup.manager.Utils;
-import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.file.FileTreeString;
@@ -37,6 +34,7 @@ import sam.fx.helpers.FxText;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.Checker;
 import sam.myutils.System2;
+import sam.nopkg.Junk;
 import sam.string.StringUtils;
 
 public class ListConfigView extends VBox implements ButtonAction, WalkListener {
@@ -143,8 +141,7 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 		cancel = false;
 		if(config.getWalkConfig().getDepth() == 1)
 			start1Depth();
-		else
-			startEnd.start(this);
+		//FIXME else startEnd.start(this);
 	}
 	public boolean isCancelled() {
 		return cancel;
@@ -152,7 +149,7 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 	public Config getConfig() {
 		return config;
 	}
-	@Override
+	//FIXME @Override
 	public void walkFailed(String reason, Throwable e) {
 		LOGGER.info(ANSI.red(reason));
 		e.printStackTrace();
@@ -167,11 +164,11 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 	public void onDirFound(Dir ft, WalkMode mode) {
 		fx(() -> dirCountT.setText("  Dirs: "+(++dirCount)));
 	}
-	@Override
+	//FIXME @Override
 	public void walkCompleted() {
 		if(treeText == null) {
-			treeText = new FileTreeString(config.getFileTree());
-			helper.utils.saveFileTree(config);
+			//FIXME treeText = new FileTreeString(config.getFileTree());
+			helper.fatory.saveFileTree(config);
 		}
 		fx(() -> {
 			getChildren().remove(button);
@@ -186,13 +183,13 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 	}
 	public void save() {
 		if(Checker.isEmpty(treeText)) {
-			showErrorDialog(null, "FileEntity not set", null);
+			helper.fx.showErrorDialog(null, "FileEntity not set", null);
 			return;
 		}
 		boolean created[] = {false};
 
 		Path p = Optional.ofNullable(config.getBaseTarget()).map(PathWrap::path).orElse(null);
-		Path name = p == null ? Paths.get(hashedName(config.getBaseTarget().path(), ".txt")) : p.getFileName();
+		Path name = p == null ? Paths.get(helper.utils.hashedName(config.getBaseTarget().path(), ".txt")) : p.getFileName();
 
 		if(saveWithoutAsking) {
 			String listbackDirs = System2.lookup("LIST_BACKUP_DIR");
@@ -200,7 +197,7 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 			if(listbackDirs == null)
 				LOGGER.warn("no var specified for: LIST_BACKUP_DIR, thus no list saving performed in defaults dirs");
 			else {
-				for(String str: Stringhelper.utils.split(listbackDirs, ';')) 
+				for(String str: StringUtils.split(listbackDirs, ';')) 
 					write(Paths.get(str).resolve(name), treeText);
 			}
 
@@ -218,7 +215,8 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 			listCreated();
 	}
 	private boolean saveToFile2(CharSequence text, Path p) {
-		return helper.utils.saveToFile2(p.getParent().toFile(), p.getFileName().toString(), "Save File Tree", text);
+		//FIXME return helper.utils.saveToFile2(p.getParent().toFile(), p.getFileName().toString(), "Save File Tree", text);
+		return Junk.notYetImplemented();
 	}
 	private void write(Path p, CharSequence data) {
 		if(p == null)
@@ -236,7 +234,7 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 	private void listCreated() {
 		fx(() -> {
 			FxPopupShop.showHidePopup("List created\nfor: "+config.getSource(), 3000);
-			startEnd.onComplete(this);
+			//FIXME startEnd.onComplete(this);
 		});
 	}
 }

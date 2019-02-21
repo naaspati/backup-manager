@@ -1,8 +1,8 @@
 package sam.backup.manager.view;
 
+import static sam.backup.manager.UtilsFx.fx;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
-import static sam.backup.manager.UtilsFx.fx;
 
 import java.io.IOException;
 import java.nio.file.FileStore;

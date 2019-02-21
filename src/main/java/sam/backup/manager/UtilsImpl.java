@@ -1,9 +1,5 @@
 package sam.backup.manager;
 
-import static java.nio.file.FileVisitResult.CONTINUE;
-import static java.nio.file.FileVisitResult.SKIP_SIBLINGS;
-import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
-import static java.nio.file.FileVisitResult.TERMINATE;
 import static java.nio.file.StandardOpenOption.CREATE;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -12,7 +8,6 @@ import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -39,9 +34,6 @@ import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Writable;
-import sam.backup.manager.file.api.Dir;
-import sam.backup.manager.file.api.FileEntity;
-import sam.backup.manager.file.api.FileTreeWalker;
 import sam.io.serilizers.ObjectReader;
 import sam.io.serilizers.ObjectWriter;
 import sam.io.serilizers.StringWriter2;
@@ -304,31 +296,6 @@ public class UtilsImpl implements Utils, ErrorHandlerRequired, Stoppable {
 			w.write(os);
 		}
 	}
-	@Override
-	public void walk(Dir start, FileTreeWalker walker) {
-		walk0(start, walker);
-	}
-	private FileVisitResult walk0(Dir start, FileTreeWalker walker) {
-		for (FileEntity f : start) {
-			if(f.isDirectory() && asDir(f).isEmpty())
-				continue;
-
-			FileVisitResult result = f.isDirectory() ? walker.dir(asDir(f)) : walker.file(f);
-
-			if(result == TERMINATE)
-				return TERMINATE;
-			if(result == SKIP_SIBLINGS)
-				break;
-
-			if(result != SKIP_SUBTREE && f.isDirectory() && walk0(asDir(f), walker) == TERMINATE)
-				return TERMINATE;
-		}
-		return CONTINUE;
-	}
-	private Dir asDir(FileEntity f) {
-		return (Dir)f;
-	}
-
 	@Override
 	public void setErrorHandler(BiConsumer<Object, Exception> errorHandler) {
 		this.errorHandler = Objects.requireNonNull(errorHandler);

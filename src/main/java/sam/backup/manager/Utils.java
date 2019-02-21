@@ -29,7 +29,6 @@ public interface Utils {
 	
 	boolean saveInTempDirHideError(Writable w, Config config, String directory, String fileName) ;
 	Path saveInTempDir(Writable w, Config config, String directory, String fileName) throws IOException ;
-	void walk(Dir start, FileTreeWalker walker) ;
 	/**
 	 * set text to a file, error is handled by default handler
 	 * @param file

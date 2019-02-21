@@ -4,11 +4,10 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
-import org.codejargon.feather.Feather;
-
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.inject.Injector;
 import sam.backup.manager.view.Deleter;
 
 @Singleton
@@ -16,18 +15,18 @@ class Shared {
 	final Utils utils;
 	final UtilsFx fx;
 	final FileTreeFactory factory;
-	final Provider<Feather> feather;
+	final Provider<Injector> injector;
 	
 	@Inject
-	public Shared(Provider<Feather> feather,  Utils utils, UtilsFx fx, FileTreeFactory factory) {
+	public Shared(Provider<Injector> injector,  Utils utils, UtilsFx fx, FileTreeFactory factory) {
 		this.utils = utils;
 		this.fx = fx;
 		this.factory = factory;
-		this.feather = feather;
+		this.injector = injector;
 	}
 	
 	Deleter deleter() {
-		return feather.get().instance(Deleter.class);
+		return injector.get().instance(Deleter.class);
 	}
 	
 }

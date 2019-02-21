@@ -6,7 +6,7 @@ import sam.backup.manager.view.IUpdatable;
 import sam.fx.helpers.FxClassHelper;
 import sam.fx.helpers.FxText;
 
-public class TransferViewer extends BorderPane implements Viewer, IUpdatable {
+class TransferViewer extends BorderPane implements Viewer, IUpdatable {
 	
 	private static volatile TransferViewer instance;
 

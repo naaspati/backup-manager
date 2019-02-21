@@ -6,7 +6,6 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
-import org.codejargon.feather.Feather;
 import org.json.JSONObject;
 
 import javafx.scene.layout.BorderPane;
@@ -15,9 +14,10 @@ import sam.backup.manager.JsonRequired;
 import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
-import sam.backup.manager.config.api.Backups;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.inject.Backups;
+import sam.backup.manager.inject.Injector;
 import sam.nopkg.EnsureSingleton;
 
 @Singleton
@@ -27,12 +27,12 @@ public class BackupViews extends BorderPane implements JsonRequired, SelectionLi
 //	private static final Logger LOGGER = LogManager.getLogger(ConfigManager.class);
 	private final VBox root = new VBox();
 	private final Collection<? extends Config> backups;
-	private final Provider<Feather> feather;
+	private final Provider<Injector> injector;
 
 	@Inject
-	public BackupViews(Provider<Feather> feather, FileTreeFactory factory, @Backups Collection<? extends Config> backups, Utils utils, UtilsFx fx) {
+	public BackupViews(Provider<Injector> injector, FileTreeFactory factory, @Backups Collection<? extends Config> backups, Utils utils, UtilsFx fx) {
 		this.backups = backups;
-		this.feather = feather;
+		this.injector = injector;
 		
 		setCenter(root);
 		singleton.init();
@@ -51,7 +51,7 @@ public class BackupViews extends BorderPane implements JsonRequired, SelectionLi
 	}
 	
 	private <E> E instance(Class<E> cls) {
-		return feather.get().instance(cls);
+		return injector.get().instance(cls);
 	}
 
 	@Override

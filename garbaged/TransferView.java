@@ -1,149 +1,95 @@
 package sam.backup.manager.view.backup;
 
-import static javafx.concurrent.Worker.State.CANCELLED;
 import static sam.backup.manager.UtilsFx.fx;
+import static sam.backup.manager.extra.State.CANCELLED;
+import static sam.backup.manager.extra.State.COMPLETED;
+import static sam.backup.manager.extra.State.QUEUED;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
 import java.nio.file.Path;
-import java.util.List;
-import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.function.LongConsumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javafx.concurrent.Worker.State;
+import javafx.beans.property.ReadOnlyObjectProperty;
+import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.Hyperlink;
+import javafx.scene.Node;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextArea;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.Utils;
-import sam.backup.manager.file.FileTreeString;
-import sam.backup.manager.file.api.FileEntity;
+import sam.backup.manager.config.api.Config;
+import sam.backup.manager.extra.State;
+import sam.backup.manager.file.api.FilteredDir;
+import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.view.FilesView;
 import sam.backup.manager.view.FilesViewSelector;
-import sam.fx.helpers.FxConstants;
-import sam.fx.helpers.FxGridPane;
-import sam.fx.helpers.FxHBox;
-import sam.fx.helpers.FxText;
+import sam.backup.manager.view.IUpdatable;
 import sam.fx.popup.FxPopupShop;
 import sam.myutils.MyUtilsCmd;
+import sam.myutils.MyUtilsPath;
 import sam.string.BasicFormat;
 
 
-@SuppressWarnings("rawtypes")
-class TransferView extends BorderPane implements TransferListener {
+class TransferView extends VBox implements Runnable, Startable, ButtonAction, ICanceler, IUpdatable, TransferListener {
 	private static final Logger LOGGER = LogManager.getLogger(TransferView.class);
 
-	private GridPane center;
-	private Hyperlink source;
-	private Hyperlink target;
-	private TextArea progressTA ;
-	
+	private TextArea sourceTargetTa ;
 	private Text currentProgressT ;
 	private Text totalProgressT ;
 	private Text stateText ;
 
+	private CustomButton uploadCancelBtn, filesBtn;
+	private ProgressBar currentProgressBar ;
+	private ProgressBar totalProgressBar ;
+
+	private final TransferSummery summery = new TransferSummery();
+
+	private ReadOnlyObjectWrapper<State> state = new ReadOnlyObjectWrapper<>();
+
+	private IStartOnComplete<TransferView> startEndAction;
+	private final Config config;
 	private final Text filesStats = new Text();
-	private final TransferTask task;
-	private final CustomButton uploadCancelBtn, filesBtn;
-	private final ProgressBar currentPB;
-	private final ProgressBar totalPB;
-	
-	private final Executor executor;
+	private final Path source, target;
+	private final Function<Path, Path> sourceSubpather, targetSubpather;
+	private Transferer transferer;
+	private final FilteredDir fileTree;
 
-	public TransferView(Executor executor) {
+	public TransferView(Config config, FilteredDir filesTree, TransferRateView statusView, IStartOnComplete<TransferView> startCompleteAction) {
+		super(3);
 		addClass(this, "transfer-view");
-		this.executor = executor;
+		this.startEndAction = startCompleteAction;
+		this.config = config;
+		this.source = config.getSource();
+		this.target = config.getTarget();
+		sourceSubpather = MyUtilsPath.subpather(source);
+		targetSubpather = MyUtilsPath.subpather(target);
+		this.fileTree = filesTree;
 
-		uploadCancelBtn = new CustomButton(ButtonType.UPLOAD, this::buttonAction);
-		filesBtn = new CustomButton(ButtonType.FILES, this::buttonAction);
+		uploadCancelBtn = new CustomButton(ButtonType.UPLOAD, this);
+		filesBtn = new CustomButton(ButtonType.FILES, this);
 
-		HBox buttom = FxHBox.buttonBox(uploadCancelBtn, filesBtn);
-		buttom.setAlignment(Pos.CENTER_LEFT);
-		
-		setTop(new VBox(3, FxText.ofClass("header"), filesStats));
-		setBottom(buttom);
-	}
-	
-	private Text text(String text) {
-		Text t = new Text(text);
-		t.getStyleClass().add("text");
-		return t;
-	}
-	private Text text() {
-		return FxText.ofClass("text");
-	}
-	private Hyperlink link() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-	
-	@SuppressWarnings("unchecked")
-	private class TListener implements TransferListener {
-		@Override
-		public void notify(Type type, Object attached) {
-			fx(() -> {
-				switch (type) {
-					case STATE_CHANGED:
-						setState((State)attached);
-						break;
-					case WILL_BE_COPIED:
-						//FIXME 
-						save((List<FileEntity>)attached, "files-save");
-						break;
-					case WILL_BE_ZIPPED:
-						save((List<FileEntity>)attached, "files-save");
-						break;
-				}
-			});
-			// TODO Auto-generated method stub
-			
-		}
-		@Override
-		public void notify(Type type, int attached) {
-			// TODO Auto-generated method stub
-			
-		}
-		@Override
-		public void notify(Type type, double attached) {
-			// TODO Auto-generated method stub
-			
-		}
-		
-		private <E extends FileEntity> void save(List<E> files, String suffix) {
-			Utils.writeInTempDir(task.getConfig(), "transfer-log-", suffix, new FileTreeString(rootDir, files), LOGGER);
-		}
-	}
-	
-	public void setTask(TransferTask newTask) {
-		if(newTask == null)
-			setCenter(null);
-		
-		if(task != null)
-			clear(task);
-//FIXME		
-	}
-	
-	private void clear(TransferTask task) {
-		
-		// TODO Auto-generated method stub
-		
-	}
+		getChildren().addAll(getHeaderText(), filesStats, new HBox(5, uploadCancelBtn, filesBtn));
 
+		this.transferer = new Transferer(config, filesTree, this, this);
+		update();
+	}
+	public Config getConfig() {
+		return config;
+	}
+	public ReadOnlyObjectProperty<State> stateProperty() {
+		return state.getReadOnlyProperty();
+	}
 	@Override
 	public void update() {
 		if(state == null || isState(State.UPLOADING))
@@ -158,8 +104,16 @@ class TransferView extends BorderPane implements TransferListener {
 
 		totalProgressFormat = new BasicFormat("Total Progress: {}/"+bts(summery.getTotalSize())+"  | {}/{}/"+selectedCount()+" ({})");
 	}
-	
-	private void buttonAction(ButtonType type) {
+	private Node getHeaderText() {
+		Text header = new Text(String.valueOf(config.getSource()));
+		setClass(header, "header");
+		return header;
+	}
+	public TransferSummery getSummery() {
+		return summery;
+	}
+	@Override
+	public void handle(ButtonType type) {
 		switch (type) {
 			case UPLOAD:
 				start();	
@@ -179,72 +133,51 @@ class TransferView extends BorderPane implements TransferListener {
 		uploadCancelBtn.setType(ButtonType.UPLOAD);
 		summery.stop();
 	}
-	 
-	private void start() {
-		if(task == null)
-			throw new IllegalStateException();
-			
-		if(center == null) 
-			init();
-		
-		if(getCenter() != center)
-			setCenter(center);
-		
-		set(source, task.getSourcePath());
-		set(target, task.getTargetPath());
-		
-		executor.execute(task);
-		
-		//TODO 
+
+	@Override 
+	public void start() {
+		if(sourceTargetTa == null) {
+			sourceTargetTa = new TextArea();
+			currentProgressT = new Text();
+			totalProgressT = new Text();
+			stateText = new Text();
+			currentProgressBar = new ProgressBar(0);
+			totalProgressBar = new ProgressBar(0);
+
+			sourceTargetTa.setPrefRowCount(7);
+			sourceTargetTa.setEditable(false);
+			sourceTargetTa.setPadding(new Insets(5));
+
+			setClass("text", sourceTargetTa, totalProgressT, currentProgressT);
+
+			totalProgressBar.setMaxWidth(Double.MAX_VALUE);
+			currentProgressBar.setMaxWidth(Double.MAX_VALUE);
+		}
+
+		sourceTargetTa.appendText("sourceDir: "+source+"\ntargetDir: "+target+"\n\n");
+
+		setState(QUEUED);
+		startEndAction.start(this);
+		uploadCancelBtn.setType(ButtonType.CANCEL);
+		filesBtn.setDisable(true);
+		summery.start();
 	}
-	private void set(Hyperlink link, Path p) {
-		link.setText(p == null ? null : p.toString());
+
+	@Override
+	public boolean isCancelled() {
+		return isState(CANCELLED);
 	}
-	
-	private GridPane init() {
-		currentProgressT = text();
-		totalProgressT = text();
-		stateText = text();
-		currentPB = new ProgressBar(0);
-		totalPB = new ProgressBar(0);
+	@Override
+	public void run() {
+		if(isState(QUEUED))
+			return;	
 
-		totalPB.setMaxWidth(Double.MAX_VALUE);
-		currentPB.setMaxWidth(Double.MAX_VALUE);
-		
-		center = FxGridPane.gridPane(5);
-		source = link();
-		target = link();
-
-		progressTA = new TextArea();
-		progressTA.setEditable(false);
-		progressTA.setPadding(FxConstants.INSETS_5);
-
-		setClass("text", progressTA);
-		
-		center.addRow(0, text("  source: "), source);
-		center.addRow(1, text("  target: "), target);
-		center.addRow(2, progressTA);
-		
-		GridPane.setRowSpan(progressTA, GridPane.REMAINING);
-		GridPane.setColumnSpan(progressTA, GridPane.REMAINING);
-		
-		ColumnConstraints c = new ColumnConstraints();
-		c.setFillWidth(true);
-		c.setHgrow(Priority.ALWAYS);
-		c.setMaxWidth(Double.MAX_VALUE);
-		FxGridPane.setColumnConstraint(center, 1, c);
-		
-		RowConstraints r = new RowConstraints();
-		r.setFillHeight(true);
-		r.setVgrow(Priority.ALWAYS);
-		r.setMaxHeight(Double.MAX_VALUE);
-		
-		FxGridPane.setRowConstraint(center, 2, r);
-		return center;
+		setState(State.UPLOADING);
+		setState(run2());
 	}
 
 	public State run2() {
-		fx(() -> getChildren().setAll(getHeaderText(),progressTA, currentProgressT, currentPB, totalProgressT, totalPB, uploadCancelBtn));
+		fx(() -> getChildren().setAll(getHeaderText(),sourceTargetTa, currentProgressT, currentProgressBar, totalProgressT, totalProgressBar, uploadCancelBtn));
 
 		summery.start();
 
@@ -303,15 +236,15 @@ class TransferView extends BorderPane implements TransferListener {
 		fx(() -> FxPopupShop.showHidePopup("transfer completed", 1500));
 		startEndAction.onComplete(this);
 
-		if(progressTA != null)
-			Utils.writeInTempDir(config, "transfer-log", null, progressTA.getText(), LOGGER);
+		if(sourceTargetTa != null)
+			Utils.writeInTempDir(config, "transfer-log", null, sourceTargetTa.getText(), LOGGER);
 
-		progressTA = null;
+		sourceTargetTa = null;
 		currentProgressT = null;
 		totalProgressT = null;
 		uploadCancelBtn = null;
-		currentPB = null;
-		totalPB = null;
+		currentProgressBar = null;
+		totalProgressBar = null;
 		totalProgressFormat = null;
 		transferer = null;
 		state = null;
@@ -320,7 +253,7 @@ class TransferView extends BorderPane implements TransferListener {
 	}
 	@Override
 	public void copyStarted(Path src, Path target) {
-		fx(() -> progressTA.appendText("src: "+sourceSubpather.apply(src)+"\ntarget: "+targetSubpather.apply(target)+"\n---------\n"));
+		fx(() -> sourceTargetTa.appendText("src: "+sourceSubpather.apply(src)+"\ntarget: "+targetSubpather.apply(target)+"\n---------\n"));
 	}
 	@Override
 	public void copyCompleted(Path src, Path target) { }
@@ -338,8 +271,8 @@ class TransferView extends BorderPane implements TransferListener {
 
 	private void updateProgress() {
 		fx(() -> {
-			setProgressBar(currentPB, bytesRead(), currentSize());
-			setProgressBar(totalPB, summery.getBytesRead(), summery.getTotalSize());
+			setProgressBar(currentProgressBar, bytesRead(), currentSize());
+			setProgressBar(totalProgressBar, summery.getBytesRead(), summery.getTotalSize());
 			currentProgressFormat.accept(bytesRead());
 			totalProgressT.setText(totalProgressFormat.format(bts(copiedSize()), copiedCount(), selectedCount() - copiedCount(), speed()));
 		});
@@ -367,35 +300,5 @@ class TransferView extends BorderPane implements TransferListener {
 	private long filesSelectedSize() { return transferer.getFilesSelectedSize(); }
 	private String speed() { return summery.getSpeedString(); }
 	private long bytesRead() { return transferer.getCurrentBytesRead(); }
-
-	@Override
-	public void started(FileEntity f) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void end(FileEntity f) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void progressFor(FileEntity f, double progress) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void totalProgress(double progress) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void stateChanged(State stage) {
-		// TODO Auto-generated method stub
-		
-	}
 }
 

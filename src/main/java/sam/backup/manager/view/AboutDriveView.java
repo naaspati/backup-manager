@@ -1,6 +1,7 @@
 package sam.backup.manager.view;
 
-import static sam.backup.manager.UtilsFx.fx;
+import static sam.backup.manager.Utils.*;
+import static sam.backup.manager.UtilsFx.*;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -8,7 +9,6 @@ import java.io.IOException;
 import java.nio.file.FileStore;
 import java.nio.file.FileSystems;
 
-import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import javafx.event.EventHandler;
@@ -16,14 +16,11 @@ import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
 import sam.backup.manager.SelectionListener;
-import sam.backup.manager.Utils;
 import sam.fx.helpers.FxUtils;
 import sam.myutils.MyUtilsException;
 
 @Singleton
 public class AboutDriveView extends VBox implements EventHandler<MouseEvent>, SelectionListener {
-	private final Utils utils;
-	
 	private class FileStoreView extends Label {
 		private final FileStore fs;
 		
@@ -35,20 +32,15 @@ public class AboutDriveView extends VBox implements EventHandler<MouseEvent>, Se
 		}
 		private void updateText() {
 			try {
-				setText("Total Space: "+utils.bytesToString(fs.getTotalSpace())+
-						" | Free Space: "+utils.bytesToString(fs.getUnallocatedSpace())
+				setText("Total Space: "+bytesToString(fs.getTotalSpace())+
+						" | Free Space: "+bytesToString(fs.getUnallocatedSpace())
 						);
 			} catch (IOException e) {
 				setText(MyUtilsException.toString(e));
 			}
 		}
 	}
-	
 
-	@Inject
-	public AboutDriveView(Utils utils) {
-		this.utils = utils;
-	}
 	@Override
 	public void handle(MouseEvent event) {
 		if(event.getClickCount() > 1) {

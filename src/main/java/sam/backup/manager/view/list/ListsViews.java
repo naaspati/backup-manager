@@ -31,15 +31,15 @@ import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.api.ConfigManager;
+import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.api.FileTree;
-import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.inject.Backups;
 import sam.backup.manager.inject.Injector;
-import sam.backup.manager.walk.WalkMode;
-import sam.backup.manager.walk.WalkTask;
+import sam.fx.helpers.FxCss;
 import sam.fx.helpers.FxHBox;
-import sam.fx.helpers.FxUtils;
 import sam.reference.WeakAndLazy;
 
 @Singleton
@@ -48,11 +48,11 @@ public class ListsViews extends BorderPane implements SelectionListener {
 
 	private VBox root;
 	private ScrollPane rootSp;
-	private FileTreeFactory factory;
-	private Utils utils;
-	private UtilsFx fx;
+	private FileTreeManager factory;
+	private ConfigManager cm;
 	private Provider<Injector> injector;
 	private WeakAndLazy<UpdateMultipleView> umv;
+	
 
 	@Inject
 	public ListsViews(Provider<Injector> injector) {
@@ -70,18 +70,16 @@ public class ListsViews extends BorderPane implements SelectionListener {
 		Injector injector = this.injector.get();
 		@SuppressWarnings("unchecked")
 		Collection<? extends Config> backups = injector.instance(Collection.class, Backups.class);
-		this.fx = injector.instance(UtilsFx.class);
 
-		Node banner = fx.headerBanner("Lists"+(backups.isEmpty() ? "" : " ("+backups.size()+")"));
+		Node banner = UtilsFx.headerBanner("Lists"+(backups.isEmpty() ? "" : " ("+backups.size()+")"));
 		
 		if(backups.isEmpty()) {
 			setTop(banner);
-			setCenter(fx.bigPlaceholder("Nothing Specified"));
+			setCenter(UtilsFx.bigPlaceholder("Nothing Specified"));
 		} else {
-			this.utils = injector.instance(Utils.class);
-			this.factory = injector.instance(FileTreeFactory.class);
-			Helper helper = injector.instance(Helper.class);
+			this.factory = injector.instance(FileTreeManager.class);
 			this.umv = new WeakAndLazy<>(UpdateMultipleView::new);
+			this.cm = injector.instance(ConfigManager.class);
 
 			CheckBox cb = new CheckBox("save without asking");
 			cb.setOnAction(e -> ListConfigView.saveWithoutAsking = cb.isSelected());
@@ -91,7 +89,7 @@ public class ListsViews extends BorderPane implements SelectionListener {
 
 			HBox buttons = new HBox(10, cb, updateMultiple);
 			buttons.setPadding(new Insets(2, 5, 2, 5));
-			buttons.setBorder(FxUtils.border(Color.LIGHTGRAY, BorderStrokeStyle.SOLID, new BorderWidths(1, 0, 1, 0)));
+			buttons.setBorder(FxCss.border(Color.LIGHTGRAY, BorderStrokeStyle.SOLID, new BorderWidths(1, 0, 1, 0)));
 			buttons.setAlignment(Pos.CENTER_LEFT);
 
 			root  = new VBox(2);
@@ -101,7 +99,7 @@ public class ListsViews extends BorderPane implements SelectionListener {
 			rootSp.setFitToWidth(true);
 			rootSp.setHbarPolicy(ScrollBarPolicy.NEVER);
 
-			backups.forEach(c -> root.getChildren().add(new ListConfigView(c,utils.getBackupLastPerformed("list:"+c.getSource()), helper)));
+			backups.forEach(c -> root.getChildren().add(new ListConfigView(c,cm.getBackupLastPerformed(ConfigType.LIST, c),factory, this.injector)));
 
 			setTop(new BorderPane(banner, null, null, buttons, null));
 			setCenter(root);
@@ -113,22 +111,22 @@ public class ListsViews extends BorderPane implements SelectionListener {
 		Config c = e.getConfig();
 
 		if(c.getWalkConfig().getDepth() <= 0) {
-			fx.showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getWalkConfig().getDepth(), null);
+			UtilsFx.showErrorDialog(c.getSource(), "Walk failed: \nbad value for depth: "+c.getWalkConfig().getDepth(), null);
 			return;
 		}
 		try {
 			FileTree f = factory.readFiletree(c, TreeType.LIST, true);
 			c.setFileTree(f);
 		} catch (Exception e1) {
-			fx.showErrorDialog(null, "failed to read TreeFile: ", e1);
+			UtilsFx.showErrorDialog(null, "failed to read TreeFile: ", e1);
 			LOGGER.error("failed to read TreeFile	", e1);
 			return;
 		}
-		//FIXME fx.runAsync(new WalkTask(c, WalkMode.SOURCE, e, e));
+		//FIXME UtilsFx.runAsync(new WalkTask(c, WalkMode.SOURCE, e, e));
 	}
 	//FIXME @Override
 	public void onComplete(ListConfigView e) {
-		utils.putBackupLastPerformed("list:"+e.getConfig().getSource(), System.currentTimeMillis());
+		cm.putBackupLastPerformed(ConfigType.LIST, e.getConfig(), System.currentTimeMillis());
 	}
 
 	private class UpdateMultipleView implements EventHandler<ActionEvent> {

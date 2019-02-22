@@ -5,7 +5,7 @@ import java.io.IOException;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.TreeType;
 
-public interface FileTreeFactory {
+public interface FileTreeManager {
 	FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws IOException ;
 	boolean saveFileTree(Config config); 
 	boolean saveFileTree(FileTree fileTree) ;

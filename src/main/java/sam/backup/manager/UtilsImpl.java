@@ -43,7 +43,7 @@ import sam.nopkg.EnsureSingleton;
 import sam.nopkg.SavedResource;
 
 @Singleton
-public class UtilsImpl implements Utils, ErrorHandlerRequired, Stoppable {
+class UtilsImpl implements IUtils, ErrorHandlerRequired, Stoppable {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 
 	private final Logger logger = LogManager.getLogger(UtilsImpl.class);

@@ -1,7 +1,11 @@
 package sam.backup.manager.view.backup;
 
 import static java.lang.String.valueOf;
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.millsToTimeString;
+import static sam.backup.manager.Utils.writeInTempDir;
 import static sam.backup.manager.UtilsFx.fx;
+import static sam.backup.manager.UtilsFx.hyperlink;
 import static sam.backup.manager.view.ButtonType.DELETE;
 import static sam.backup.manager.view.ButtonType.FILES;
 import static sam.backup.manager.view.ButtonType.WALK;
@@ -11,6 +15,8 @@ import static sam.fx.helpers.FxClassHelper.removeClass;
 import static sam.fx.helpers.FxMenu.menuitem;
 
 import java.nio.file.Files;
+
+import javax.inject.Provider;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,13 +34,13 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.file.api.FilteredDir;
 import sam.backup.manager.file.api.ForcedMarkable;
 import sam.backup.manager.view.ButtonAction;
@@ -49,7 +55,6 @@ import sam.fx.helpers.FxLabel;
 import sam.fx.helpers.FxText;
 import sam.fx.popup.FxPopupShop;
 import sam.nopkg.Junk;
-import sam.reference.WeakAndLazy;
 
 class BackupView extends BorderPane implements ButtonAction, WalkListener {
 	private static final Logger LOGGER = LogManager.getLogger(BackupView.class);
@@ -63,17 +68,16 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 	private final Text sourceDirCountT, targetFileCountT, targetDirCountT;
 	private final Text backupSizeT, backupFileCountT;
 	private final SimpleObjectProperty<FileTree> currentFileTree = new SimpleObjectProperty<>();
-	private final Shared shared;
 	private final Text bottomText;
-	private final WeakAndLazy<Deleter> deleter;
+	private final Provider<Deleter> deleter;
+	private final FileTreeManager factory;
 	private final SimpleObjectProperty<FilteredDir>  backupFFT = new SimpleObjectProperty<>();
 	private final SimpleObjectProperty<FilteredDir>  deleteFFT = new SimpleObjectProperty<>();
 	
-	public BackupView(Config config, Long lastUpdated, Shared shared) {
+	public BackupView(Config config, Long lastUpdated, FileTreeManager factory, Provider<Deleter> deleter) {
 		this.config = config;
-		this.shared = shared;
-		this.deleter = new WeakAndLazy<>(shared::deleter);
-		
+		this.deleter = deleter;
+		this.factory = factory;
 		
 		addClass(this, "config-view");
 		addClass(container, "grid");
@@ -104,10 +108,10 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 		ObservableList<Node> container = this.container.getChildren();
 
 		container.add(text("Source: "));
-		container.addAll(new Text("  "),  shared.fx.hyperlink(config.getSource()));
+		container.addAll(new Text("  "),  hyperlink(config.getSource()));
 		container.add(text("Target: "));
-		container.addAll(new Text("  "),  shared.fx.hyperlink(config.getBaseTarget()));
-		container.add(new HBox(5, text("Last updated: "), text(lastUpdated == null ? "N/A" : shared.utils.millsToTimeString(lastUpdated))));
+		container.addAll(new Text("  "),  hyperlink(config.getBaseTarget()));
+		container.add(new HBox(5, text("Last updated: "), text(lastUpdated == null ? "N/A" : millsToTimeString(lastUpdated))));
 
 		Label t = FxLabel.label("SUMMERY", "summery");
 		t.setMaxWidth(Double.MAX_VALUE);
@@ -159,7 +163,7 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 	private void setAsLatestAction(ActionEvent e) {
 		((ForcedMarkable)fileTree()).forcedMarkUpdated();
 		
-		if(shared.factory.saveFileTree(config))
+		if(factory.saveFileTree(config))
 			FxPopupShop.showHidePopup("marked as letest", 1500);
 	};
 	private Node header(String string) {
@@ -193,10 +197,10 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 	}
 	
 	private void deleteAction() {
-		shared.utils.writeInTempDir(config, "delete", null, new FileTreeString(deleteFFT.get()), LOGGER);
+		writeInTempDir(config, "delete", null, new FileTreeString(deleteFFT.get()), LOGGER);
 		Deleter d = deleter.get();
 		d.start(fileTree(), deleteFFT.get())
-		.thenAccept(NULL -> shared.factory.saveFileTree(config));
+		.thenAccept(NULL -> factory.saveFileTree(config));
 	}
 	/** FIXME
 	 * 	@Override
@@ -270,13 +274,12 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 
 	@Override
 	public void onFileFound(FileEntity ft, long size, WalkMode mode) {
-		Utils u = shared.utils;
 		fx(() -> {
 			if(mode == WalkMode.SOURCE) {
-				sourceSizeT.setText(u.bytesToString(sourceSize += size));
+				sourceSizeT.setText(bytesToString(sourceSize += size));
 				sourceFileCountT.setText(valueOf(++sourceFileCount));
 			} else if(mode == WalkMode.BACKUP){
-				targetSizeT.setText(u.bytesToString(targetSize += size));
+				targetSizeT.setText(bytesToString(targetSize += size));
 				targetFileCountT.setText(valueOf(++targetFileCount));
 			} else {
 				throw new IllegalStateException("invalid walkMode: "+mode);
@@ -305,7 +308,7 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 		long[] l = {0,0};
 		walk(backup, l);
 		fx(() -> {
-			backupSizeT.setText(shared.utils.bytesToString(l[1]));
+			backupSizeT.setText(bytesToString(l[1]));
 			backupFileCountT.setText(valueOf(l[0]));
 		});
 	}
@@ -356,7 +359,7 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 		if(fileTree() == null) {
 			FileTree ft;
 			try {
-				ft = shared.factory.readFiletree(config, TreeType.BACKUP, false);
+				ft = factory.readFiletree(config, TreeType.BACKUP, false);
 			} catch (Exception e) {
 				showErrorDialog(null, "failed to read TreeFile: ", e);
 				LOGGER.error("failed to read TreeFile: ", e);
@@ -364,7 +367,7 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 			}
 			if(ft == null) {
 				try {
-					ft = shared.factory.readFiletree(config, TreeType.BACKUP, true);
+					ft = factory.readFiletree(config, TreeType.BACKUP, true);
 				} catch (Exception e) {
 					showErrorDialog(null, "failed to read TreeFile: ", e);
 					LOGGER.error("failed to read TreeFile: ", e);

@@ -1,20 +1,15 @@
 package sam.backup.manager;
 
-import static sam.backup.manager.UtilsFx.fx;
-
 import java.io.File;
 import java.net.URL;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import javax.inject.Singleton;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javafx.concurrent.Task;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
@@ -36,38 +31,12 @@ import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxHyperlink;
 import sam.fx.helpers.FxUtils;
 import sam.myutils.Checker;
-import sam.myutils.System2;
-import sam.nopkg.EnsureSingleton;
 
 @Singleton
-class UtilsFxImpl implements UtilsFx, Stoppable {
-	private static final EnsureSingleton singleton = new EnsureSingleton();
-
+class UtilsFxImpl implements IUtilsFx {
 	private final Logger logger = LogManager.getLogger(UtilsFxImpl.class);
-	private final ExecutorService POOL;
 
-	public UtilsFxImpl() {
-		singleton.init();
-
-		String s = System2.lookup("THREAD_COUNT");
-		int size = 1;
-		if(s == null) 
-			logger.debug("THREAD_COUNT not specified, using single thread pool");
-		else {
-			try {
-				size = Integer.parseInt(s);
-				if(size < 1) {
-					logger.warn("bad value for THREAD_COUNT={}, using single thread pool", size);
-					size = 1;
-				}
-			} catch (NumberFormatException e) {
-				logger.debug("failed to parse THREAD_COUNT=\"{}\"", s, e);
-			}
-		}
-
-		POOL = size == 1 ? Executors.newSingleThreadScheduledExecutor() : Executors.newFixedThreadPool(size);
-	}
-
+	@Override
 	public Stage showStage(Window parent, Parent content) {
 		Stage stg = new Stage();
 		stg.initModality(Modality.WINDOW_MODAL);
@@ -113,10 +82,7 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 			return t;
 		}
 	}
-	@Override
-	public void runAsync(@SuppressWarnings("rawtypes") Task runnable) {
-		POOL.execute(runnable);
-	}
+	
 	@Override
 	public Node hyperlink(List<PathWrap> wraps) {
 		if(Checker.isEmpty(wraps))
@@ -139,13 +105,6 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 	}
 
 	@Override
-	public void stop() throws Exception {
-		POOL.shutdownNow();
-		logger.warn("waiting thread to die");
-		POOL.awaitTermination(2, TimeUnit.SECONDS);
-	}
-
-	@Override
 	public Node headerBanner(String text) {
 		// FIXME something beutiful 
 		return new Text(text);
@@ -154,6 +113,10 @@ class UtilsFxImpl implements UtilsFx, Stoppable {
 	public Node bigPlaceholder(String text) {
 		// FIXME something beutiful 
 		return new Text(text);
+	}
+	@Override
+	public void fx(Runnable runnable) {
+		Platform.runLater(runnable);
 	}
 
 }

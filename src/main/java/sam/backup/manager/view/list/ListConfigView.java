@@ -1,6 +1,11 @@
 package sam.backup.manager.view.list;
 
+import static sam.backup.manager.Utils.hashedName;
+import static sam.backup.manager.Utils.millsToTimeString;
 import static sam.backup.manager.UtilsFx.fx;
+import static sam.backup.manager.UtilsFx.hyperlink;
+import static sam.backup.manager.UtilsFx.showErrorDialog;
+import static sam.backup.manager.UtilsFx.showStage;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -11,6 +16,8 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.function.Consumer;
 
+import javax.inject.Provider;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,11 +26,13 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.PathWrap;
-import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
+import sam.backup.manager.file.api.FileTreeManager;
+import sam.backup.manager.inject.Injector;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
@@ -48,28 +57,30 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 	private CustomButton button;
 	private Text fileCountT, dirCountT;  
 	private Consumer<ListConfigView> onWalkCompleted;
-	private final Helper helper;
+	private final Provider<Injector> injector;
+	private final FileTreeManager factory;
 
-	public ListConfigView(Config c, Long lastUpdated, Helper helper) {
+	public ListConfigView(Config c, Long lastUpdated, FileTreeManager factory, Provider<Injector> injector) {
 		setClass(this, "listing-view");
 		config = c;
-		this.helper = helper;
+		this.injector = injector;
+		this.factory = factory;
 		
-		Node src = helper.fx.hyperlink(config.getSource());
+		Node src = hyperlink(config.getSource());
 		if(src instanceof VBox)
 			((VBox) src).getChildren().forEach(h -> addClass(h, "header"));
 		else
 			addClass(src, "header");
 
 		if(Checker.isEmpty(config.getSource())) {
-			getChildren().addAll(src, FxText.ofString("Last updated: "+helper.utils.millsToTimeString(lastUpdated)));
+			getChildren().addAll(src, FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)));
 			setDisable(true);
 		} else {
 			button = new CustomButton(ButtonType.WALK, this);
 			fileCountT = FxText.text("  Files: --", "count-text");
 			dirCountT = FxText.text("  Dirs: --", "count-text");
 
-			getChildren().addAll(src, new HBox(10, fileCountT, dirCountT), FxText.ofString("Last updated: "+helper.utils.millsToTimeString(lastUpdated)), button);
+			getChildren().addAll(src, new HBox(10, fileCountT, dirCountT), FxText.ofString("Last updated: "+millsToTimeString(lastUpdated)), button);
 		}
 	}
 
@@ -85,7 +96,7 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 			case OPEN:
 				TextArea ta = new TextArea(treeText == null ? null : treeText.toString());
 				ta.setEditable(false);
-				helper.fx.showStage(helper.window.get(), ta);
+				showStage(UtilsFx.window(injector.get()), ta);
 				break;
 			case SAVE:
 				save();
@@ -168,7 +179,7 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 	public void walkCompleted() {
 		if(treeText == null) {
 			//FIXME treeText = new FileTreeString(config.getFileTree());
-			helper.fatory.saveFileTree(config);
+			factory.saveFileTree(config);
 		}
 		fx(() -> {
 			getChildren().remove(button);
@@ -183,13 +194,13 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 	}
 	public void save() {
 		if(Checker.isEmpty(treeText)) {
-			helper.fx.showErrorDialog(null, "FileEntity not set", null);
+			showErrorDialog(null, "FileEntity not set", null);
 			return;
 		}
 		boolean created[] = {false};
 
 		Path p = Optional.ofNullable(config.getBaseTarget()).map(PathWrap::path).orElse(null);
-		Path name = p == null ? Paths.get(helper.utils.hashedName(config.getBaseTarget().path(), ".txt")) : p.getFileName();
+		Path name = p == null ? Paths.get(hashedName(config.getBaseTarget().path(), ".txt")) : p.getFileName();
 
 		if(saveWithoutAsking) {
 			String listbackDirs = System2.lookup("LIST_BACKUP_DIR");
@@ -215,7 +226,7 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 			listCreated();
 	}
 	private boolean saveToFile2(CharSequence text, Path p) {
-		//FIXME return helper.utils.saveToFile2(p.getParent().toFile(), p.getFileName().toString(), "Save File Tree", text);
+		//FIXME return saveToFile2(p.getParent().toFile(), p.getFileName().toString(), "Save File Tree", text);
 		return Junk.notYetImplemented();
 	}
 	private void write(Path p, CharSequence data) {
@@ -224,10 +235,10 @@ public class ListConfigView extends VBox implements ButtonAction, WalkListener {
 
 		try {
 			Files.createDirectories(p.getParent());
-			helper.utils.write(p, data);
+			write(p, data);
 			LOGGER.info("files-tree created: {}", p);
 		} catch (IOException e) {
-			helper.fx.showErrorDialog(p, "failed to save tree", e);
+			showErrorDialog(p, "failed to save tree", e);
 		}
 	}
 

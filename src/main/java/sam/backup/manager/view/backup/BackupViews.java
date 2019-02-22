@@ -1,6 +1,7 @@
 package sam.backup.manager.view.backup;
 
 import java.util.Collection;
+import java.util.function.Function;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -15,7 +16,9 @@ import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.config.api.ConfigManager;
+import sam.backup.manager.config.api.ConfigType;
+import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.inject.Backups;
 import sam.backup.manager.inject.Injector;
 import sam.nopkg.EnsureSingleton;
@@ -30,7 +33,7 @@ public class BackupViews extends BorderPane implements JsonRequired, SelectionLi
 	private final Provider<Injector> injector;
 
 	@Inject
-	public BackupViews(Provider<Injector> injector, FileTreeFactory factory, @Backups Collection<? extends Config> backups, Utils utils, UtilsFx fx) {
+	public BackupViews(Provider<Injector> injector, FileTreeManager factory, @Backups Collection<? extends Config> backups) {
 		this.backups = backups;
 		this.injector = injector;
 		
@@ -46,10 +49,11 @@ public class BackupViews extends BorderPane implements JsonRequired, SelectionLi
 			return;
 		
 		init = true;
-		Shared shared = instance(Shared.class);
-		backups.forEach(c -> root.getChildren().add(new BackupView(c, shared.utils.getBackupLastPerformed("backup:"+c.getSource()), shared)));
+		FileTreeManager fac = instance(FileTreeManager.class);
+		ConfigManager cm = instance(ConfigManager.class);
+		backups.forEach(c -> root.getChildren().add(new BackupView(c, cm.getBackupLastPerformed(ConfigType.BACKUP, c), fac, null)));
 	}
-	
+
 	private <E> E instance(Class<E> cls) {
 		return injector.get().instance(cls);
 	}
@@ -59,7 +63,7 @@ public class BackupViews extends BorderPane implements JsonRequired, SelectionLi
 		String title = json.optString("title");
 		
 		if(title != null)
-			setTop(instance(UtilsFx.class).headerBanner(title));
+			setTop(UtilsFx.headerBanner(title));
 	}
 
 	/* FIXME 

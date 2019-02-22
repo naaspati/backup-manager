@@ -1,5 +1,6 @@
 
 package sam.backup.manager;
+
 import static sam.backup.manager.SingleLoader.load;
 
 import java.io.IOException;
@@ -10,6 +11,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.PrimitiveIterator.OfDouble;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -38,18 +43,19 @@ import javafx.stage.Window;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.ConfigManagerProvider;
-import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.inject.Backups;
 import sam.backup.manager.inject.Injector;
 import sam.backup.manager.inject.Lists;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
+import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 
 @SuppressWarnings("restriction")
 @Singleton
-public class App extends Application implements StopTasksQueue, Injector {
+public class App extends Application implements StopTasksQueue, Injector, Executor {
 	public static void main(String[] args) throws URISyntaxException, IOException, SQLException {
 		LauncherImpl.launchApplication(App.class, PreloaderImpl.class, args);
 	}
@@ -74,13 +80,14 @@ public class App extends Application implements StopTasksQueue, Injector {
 	private final AtomicBoolean stopping = new AtomicBoolean(false);
 	private final List<ViewWrap> tabs = new ArrayList<>();
 	private final Scene scene = new Scene(new Group(new Text("NOTHING TO VIEW")));
-	private FileTreeFactory fileTreeFactory;
+	private FileTreeManager fileTreeFactory;
 	private ConfigManager configManager;
 	private Feather feather;
 	private Stage stage;
-	private Utils utils;
-	private UtilsFx fx;
+	private IUtils utils;
+	private IUtilsFx fx;
 	private ArrayList<RunWrap> stops = new ArrayList<>();
+	private ExecutorService pool; 
 
 	@Override
 	public void init() throws Exception {
@@ -108,20 +115,19 @@ public class App extends Application implements StopTasksQueue, Injector {
 		}
 		
 		s.accept("start Utils.init()");
-		this.utils = SingleLoader.load(Utils.class, UtilsImpl.class);
-		this.fx = SingleLoader.load(UtilsFx.class, UtilsFxImpl.class);
+		this.utils = load(IUtils.class, UtilsImpl.class);
+		this.fx = load(IUtilsFx.class, UtilsFxImpl.class);
 		s.accept("end \n  Utils: "+utils.getClass()+"\n  UtilsFx: "+fx.getClass());
 		
 		s.accept("find ConfigManagerProvider");
-		ConfigManagerProvider cmp = load(ConfigManagerProvider.class);
-		cmp.load();
-		this.configManager = cmp.get();
+		this.configManager = load(ConfigManagerProvider.class).get();
 		
-		s.accept("found ConfigManagerProvider: "+cmp.getClass());
 		s.accept("found ConfigManager: "+configManager.getClass());
 		
+		configManager.load();
+		
 		s.accept("find FileTreeFactory");
-		this.fileTreeFactory = load(FileTreeFactory.class);
+		this.fileTreeFactory = load(FileTreeManager.class);
 		s.accept("found FileTreeFactory: "+fileTreeFactory.getClass());
 		
 		s.accept("Load tabs");
@@ -138,8 +144,31 @@ public class App extends Application implements StopTasksQueue, Injector {
 			};
 		};
 		
+		Utils.setUtils(utils);
+		UtilsFx.setFx(fx);
+		
 		feather = Feather.with(this);
+		pool = createPool();
 		notifyPreloader(new Preloader.ProgressNotification(1));
+	}
+
+	private ExecutorService createPool() {
+		String s = System2.lookup("THREAD_COUNT");
+		int size = 1;
+		if(s == null) 
+			logger.debug("THREAD_COUNT not specified, using single thread pool");
+		else {
+			try {
+				size = Integer.parseInt(s);
+				if(size < 1) {
+					logger.warn("bad value for THREAD_COUNT={}, using single thread pool", size);
+					size = 1;
+				}
+			} catch (NumberFormatException e) {
+				logger.debug("failed to parse THREAD_COUNT=\"{}\"", s, e);
+			}
+		}
+		return size == 1 ? Executors.newSingleThreadScheduledExecutor() : Executors.newFixedThreadPool(size);
 	}
 
 	@Override
@@ -184,18 +213,6 @@ public class App extends Application implements StopTasksQueue, Injector {
 			FxAlert.showErrorDialog(tab, "failed to load view", e);
 		}
 	}
-
-	/*
-	 * private Node getMenubar() {
-		Menu  file = new Menu("_File",
-				null,
-				menuitem("open app dir", e -> FileOpenerNE.openFile(new File(".")))
-				//TODO menuitem("cleanup", e -> new Cleanup())
-				);
-		return new MenuBar(file);
-	}(non-Javadoc)
-	 * @see javafx.application.Application#stop()
-	 */
 	
 	@Override
 	public void add(Runnable runnable) {
@@ -207,7 +224,15 @@ public class App extends Application implements StopTasksQueue, Injector {
 	public void stop() throws Exception {
 		if(!stopping.compareAndSet(false, true))
 			return;
-
+		
+		try {
+			pool.shutdownNow();
+			logger.warn("waiting thread to die");
+			pool.awaitTermination(2, TimeUnit.SECONDS);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
 		tabs.forEach(view -> stop(view.instance(), view));
 		
 		for (Object o : new Object[]{fileTreeFactory, configManager, utils, fx}) 
@@ -254,15 +279,15 @@ public class App extends Application implements StopTasksQueue, Injector {
 		return configManager;
 	}
 	@Provides
-	private FileTreeFactory filtreeFactory() {
+	private FileTreeManager filtreeFactory() {
 		return fileTreeFactory;
 	}
 	@Provides
-	private Utils getUtils() {
+	private IUtils getUtils() {
 		return utils;
 	}
 	@Provides
-	private UtilsFx getFx() {
+	private IUtilsFx getFx() {
 		return fx;
 	}
 	@Provides
@@ -275,13 +300,20 @@ public class App extends Application implements StopTasksQueue, Injector {
 	private Collection<? extends Config> lists() {
 		return configManager.getLists();
 	}
-	
 	@Provides
 	@sam.backup.manager.inject.ParentWindow
 	private Window stage() {
 		return stage;
 	}
+	@Provides
+	private Executor executor() {
+		return this;
+	}
 	
+	@Override
+	public void execute(Runnable command) {
+		pool.execute(command);
+	}
 	
 	private class ViewWrap {
 		final Class<? extends Parent> cls;

@@ -1,6 +1,7 @@
 package sam.backup.manager.view.backup;
 
-import sam.backup.manager.Utils;
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.divide;
 
 class TransferSummery {
 	private volatile long lastTime ;
@@ -12,11 +13,6 @@ class TransferSummery {
 	private volatile long totalSize ;
 	private volatile boolean running;
 	private TransferRateView statusView;
-	private final Utils utils;
-	
-	public TransferSummery(Utils utils) {
-		this.utils = utils;
-	}
 
 	public void update(long bytesRead) {
 		if(!running)
@@ -63,13 +59,13 @@ class TransferSummery {
 	}
 
 	public String getSpeedString() {
-		return utils.bytesToString(speed)+"/s";
+		return bytesToString(speed)+"/s";
 	}
 	public long getBytesRead() {
 		return bytesRead;
 	}
 	public long getAverageSpeed() {
-		return (long)(utils.divide(totalSize, getTimePassed())*1000);
+		return (long)(divide(totalSize, getTimePassed())*1000);
 	}
 	private long getTimePassed() {
 		return (running ? System.currentTimeMillis() : stoppedTime) - startTime - pauseTime;

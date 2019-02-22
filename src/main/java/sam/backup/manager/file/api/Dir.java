@@ -7,5 +7,6 @@ public interface  Dir extends FileEntity, Iterable<FileEntity> {
 	boolean isEmpty();
 	public void walk(FileTreeWalker walker);
 	FilteredDir filtered(Predicate<FileEntity> filter);
+	int countFilesInTree();
 }
 

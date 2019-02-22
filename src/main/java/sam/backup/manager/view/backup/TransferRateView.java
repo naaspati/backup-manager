@@ -1,5 +1,7 @@
 package sam.backup.manager.view.backup;
 
+import static sam.backup.manager.Utils.divide;
+import static sam.backup.manager.Utils.durationToString;
 import static sam.backup.manager.UtilsFx.fx;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -15,8 +17,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.Utils;
-
 class TransferRateView extends HBox {
 	private final AtomicLong total = new AtomicLong();
 	private volatile String totalString;
@@ -25,11 +25,9 @@ class TransferRateView extends HBox {
 	private final Text speedT = new Text();
 	private final Label totalProgressT = new Label();
 	private final Label remainingTimeT = new Label();
-	private final Utils utils;
 
-	public TransferRateView(Utils utils) {
+	public TransferRateView() {
 		super(5);
-		this.utils = utils;
 		
 		setClass(this, "status-view");
 
@@ -66,7 +64,7 @@ class TransferRateView extends HBox {
 		totalString = "/"+ bytesToString(total.addAndGet(value));
 	}
 	private String bytesToString(long bytes) {
-		return utils.bytesToString(bytes);
+		return bytesToString(bytes);
 	}
 
 	public void update(OldNewLong bytesReadOnl, OldNewLong speedOnl) {
@@ -76,8 +74,8 @@ class TransferRateView extends HBox {
 			if(speedOnl != null)
 				speedT.setText(bytesToString(speed.addAndGet(speedOnl.difference()))+"/s");
 
-			long l = (long)utils.divide(total.get() - bytesRead.get(), speed.get());
-			remainingTimeT.setText(utils.durationToString(Duration.ofSeconds(l)));
+			long l = (long)divide(total.get() - bytesRead.get(), speed.get());
+			remainingTimeT.setText(durationToString(Duration.ofSeconds(l)));
 		});
 	}
 	public void setCompleted() {

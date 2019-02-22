@@ -197,5 +197,26 @@ public class DirImpl extends FileImpl implements Dir {
 		else
 			return Iterators.join(Iterators.of(old), neew.iterator());
 	}
+	@Override
+	public int countFilesInTree() {
+		return countFilesInTree(ALWAYS_TRUE);	
+	}
+	public int countFilesInTree(Predicate<FileEntity> filter) {
+		if(isEmpty())
+			return 0;
+		
+		int n = 0;
+		
+		for (FileEntity f : this) {
+			if(!filter.test(f))
+				continue;
+				
+			if(f.isDirectory())
+				n += ((Dir)f).countFilesInTree();
+			else 
+				n++;
+		}
+		return n;
+	}
 }
 

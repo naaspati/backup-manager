@@ -1,5 +1,11 @@
 package sam.backup.manager.view;
 
+import static sam.backup.manager.Utils.appDataDir;
+import static sam.backup.manager.Utils.bytesToString;
+import static sam.backup.manager.Utils.getLogger;
+import static sam.backup.manager.Utils.millsToTimeString;
+import static sam.backup.manager.Utils.setTextNoError;
+import static sam.backup.manager.UtilsFx.fileChooser;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -43,8 +49,6 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Window;
 import sam.backup.manager.StopTasksQueue;
-import sam.backup.manager.Utils;
-import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.file.FileTreeString;
@@ -71,30 +75,26 @@ public class FilesView extends BorderPane {
 	private final SimpleIntegerProperty selectedCount = new SimpleIntegerProperty();
 	private final SimpleIntegerProperty totalCount = new SimpleIntegerProperty();
 	private final AboutPane aboutPane = new AboutPane();
-	private final UtilsFx fx;
 	
 	private PathWrap sourceRoot, targetRoot;
 	private Dir treeToDisplay;
 	private FilesViewSelector selector;
 	private FileTree fileTree;
 	private final Provider<Window> parent;
-	private final Utils utils;
 	private static SavedAsStringResource<String> lastVisited;
 	
 
 	@Inject
-	public FilesView(UtilsFx fx, Utils utils, StopTasksQueue queue, @ParentWindow Provider<Window> parent) {
-		this.fx = fx;
+	public FilesView(StopTasksQueue queue, @ParentWindow Provider<Window> parent) {
 		this.parent = parent;
-		this.utils = utils;
 		
 		if(lastVisited == null) {
-			lastVisited = new SavedAsStringResource<>(utils.appDataDir().resolve(getClass().getName()+".last.visited"), s -> s);
+			lastVisited = new SavedAsStringResource<>(appDataDir().resolve(getClass().getName()+".last.visited"), s -> s);
 			queue.add(() -> {
 				try {
 					lastVisited.close();
 				} catch (IOException e1) {
-					utils.getLogger(FileView.class).warn("failed to save: {}", lastVisited.getSavePath(), e1);
+					getLogger(FileView.class).warn("failed to save: {}", lastVisited.getSavePath(), e1);
 				}
 			});
 		}
@@ -223,14 +223,14 @@ public class FilesView extends BorderPane {
 
 		//FIXME Utils.saveToFile2()
 
-		File file = fx.fileChooser(parent, new File(treeToDisplay.getName()).getName()+".txt", "save File Tree").showSaveDialog(this.parent.get());
+		File file = fileChooser(parent, new File(treeToDisplay.getName()).getName()+".txt", "save File Tree").showSaveDialog(this.parent.get());
 		if(file == null) {
 			FxPopupShop.showHidePopup("CANCELLED", 1500);
 			return;
 		}
 		
 		lastVisited.set(file.getParent());
-		utils.setTextNoError(file.toPath(), ft, "failed to save filetree: ");
+		setTextNoError(file.toPath(), ft, "failed to save filetree: ");
 	}
 	private class Unit extends CheckBoxTreeItem<FileEntity> {
 		final FileEntity file;
@@ -375,8 +375,8 @@ public class FilesView extends BorderPane {
 		private void append(String heading, Attr a) {
 			if(a != null && (a.size != 0 || a.lastModified != 0)) {
 				sb.append(separator).append(heading)
-				.append(separator).append(separator).append("size: ").append(a.size == 0 ? "0" : utils.bytesToString(a.size)).append('\n')
-				.append(separator).append(separator).append("last-modified: ").append(a.lastModified == 0 ? "--" : utils.millsToTimeString(a.lastModified)).append('\n');
+				.append(separator).append(separator).append("size: ").append(a.size == 0 ? "0" : bytesToString(a.size)).append('\n')
+				.append(separator).append(separator).append("last-modified: ").append(a.lastModified == 0 ? "--" : millsToTimeString(a.lastModified)).append('\n');
 			}
 		}
 

@@ -155,4 +155,8 @@ class FilteredDirImpl implements FilteredDir, FileEntityWithId {
 		for (FileEntity f : this) 
 			action.accept(f);
 	}
+	@Override
+	public int countFilesInTree() {
+		return dir.countFilesInTree(filter);
+	}
 }

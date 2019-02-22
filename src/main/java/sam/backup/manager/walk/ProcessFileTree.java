@@ -13,7 +13,7 @@ import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
-import sam.backup.manager.file.api.FileTreeFactory;
+import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.file.api.FileTreeWalker;
 import sam.nopkg.Junk;
 
@@ -24,7 +24,7 @@ class ProcessFileTree implements FileTreeWalker {
 	private final FileTree filetree;
 	private final List<FileEntity> willRemoved = new ArrayList<>();
 
-	public ProcessFileTree(FileTreeFactory ftf, FileTree filetree, Config config, boolean backupWalked) {
+	public ProcessFileTree(FileTreeManager ftf, FileTree filetree, Config config, boolean backupWalked) {
 		this.filetree = filetree;
 		this.backupWalked = backupWalked;
 		this.checkModified = config.getBackupConfig().checkModified();

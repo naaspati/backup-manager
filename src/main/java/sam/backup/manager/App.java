@@ -50,7 +50,6 @@ import sam.backup.manager.inject.Lists;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
-import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 
 @SuppressWarnings("restriction")
@@ -148,27 +147,8 @@ public class App extends Application implements StopTasksQueue, Injector, Execut
 		UtilsFx.setFx(fx);
 		
 		feather = Feather.with(this);
-		pool = createPool();
+		pool =  Executors.newSingleThreadExecutor();
 		notifyPreloader(new Preloader.ProgressNotification(1));
-	}
-
-	private ExecutorService createPool() {
-		String s = System2.lookup("THREAD_COUNT");
-		int size = 1;
-		if(s == null) 
-			logger.debug("THREAD_COUNT not specified, using single thread pool");
-		else {
-			try {
-				size = Integer.parseInt(s);
-				if(size < 1) {
-					logger.warn("bad value for THREAD_COUNT={}, using single thread pool", size);
-					size = 1;
-				}
-			} catch (NumberFormatException e) {
-				logger.debug("failed to parse THREAD_COUNT=\"{}\"", s, e);
-			}
-		}
-		return size == 1 ? Executors.newSingleThreadScheduledExecutor() : Executors.newFixedThreadPool(size);
 	}
 
 	@Override

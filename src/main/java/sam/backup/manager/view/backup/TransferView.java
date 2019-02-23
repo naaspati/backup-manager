@@ -45,7 +45,7 @@ import sam.string.BasicFormat;
 
 
 @SuppressWarnings("rawtypes")
-class TransferView extends BorderPane implements TransferListener {
+class TransferView extends BorderPane {
 	private static final Logger LOGGER = LogManager.getLogger(TransferView.class);
 
 	private GridPane center;
@@ -94,35 +94,6 @@ class TransferView extends BorderPane implements TransferListener {
 	
 	@SuppressWarnings("unchecked")
 	private class TListener implements TransferListener {
-		@Override
-		public void notify(Type type, Object attached) {
-			fx(() -> {
-				switch (type) {
-					case STATE_CHANGED:
-						setState((State)attached);
-						break;
-					case WILL_BE_COPIED:
-						//FIXME 
-						save((List<FileEntity>)attached, "files-save");
-						break;
-					case WILL_BE_ZIPPED:
-						save((List<FileEntity>)attached, "files-save");
-						break;
-				}
-			});
-			// TODO Auto-generated method stub
-			
-		}
-		@Override
-		public void notify(Type type, int attached) {
-			// TODO Auto-generated method stub
-			
-		}
-		@Override
-		public void notify(Type type, double attached) {
-			// TODO Auto-generated method stub
-			
-		}
 		
 		private <E extends FileEntity> void save(List<E> files, String suffix) {
 			Utils.writeInTempDir(task.getConfig(), "transfer-log-", suffix, new FileTreeString(rootDir, files), LOGGER);

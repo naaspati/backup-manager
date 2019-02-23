@@ -22,6 +22,7 @@ import static sam.io.IOUtils.write;
 import static sam.myutils.MyUtilsBytes.bytesToHumanReadableUnits;
 import static sam.myutils.MyUtilsExtra.nullSafe;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -96,7 +97,7 @@ class TransferTask {
 		state.set(s);
 
 		if(listener != null)
-			listener.notify(Type.STATE_CHANGED, s);
+			listener.stateChanged(s);
 	}
 	private void ensureNotRunning() {
 		if(!isFxApplicationThread())
@@ -139,6 +140,7 @@ class TransferTask {
 	private Counts counts;
 	private TransferListener listener;
 	private Set<Dir> createdDirs;
+	private int removeFromFileTree;
 
 	private void run() {
 		if(isFxApplicationThread())
@@ -158,12 +160,16 @@ class TransferTask {
 		IFilter zipFilter = config.getZipFilter(); 
 		List<FileEntity> filesList = new ArrayList<>();
 		List<Dir> zips = new ArrayList<>();
+		removeFromFileTree = 0;
 
-		listener.notify(Type.CHECKING_FILETREE);
+		listener.generalEvent(Type.COUNTING);
 
 		rootDir.walk(new FileTreeWalker() {
 			@Override
 			public FileVisitResult file(FileEntity ft) {
+				if(remove(ft))
+					return CONTINUE;	
+				
 				if(ft.getStatus().isCopied()) {
 					long size = ft.getSourceSize();
 
@@ -181,7 +187,7 @@ class TransferTask {
 			}
 			@Override
 			public FileVisitResult dir(Dir ft) {
-				if(zipFilter == null)
+				if(remove(ft) || zipFilter == null)
 					return CONTINUE;
 
 				if(!ft.getStatus().isBackupable())
@@ -206,8 +212,8 @@ class TransferTask {
 			}
 		});
 
-		listener.notify(Type.WILL_BE_ZIPPED, unmodifiableList(zips));
-		listener.notify(Type.WILL_BE_COPIED, unmodifiableList(filesList));
+		listener.generalEvent(Type.ZIP, Type.WILL_BE, unmodifiableList(zips));
+		listener.generalEvent(Type.COPY, Type.WILL_BE, unmodifiableList(filesList));
 		byte[] buffer = buffers.poll();
 		createdDirs = nullSafe(createdDirs, HashSet::new);
 
@@ -220,9 +226,17 @@ class TransferTask {
 			buffers.add(buffer);
 		}
 	}
+	
+	private boolean remove(FileEntity ft) {
+		if(ft.getSourceAttrs().current() == null) {
+			removeFromFileTree++;
+			return true;
+		}
+		return false;
+	}
 
 	private void files(List<FileEntity> files, byte[] buffer) {
-		listener.notify(Type.START_FILE_COPY_OPERATION);
+		listener.generalEvent(Type.COPY, Type.START_OPERATION, null);
 		ByteBuffer buf = ByteBuffer.wrap(buffer);
 		buf.clear();
 
@@ -231,41 +245,36 @@ class TransferTask {
 				continue;
 			
 			try {
-				listener.notify(Type.START_FILE_COPY, f);
+				listener.start(Type.COPY, f);
 				copy(f, buf);
-				listener.notify(Type.SUCCCESS_FILE_COPY, f);
+				listener.success(Type.COPY, f);
 			} catch (IOException e) {
-				listener.notify(Type.FAILED_FILE_COPY, f);
+				listener.failed(Type.COPY, f, e);
 			}
 		}
-		listener.notify(Type.COMPLETED_FILE_COPY_OPERATION);
+		listener.generalEvent(Type.COPY, Type.END_OPERATION, null);
 	}
 
 	private void zip(List<Dir> zips, byte[] buffer) {
 		if(zips.isEmpty())
 			return;
 
-		listener.notify(Type.START_ZIPPING_OPERATION);
+		listener.generalEvent(Type.ZIP, Type.START_OPERATION, null);
 
 		for (Dir d : zips) {
 			try {
-				listener.notify(Type.START_ZIP_DIR, d);
-				if(removeFromFileTree(d)) {
-					listener.notify(Type.REMOVE_FROM_FILETREE, d);						
-				} else {
-					if(d.getStatus().isCopied())
-						listener.notify(Type.ALREADY_ZIPPED, d);
-					else {
-						zipDir(d, buffer);
-						listener.notify(Type.SUCCCESS_ZIP_DIR, d);
-						setCopied(d, true);
-					}
+				if(d.getStatus().isCopied())
+					listener.completed(Type.ZIP, d);
+				else {
+					listener.start(Type.ZIP, d);
+					zipDir(d, buffer);
+					listener.success(Type.ZIP, d);
 				}
 			} catch (IOException e) {
-				listener.notify(Type.FAILED_ZIP_DIR, d, e);
+				listener.failed(Type.ZIP, d, e);
 			}
 		}
-		listener.notify(Type.COMPLETED_ZIPPING_OPERATION);
+		listener.generalEvent(Type.ZIP, Type.END_OPERATION, null);
 	}
 
 	private void setCopied(Dir d, boolean b) {
@@ -283,10 +292,6 @@ class TransferTask {
 		});
 	}
 
-	private boolean removeFromFileTree(FileEntity f) {
-		return f.getSourceAttrs().current() == null;
-	}
-
 	private void zipDir(Dir dir, byte[] buffer) throws IOException {
 		if(dir.getSourceSize() > MAX_ZIP_SIZE)
 			throw new FileEntityException(dir, String.format("zipfile size (%s) exceeds max allows size (%s)", bytesToHumanReadableUnits(dir.getSourceSize(), false), bytesToHumanReadableUnits(MAX_ZIP_SIZE, false)));
@@ -299,7 +304,7 @@ class TransferTask {
 
 		createParentDir(dir);
 
-		FileEntityException[] error = {};
+		FileEntityException[] error = {null};
 		final Path tempfile = ext(target, ".zip.tmp");
 		boolean success = false;
 
@@ -310,10 +315,10 @@ class TransferTask {
 			dir.walk(new FileTreeWalker() {
 				@Override
 				public FileVisitResult file(FileEntity ft) {
-					if(removeFromFileTree(ft))
+					if(remove(ft))
 						return CONTINUE;
 
-					listener0.notify(Type.ADD_TO_ZIP, ft);
+					listener0.start(Type.ADD_TO_ZIP, ft);
 					setCurrent(ft.getSourceSize());
 
 					try {
@@ -322,13 +327,13 @@ class TransferTask {
 						error[0] = new FileEntityException(ft, e);
 						return TERMINATE;
 					}
-					listener0.notify(Type.ADDED_TO_ZIP, ft);
+					listener0.success(Type.ADD_TO_ZIP, ft);
 					return CONTINUE;
 				}
 
 				@Override
 				public FileVisitResult dir(Dir ft) {
-					if(removeFromFileTree(dir))
+					if(remove(dir))
 						return SKIP_SUBTREE;
 
 					if(notExists(ft.getSourcePath().path())) 
@@ -344,6 +349,7 @@ class TransferTask {
 		} finally {
 			if(success) {
 				move(dir, tempfile, ext(target, ".zip"));
+				setCopied(dir, true);
 			} else {
 				setCopied(dir, false);
 				delete(dir, tempfile);
@@ -364,10 +370,8 @@ class TransferTask {
 	}
 	private void zipPipe(FileEntity f, ZipOutputStream zos, int rootNameCount, byte[] buffer) throws IOException {
 		Path src = f.getSourcePath().path();
-		if(notExists(src)) {
-			listener0.notify(Type.FILE_NOT_FOUND, f, src);
-			return;
-		}
+		if(notExists(src)) 
+			throw new FileNotFoundException();
 
 		String name = src.subpath(rootNameCount, src.getNameCount()).toString().replace('\\', '/');
 		if(name.length() > FILENAME_MAX)
@@ -456,16 +460,7 @@ class TransferTask {
 			throw new DirCreationFailedException(p, ft, e);
 		}
 	}
-
-	public Path getSourcePath() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-	public Path getTargetPath() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
+	
 	public Config getConfig() {
 		return config;
 	}

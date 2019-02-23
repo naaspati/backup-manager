@@ -1,14 +1,19 @@
 package sam.backup.manager.view.backup;
 
+import java.util.List;
+
+import javafx.concurrent.Worker.State;
+import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 
 interface TransferListener {
-	void notify(Type type, Object attached);
-	void notify(Type type, int attached);
-	void notify(Type type, double attached);
-	void notify(Type type);
-	void notify(Type failedZipDir, Object attached, Object attached2);
-	void bytesMoved(FileEntity f, int bytesCount);
 	void subProgress(FileEntity ft, long read, long total);
 	void totalProgress(long read, long total);
+	void stateChanged(State s);
+	void generalEvent(Type type);
+	void generalEvent(Type type, Type subtype, Object attachment);
+	void start(Type type, FileEntity f);
+	void success(Type type, FileEntity f);
+	void completed(Type type, FileEntity f);
+	void failed(Type type, FileEntity f, Throwable e);
 }

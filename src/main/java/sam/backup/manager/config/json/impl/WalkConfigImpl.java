@@ -1,6 +1,6 @@
 package sam.backup.manager.config.json.impl;
 
-import static sam.backup.manager.config.json.impl.Utils.either;
+import static sam.backup.manager.config.json.impl.JsonUtils.either;
 
 import sam.backup.manager.config.api.WalkConfig;
 

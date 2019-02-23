@@ -14,9 +14,9 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.config.api.WalkConfig;
@@ -28,7 +28,7 @@ import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeEditor;
 
 class Walker implements FileVisitor<Path>, Callable<FileTree> {
-	private static final Logger LOGGER = LogManager.getLogger(Walker.class);
+	private static final Logger LOGGER = Utils.getLogger(Walker.class);
 	
 	private final boolean skipDirNotModified;
 	private final boolean skipFiles;

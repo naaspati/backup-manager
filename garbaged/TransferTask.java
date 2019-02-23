@@ -50,7 +50,7 @@ import sam.myutils.MyUtilsPath;
 import sam.reference.WeakPool;
 
 class TransferTask implements Runnable {
-	private static final Logger LOGGER =  LogManager.getLogger(TransferTask.class);
+	private static final Logger LOGGER =  Utils.getLogger(TransferTask.class);
 	public static final int BUFFER_SIZE = Optional.ofNullable(System.getenv("BUFFER_SIZE")).map(Integer::parseInt).orElse(2*1024*1024);
 
 	static {

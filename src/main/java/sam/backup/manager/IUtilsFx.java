@@ -25,4 +25,6 @@ public interface IUtilsFx {
 	Node headerBanner(String text);
 	Node bigPlaceholder(String string);
 	void fx(Runnable runnable);
+	Window window(Injector injector);
+	void ensureFxThread();
 }

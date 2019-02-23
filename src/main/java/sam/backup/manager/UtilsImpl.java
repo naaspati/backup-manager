@@ -5,8 +5,6 @@ import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
 
 import java.io.BufferedWriter;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,8 +15,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
@@ -34,19 +30,17 @@ import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Writable;
-import sam.io.serilizers.ObjectReader;
-import sam.io.serilizers.ObjectWriter;
 import sam.io.serilizers.StringWriter2;
 import sam.myutils.MyUtilsPath;
 import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
-import sam.nopkg.SavedResource;
+import sam.reference.WeakAndLazy;
 
 @Singleton
-class UtilsImpl implements IUtils, ErrorHandlerRequired, Stoppable {
+class UtilsImpl implements IUtils, ErrorHandlerRequired {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 
-	private final Logger logger = LogManager.getLogger(UtilsImpl.class);
+	private final Logger logger = getLogger(UtilsImpl.class);
 	public final Path app_data = Paths.get("app_data");
 	public final Path temp_dir;
 	private final Supplier<String> counter;
@@ -134,12 +128,13 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired, Stoppable {
 			return "N/A";
 		return durationToString(Duration.ofMillis(millis));
 	}
-
-	private final StringBuilder sb = new StringBuilder();
+	
+	private final WeakAndLazy<StringBuilder> wsb = new WeakAndLazy<>(StringBuilder::new);
 
 	@Override
 	public String durationToString(Duration d) {
-		synchronized (sb) {
+		synchronized (wsb) {
+			StringBuilder sb = wsb.get();
 			sb.setLength(0);
 
 			char[] chars = d.toString().toCharArray();
@@ -180,49 +175,6 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired, Stoppable {
 				: LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneOffset.of("+05:30"))
 				.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM));
 	}
-
-	private Runnable backupLastPerformed_mod;
-	private final SavedResource<Map<String, Long>> backupLastPerformed = new SavedResource<Map<String,Long>>() {
-		private final Path path = app_data.resolve("backup-last-performed.dat");
-
-		{
-			backupLastPerformed_mod = this::increamentMod;
-		}
-
-		@Override
-		public void write(Map<String, Long> data) {
-			try {
-				logger.debug("write {}", path);
-				ObjectWriter.writeMap(path, data, DataOutputStream::writeUTF, DataOutputStream::writeLong);
-			} catch (IOException e) {
-				logger.warn("failed to save: {}", path, e);
-			}
-		}
-
-		@Override
-		public Map<String, Long> read() {
-			if(Files.notExists(path))
-				return new HashMap<>();
-
-			try {
-				logger.debug("READ {}", path);
-				return ObjectReader.readMap(path, d -> d.readUTF(), DataInputStream::readLong);
-			} catch (IOException e) {
-				logger.warn("failed to read: {}", path, e);
-				return new HashMap<>();
-			}
-		}
-	};  
-
-	@Override
-	public Long getBackupLastPerformed(String key) {
-		return backupLastPerformed.get().get(key);
-	}
-	@Override
-	public void putBackupLastPerformed(String key, long time) {
-		backupLastPerformed.get().put(key, time);
-		backupLastPerformed_mod.run();
-	}
 	@Override
 	public String hashedName(Path p, String ext) {
 		return p.getFileName() + "-" + p.hashCode() + ext;
@@ -259,10 +211,7 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired, Stoppable {
 			errorHandler.accept("failed to save", e);
 		}
 	}
-	@Override
-	public void stop() throws IOException {
-		backupLastPerformed.close();
-	}
+	
 	@Override
 	public Logger getLogger(Class<?> cls) {
 		return LogManager.getLogger(cls);

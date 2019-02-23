@@ -6,8 +6,9 @@ import java.util.List;
 
 import javax.inject.Singleton;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.sun.javafx.tk.Toolkit;
 
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
@@ -33,8 +34,9 @@ import sam.fx.helpers.FxUtils;
 import sam.myutils.Checker;
 
 @Singleton
+@SuppressWarnings("restriction")
 class UtilsFxImpl implements IUtilsFx {
-	private final Logger logger = LogManager.getLogger(UtilsFxImpl.class);
+	private final Logger logger = Utils.getLogger(UtilsFxImpl.class);
 
 	@Override
 	public Stage showStage(Window parent, Parent content) {
@@ -117,6 +119,18 @@ class UtilsFxImpl implements IUtilsFx {
 	@Override
 	public void fx(Runnable runnable) {
 		Platform.runLater(runnable);
+	}
+	
+	private final Toolkit kit = Toolkit.getToolkit();
+	
+	
+	@Override
+	public void ensureFxThread() {
+		kit.checkFxUserThread();
+	}
+	@Override
+	public Window window(Injector injector) {
+		return injector.instance(Window.class, ParentWindow.class);
 	}
 
 }

@@ -12,16 +12,16 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.concurrent.Task;
+import sam.backup.manager.Injector;
 import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.file.PathListToFileTree;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
-import sam.backup.manager.inject.Injector;
 
 //FIXME implement tasks
 public class WalkTask extends Task<FileTree> {
-	public static final Logger logger = LogManager.getLogger(WalkTask.class); 
+	public static final Logger logger = Utils.getLogger(WalkTask.class); 
 
 	private final Config config;
 	private FileTree rootTree;

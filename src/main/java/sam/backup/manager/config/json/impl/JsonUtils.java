@@ -4,12 +4,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import sam.nopkg.Junk;
 
-interface Utils {
+interface JsonUtils {
 	public static <T> T either(T t1, T t2, T defaultValue) {
 		if(t1 == null && t2 == null)
 			return defaultValue;
@@ -53,6 +55,5 @@ interface Utils {
 				settable.set(s, json.get(s));
 		}
 		return (E) settable;
-	}  
-
+	}
 }

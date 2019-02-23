@@ -2,11 +2,13 @@ package sam.backup.manager;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.format.FormatStyle;
 
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Writable;
+import sam.backup.manager.file.api.FileEntity;
 
 public interface IUtils {
 	Path appDataDir(); 
@@ -21,7 +23,6 @@ public interface IUtils {
 	void write(Path path, CharSequence data) throws IOException ;
 	void writeInTempDir0(Config config, String prefix, String suffix, CharSequence data, Logger logger) throws IOException ;
 	void writeInTempDir(Config config, String prefix, String suffix, CharSequence data, Logger logger) ;
-	public Logger getLogger(Class<?> cls);
 	
 	boolean saveInTempDirHideError(Writable w, Config config, String directory, String fileName) ;
 	Path saveInTempDir(Writable w, Config config, String directory, String fileName) throws IOException ;
@@ -31,4 +32,5 @@ public interface IUtils {
 	 * @param ft
 	 */
 	void setTextNoError(Path target, CharSequence content, String errorMessage);
+	Logger getLogger(Class<?> cls);
 }

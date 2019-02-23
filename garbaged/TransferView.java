@@ -42,7 +42,7 @@ import sam.string.BasicFormat;
 
 
 class TransferView extends VBox implements Runnable, Startable, ButtonAction, ICanceler, IUpdatable, TransferListener {
-	private static final Logger LOGGER = LogManager.getLogger(TransferView.class);
+	private static final Logger LOGGER = Utils.getLogger(TransferView.class);
 
 	private TextArea sourceTargetTa ;
 	private Text currentProgressT ;

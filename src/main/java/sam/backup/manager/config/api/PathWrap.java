@@ -67,4 +67,8 @@ public class PathWrap {
 		char c = cs.charAt(i);
 		return c == '\\' || c == '/';
 	}
+	public Path subpath() {
+		// TODO Auto-generated method stub
+		return null;
+	}
 }

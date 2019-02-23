@@ -18,7 +18,6 @@ import java.util.function.Consumer;
 
 import javax.inject.Provider;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.scene.Node;
@@ -26,13 +25,14 @@ import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import sam.backup.manager.Injector;
+import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.PathWrap;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTreeManager;
-import sam.backup.manager.inject.Injector;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
@@ -47,7 +47,7 @@ import sam.nopkg.Junk;
 import sam.string.StringUtils;
 
 public class ListConfigView extends VBox implements ButtonAction, WalkListener {
-	private static final Logger LOGGER =  LogManager.getLogger(ListConfigView.class);
+	private static final Logger LOGGER =  Utils.getLogger(ListConfigView.class);
 
 	public static boolean saveWithoutAsking;
 

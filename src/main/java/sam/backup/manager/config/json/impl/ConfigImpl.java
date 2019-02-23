@@ -8,9 +8,9 @@ import static sam.backup.manager.config.json.impl.JsonKeys.TARGET;
 import static sam.backup.manager.config.json.impl.JsonKeys.TARGET_EXCLUDES;
 import static sam.backup.manager.config.json.impl.JsonKeys.WALK_CONFIG;
 import static sam.backup.manager.config.json.impl.JsonKeys.ZIP_IF;
-import static sam.backup.manager.config.json.impl.Utils.getFilter;
-import static sam.backup.manager.config.json.impl.Utils.getList;
-import static sam.backup.manager.config.json.impl.Utils.set;
+import static sam.backup.manager.config.json.impl.JsonUtils.getFilter;
+import static sam.backup.manager.config.json.impl.JsonUtils.getList;
+import static sam.backup.manager.config.json.impl.JsonUtils.set;
 
 import java.nio.file.Path;
 import java.util.List;

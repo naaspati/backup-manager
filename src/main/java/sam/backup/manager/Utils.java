@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
@@ -11,11 +12,11 @@ import sam.backup.manager.extra.Writable;
 
 public final class Utils {
 	private static IUtils utils;
-	
+
 	static void setUtils(IUtils utils) {
 		Utils.utils = utils;
 	}
-	
+
 	public static Path appDataDir() {
 		return utils.appDataDir();
 	}
@@ -61,8 +62,11 @@ public final class Utils {
 	public static void writeInTempDir(Config config, String prefix, String suffix, CharSequence data, Logger logger) {
 		utils.writeInTempDir(config, prefix, suffix, data, logger);
 	}
-	public static Logger getLogger(Class<?> cls) {
-		return utils.getLogger(cls);
+	public static Logger getLogger(@SuppressWarnings("rawtypes") Class cls) {
+		if(utils == null)
+			return LogManager.getLogger(cls);
+		else
+			return utils.getLogger(cls);
 	}
 
 	public static boolean saveInTempDirHideError(Writable w, Config config, String directory, String fileName) {

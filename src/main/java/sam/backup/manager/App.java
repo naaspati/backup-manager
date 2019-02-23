@@ -1,15 +1,16 @@
 
 package sam.backup.manager;
 
-import static sam.backup.manager.SingleLoader.load;
-
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.PrimitiveIterator.OfDouble;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -21,7 +22,6 @@ import java.util.function.Consumer;
 
 import javax.inject.Singleton;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codejargon.feather.Feather;
 import org.codejargon.feather.Key;
@@ -42,24 +42,21 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
-import sam.backup.manager.config.api.ConfigManagerProvider;
 import sam.backup.manager.file.api.FileTreeManager;
-import sam.backup.manager.inject.Backups;
-import sam.backup.manager.inject.Injector;
-import sam.backup.manager.inject.Lists;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
+import sam.myutils.Checker;
 import sam.nopkg.EnsureSingleton;
 
 @SuppressWarnings("restriction")
 @Singleton
-public class App extends Application implements StopTasksQueue, Injector, Executor {
+public class App extends Application implements StopTasksQueue, Executor {
 	public static void main(String[] args) throws URISyntaxException, IOException, SQLException {
 		LauncherImpl.launchApplication(App.class, PreloaderImpl.class, args);
 	}
 	
-	private final Logger logger = LogManager.getLogger(App.class);
+	private final Logger logger = Utils.getLogger(App.class);
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 
 	{
@@ -81,12 +78,12 @@ public class App extends Application implements StopTasksQueue, Injector, Execut
 	private final Scene scene = new Scene(new Group(new Text("NOTHING TO VIEW")));
 	private FileTreeManager fileTreeFactory;
 	private ConfigManager configManager;
-	private Feather feather;
 	private Stage stage;
 	private IUtils utils;
 	private IUtilsFx fx;
 	private ArrayList<RunWrap> stops = new ArrayList<>();
-	private ExecutorService pool; 
+	private ExecutorService pool;
+	private Injector injector; 
 
 	@Override
 	public void init() throws Exception {
@@ -112,22 +109,21 @@ public class App extends Application implements StopTasksQueue, Injector, Execut
 				old.accept(t);
 			};
 		}
+		String name = getClass().getName()+".bindings.properties";
+		s.accept("loading: "+name);
+		Map<Class, Class> map = AppInitHelper.getClassesMapping(App.class, name, logger);
+		s.accept("loaded: "+name);
+
+		this.utils = AppInitHelper.instance(map, IUtils.class, UtilsImpl.class, s);
+		this.fx = AppInitHelper.instance(map, IUtilsFx.class, UtilsFxImpl.class, s);
 		
-		s.accept("start Utils.init()");
-		this.utils = load(IUtils.class, UtilsImpl.class);
-		this.fx = load(IUtilsFx.class, UtilsFxImpl.class);
-		s.accept("end \n  Utils: "+utils.getClass()+"\n  UtilsFx: "+fx.getClass());
+		Utils.setUtils(utils);
+		UtilsFx.setFx(fx);
 		
-		s.accept("find ConfigManagerProvider");
-		this.configManager = load(ConfigManagerProvider.class).get();
+		this.configManager = AppInitHelper.instance(map, ConfigManager.class, null, s);
+		this.fileTreeFactory = AppInitHelper.instance(map, FileTreeManager.class, null, s);
 		
-		s.accept("found ConfigManager: "+configManager.getClass());
-		
-		configManager.load();
-		
-		s.accept("find FileTreeFactory");
-		this.fileTreeFactory = load(FileTreeManager.class);
-		s.accept("found FileTreeFactory: "+fileTreeFactory.getClass());
+		map.keySet().removeAll(Arrays.asList(IUtils.class, IUtilsFx.class, ConfigManager.class, FileTreeManager.class));
 		
 		s.accept("Load tabs");
 
@@ -143,14 +139,10 @@ public class App extends Application implements StopTasksQueue, Injector, Execut
 			};
 		};
 		
-		Utils.setUtils(utils);
-		UtilsFx.setFx(fx);
-		
-		feather = Feather.with(this);
 		pool =  Executors.newSingleThreadExecutor();
+		this.injector = new InjectorImpl(map);
 		notifyPreloader(new Preloader.ProgressNotification(1));
 	}
-
 	@Override
 	public void start(Stage stage) throws Exception {
 		this.stage = stage;
@@ -242,55 +234,6 @@ public class App extends Application implements StopTasksQueue, Injector, Execut
 	}
 	
 	@Override
-	public <E> E instance(Class<E> type) {
-		return feather.instance(type);
-	}
-	@Override
-	public <E, F extends Annotation> E instance(Class<E> type, Class<F> qualifier) {
-		return feather.instance(Key.of(type, qualifier));
-	}
-	
-	@Provides
-	private Injector me() {
-		return this;
-	}
-	@Provides
-	private ConfigManager configManager() {
-		return configManager;
-	}
-	@Provides
-	private FileTreeManager filtreeFactory() {
-		return fileTreeFactory;
-	}
-	@Provides
-	private IUtils getUtils() {
-		return utils;
-	}
-	@Provides
-	private IUtilsFx getFx() {
-		return fx;
-	}
-	@Provides
-	@Backups
-	private Collection<? extends Config> backups() {
-		return configManager.getBackups();
-	}
-	@Provides
-	@Lists
-	private Collection<? extends Config> lists() {
-		return configManager.getLists();
-	}
-	@Provides
-	@sam.backup.manager.inject.ParentWindow
-	private Window stage() {
-		return stage;
-	}
-	@Provides
-	private Executor executor() {
-		return this;
-	}
-	
-	@Override
 	public void execute(Runnable command) {
 		pool.execute(command);
 	}
@@ -314,7 +257,7 @@ public class App extends Application implements StopTasksQueue, Injector, Execut
 		}
 		
 		public Parent instance() {
-			Parent instance = feather.instance(cls);
+			Parent instance = injector.instance(cls);
 			
 			if(instance instanceof JsonRequired)
 				((JsonRequired) instance).setJson(key, json);
@@ -322,4 +265,67 @@ public class App extends Application implements StopTasksQueue, Injector, Execut
 			return instance; 
 		}
 	}
+
+	
+	@SuppressWarnings({"unchecked", "rawtypes"})
+	private class InjectorImpl implements Injector {
+		final Feather feather;
+		final Map<Class, Class> mapping ; 
+		
+		public InjectorImpl(Map<Class, Class> mapping) throws IOException, ClassNotFoundException {
+			this.mapping = Checker.isEmpty(mapping) ? Collections.emptyMap() : Collections.unmodifiableMap(mapping);
+			this.feather = Feather.with(this);
+		}
+
+		@Override
+		public <E> E instance(Class<E> type) {
+			return feather.instance(map(type));
+		}
+		@Override
+		public <E, F extends Annotation> E instance(Class<E> type, Class<F> qualifier) {
+			return feather.instance(Key.of(map(type), qualifier));
+		}
+		private <E> Class<E> map(Class<E> type) {
+			return mapping.getOrDefault(type, type);
+		}
+		@Provides
+		private Injector me() {
+			return this;
+		}
+		@Provides
+		private ConfigManager configManager() {
+			return configManager;
+		}
+		@Provides
+		private FileTreeManager filtreeFactory() {
+			return fileTreeFactory;
+		}
+		@Provides
+		private IUtils getUtils() {
+			return utils;
+		}
+		@Provides
+		private IUtilsFx getFx() {
+			return fx;
+		}
+		@Provides
+		@Backups
+		private Collection<Config> backups() {
+			return configManager.getBackups();
+		}
+		@Provides
+		@Lists
+		private Collection<Config> lists() {
+			return configManager.getLists();
+		}
+		@Provides
+		@ParentWindow
+		private Window stage() {
+			return stage;
+		}
+		@Provides
+		private Executor executor() {
+			return App.this;
+		}
+	}  
 }

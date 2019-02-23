@@ -27,6 +27,8 @@ import javafx.scene.layout.BorderWidths;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import sam.backup.manager.Backups;
+import sam.backup.manager.Injector;
 import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
@@ -36,15 +38,13 @@ import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
-import sam.backup.manager.inject.Backups;
-import sam.backup.manager.inject.Injector;
 import sam.fx.helpers.FxCss;
 import sam.fx.helpers.FxHBox;
 import sam.reference.WeakAndLazy;
 
 @Singleton
 public class ListsViews extends BorderPane implements SelectionListener {
-	private static final Logger LOGGER = LogManager.getLogger(ListsViews.class);
+	private static final Logger LOGGER = Utils.getLogger(ListsViews.class);
 
 	private VBox root;
 	private ScrollPane rootSp;

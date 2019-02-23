@@ -11,8 +11,6 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import sam.backup.manager.config.api.PathWrap;
-import sam.backup.manager.inject.Injector;
-import sam.backup.manager.inject.ParentWindow;
 
 
 public final class UtilsFx {
@@ -34,8 +32,6 @@ public final class UtilsFx {
 	public static Node headerBanner(String text) {return fx.headerBanner(text); }
 	public static Node bigPlaceholder(String text) {return fx.bigPlaceholder(text); }
 	public static void fx(Runnable runnable) {fx.fx(runnable); }
-
-	public static Window window(Injector injector) {
-		return injector.instance(Window.class, ParentWindow.class);
-	}
+	public static Window window(Injector injector) { return fx.window(injector); }
+	public static void ensureFxThread() { fx.ensureFxThread(); }
 }

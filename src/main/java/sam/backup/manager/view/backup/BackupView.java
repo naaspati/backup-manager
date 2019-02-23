@@ -18,7 +18,6 @@ import java.nio.file.Files;
 
 import javax.inject.Provider;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.beans.binding.Bindings;
@@ -34,6 +33,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.FileTreeString;
@@ -57,7 +57,7 @@ import sam.fx.popup.FxPopupShop;
 import sam.nopkg.Junk;
 
 class BackupView extends BorderPane implements ButtonAction, WalkListener {
-	private static final Logger LOGGER = LogManager.getLogger(BackupView.class);
+	private static final Logger LOGGER = Utils.getLogger(BackupView.class);
 
 	private final Config config;
 	private final VBox container = new VBox(5);

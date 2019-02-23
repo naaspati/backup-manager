@@ -46,10 +46,10 @@ import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javafx.concurrent.Worker.State;
+import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.config.api.PathWrap;
@@ -61,7 +61,7 @@ import sam.reference.WeakPool;
 
 @SuppressWarnings("rawtypes")
 class TransferTask {
-	private static final Logger LOGGER =  LogManager.getLogger(TransferTask.class);
+	private static final Logger LOGGER =  Utils.getLogger(TransferTask.class);
 	public static final int BUFFER_SIZE = Optional.ofNullable(System.getenv("BUFFER_SIZE")).map(Integer::parseInt).orElse(2*1024*1024);
 
 	static {
@@ -76,16 +76,16 @@ class TransferTask {
 
 	private static final WeakPool<byte[]> buffers = new WeakPool<>(true, () -> new byte[BUFFER_SIZE]);
 
-	private final Config config;
-	private final FileTree fileTree;
+	private final IFilter zipFilter;
 	private final Dir rootDir;
 	private volatile TransferListener listener0;
 	private final AtomicReference<FutureTask> task = new AtomicReference<>(null);
 	private final AtomicReference<State> state = new AtomicReference<>(READY);
+	private final FileTree filetree;
 
 	public TransferTask(Config config, FileTree fileTree, Dir rootDir) {
-		this.config = config;
-		this.fileTree = fileTree;
+		this.filetree = fileTree;
+		this.zipFilter = config.getZipFilter();
 		this.rootDir = rootDir;
 		setState(listener0, READY);
 	}
@@ -157,7 +157,6 @@ class TransferTask {
 
 		setState(listener, RUNNING);
 		counts = new Counts();
-		IFilter zipFilter = config.getZipFilter(); 
 		List<FileEntity> filesList = new ArrayList<>();
 		List<Dir> zips = new ArrayList<>();
 		removeFromFileTree = 0;
@@ -220,8 +219,12 @@ class TransferTask {
 		try {
 			zip(zips, buffer);
 			files(filesList, buffer);
+			setState(listener, State.SUCCEEDED);
 		} catch (Exception e) {
-			// TODO: handle exception
+			if(e instanceof InterruptedException)
+				setState(listener, State.CANCELLED);
+			else
+				setState(listener, State.FAILED);
 		} finally {
 			buffers.add(buffer);
 		}
@@ -319,7 +322,7 @@ class TransferTask {
 						return CONTINUE;
 
 					listener0.start(Type.ADD_TO_ZIP, ft);
-					setCurrent(ft.getSourceSize());
+					setCurrent(ft);
 
 					try {
 						zipPipe(ft, zos, nameCount, buffer);
@@ -364,6 +367,7 @@ class TransferTask {
 	private void move(FileEntity ft, Path src, Path target) throws IOException {
 		try {
 			Files.move(src, target, REPLACE_EXISTING);
+			LOGGER.debug("move file: {} -> {}", src, target);
 		} catch (IOException e) {
 			throw new FileMoveException(ft, src, target, e);
 		}
@@ -387,15 +391,17 @@ class TransferTask {
 			}
 		}
 	}
-	private void setCurrent(long total) {
-		counts.currentTotalSize = total;
+	private void setCurrent(FileEntity ft) {
+		counts.currentTotalSize = ft.getSourceSize();
 		counts.currentReadSize = 0;
+		addBytesRead(ft, 0);
 	}
 
 	private static void delete(FileEntity ft, Path p) throws IOException {
 		if(p == null) return;
 		try {
 			deleteIfExists(p);
+			LOGGER.debug("delete file: {}", p);
 		} catch (IOException e) {
 			throw new FileEntityException(ft, "failed to delete: "+p, e);
 		}
@@ -409,30 +415,45 @@ class TransferTask {
 
 		createParentDir(ft);
 		buffer.clear();
-
 		boolean success = false;
-		boolean direct = ft.getSourceSize() < buffer.capacity();
-		Path target = direct ? targetW.path() : ext(targetW.path(), ".temp");
-		setCurrent(ft.getSourceSize());
+		boolean direct = false;
+		Path target = null;
 
-		try(FileChannel in = FileChannel.open(srcPW.path());
-				FileChannel out = FileChannel.open(target, CREATE, TRUNCATE_EXISTING, WRITE)) {
+		try(FileChannel in = FileChannel.open(srcPW.path())) {
+			long size = in.size();
+			direct = size < buffer.capacity();
+			target = direct ? targetW.path() : ext(targetW.path(), ".temp");
+			setCurrent(ft);
 			
-			while(in.read(buffer) != -1) 
-				addBytesRead(ft, write(buffer, out, true));
-			success = true;
-		} finally {
-			if(success) {
-				if(!direct)
-					move(ft, target, targetW.path());
+			if(ft.getSourceSize() != size)
+				LOGGER.error("ft.getSourceSize({}) != size({})", ft.getSourceSize(), size);
+
+			while(buffer.hasRemaining() && in.read(buffer) != -1) { }
+			
+			buffer.flip();
+			if(direct && buffer.remaining() != size)
+				throw new IOException(String.format("expected bytes: %s, was: %s", size, buffer.remaining()));
+			
+			try(FileChannel out = FileChannel.open(target, CREATE, TRUNCATE_EXISTING, WRITE)) {
+				addBytesRead(ft, write(buffer, out, false));
 				
-				ft.getStatus().setCopied(true);
-			} else {
-				delete(ft, target);
+				if(!direct) {
+					while(in.read(buffer) != -1) 
+						addBytesRead(ft, write(buffer, out, true));		
+				}
+				success = true;	
 			}
-			
+		} finally {
+			if(!success && !direct)
+				delete(ft, target);
 		}
-
+		
+		if(success) {
+			if(!direct)
+				move(ft, target, targetW.path());
+			
+			ft.getStatus().setCopied(true);
+		}
 	}
 
 	private void addBytesRead(FileEntity ft, long bytes) {
@@ -460,8 +481,8 @@ class TransferTask {
 			throw new DirCreationFailedException(p, ft, e);
 		}
 	}
-	
-	public Config getConfig() {
-		return config;
+
+	public FileTree getFileTree() {
+		return filetree;
 	}
 }

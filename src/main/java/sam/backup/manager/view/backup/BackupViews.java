@@ -11,6 +11,8 @@ import org.json.JSONObject;
 
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import sam.backup.manager.Backups;
+import sam.backup.manager.Injector;
 import sam.backup.manager.JsonRequired;
 import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
@@ -19,15 +21,13 @@ import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.file.api.FileTreeManager;
-import sam.backup.manager.inject.Backups;
-import sam.backup.manager.inject.Injector;
 import sam.nopkg.EnsureSingleton;
 
 @Singleton
 public class BackupViews extends BorderPane implements JsonRequired, SelectionListener {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 	
-//	private static final Logger LOGGER = LogManager.getLogger(ConfigManager.class);
+//	private static final Logger LOGGER = Utils.getLogger(ConfigManager.class);
 	private final VBox root = new VBox();
 	private final Collection<? extends Config> backups;
 	private final Provider<Injector> injector;

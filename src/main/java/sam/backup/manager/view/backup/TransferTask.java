@@ -52,7 +52,7 @@ import javafx.concurrent.Worker.State;
 import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.IFilter;
-import sam.backup.manager.config.api.PathWrap;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
@@ -85,7 +85,7 @@ class TransferTask {
 
 	public TransferTask(Config config, FileTree fileTree, Dir rootDir) {
 		this.filetree = fileTree;
-		this.zipFilter = config.getZipFilter();
+		this.zipFilter = config.getZipSelector();
 		this.rootDir = rootDir;
 		setState(listener0, READY);
 	}

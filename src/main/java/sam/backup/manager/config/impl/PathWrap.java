@@ -1,4 +1,4 @@
-package sam.backup.manager.config.api;
+package sam.backup.manager.config.impl;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -66,9 +66,5 @@ public class PathWrap {
 	private static boolean isSlash(CharSequence cs, int i) {
 		char c = cs.charAt(i);
 		return c == '\\' || c == '/';
-	}
-	public Path subpath() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 }

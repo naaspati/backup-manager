@@ -7,7 +7,7 @@ import java.util.Spliterators;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import sam.backup.manager.config.api.PathWrap;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;

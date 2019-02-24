@@ -31,7 +31,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
-import sam.backup.manager.config.api.PathWrap;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.view.ButtonType;
@@ -62,8 +62,8 @@ class TransferView extends BorderPane {
 
 	private final Text filesStats = new Text();
 	private final CustomButton uploadCancelBtn, filesBtn;
-	private final ProgressBar currentPB;
-	private final ProgressBar totalPB;
+	private ProgressBar currentPB;
+	private ProgressBar totalPB;
 	
 	private final Executor executor;
 	private TransferTask task;
@@ -99,7 +99,7 @@ class TransferView extends BorderPane {
 	private class TListener implements TransferListener {
 		
 		private <E extends FileEntity> void save(List<E> files, String suffix) {
-			Utils.writeInTempDir(task.getConfig(), "transfer-log-", suffix, new FileTreeString(rootDir, files), LOGGER);
+			//FIXME Utils.writeInTempDir(task.getConfig(), "transfer-log-", suffix, new FileTreeString(rootDir, files), LOGGER);
 		}
 		
 		@Override
@@ -155,6 +155,23 @@ class TransferView extends BorderPane {
 			// TODO Auto-generated method stub
 			
 		}
+		
+		/* FIXME 
+		 * 	@Override
+	public void update() {
+		if(state == null || isState(State.UPLOADING))
+			return;
+
+		transferer.update();
+
+		uploadCancelBtn.setDisable(selectedCount()  - copiedCount() <= 0);
+		if(copiedCount() == 0) filesStats.setText(String.format("files: %s (%s files)", bts(filesSelectedSize()), selectedCount()));
+		else filesStats.setText(String.format("remaining: %d (%d files), total: %d (%d files)", bts(filesSelectedSize() - copiedSize()), selectedCount() - copiedCount(),  bts(filesSelectedSize()), selectedCount()));
+		summery.set(transferer.getFilesSelectedSize(), transferer.getFilesCopiedSize());
+
+		totalProgressFormat = new BasicFormat("Total Progress: {}/"+bts(summery.getTotalSize())+"  | {}/{}/"+selectedCount()+" ({})");
+	}
+		 */
 	}
 	
 	public void setTask(TransferTask newTask) {
@@ -170,23 +187,8 @@ class TransferView extends BorderPane {
 	
 	private void clear(TransferTask task) {
 		
-		// TODO Auto-generated method stub
+		// TODO remove old task associated view data
 		
-	}
-
-	@Override
-	public void update() {
-		if(state == null || isState(State.UPLOADING))
-			return;
-
-		transferer.update();
-
-		uploadCancelBtn.setDisable(selectedCount()  - copiedCount() <= 0);
-		if(copiedCount() == 0) filesStats.setText(String.format("files: %s (%s files)", bts(filesSelectedSize()), selectedCount()));
-		else filesStats.setText(String.format("remaining: %d (%d files), total: %d (%d files)", bts(filesSelectedSize() - copiedSize()), selectedCount() - copiedCount(),  bts(filesSelectedSize()), selectedCount()));
-		summery.set(transferer.getFilesSelectedSize(), transferer.getFilesCopiedSize());
-
-		totalProgressFormat = new BasicFormat("Total Progress: {}/"+bts(summery.getTotalSize())+"  | {}/{}/"+selectedCount()+" ({})");
 	}
 	
 	private void buttonAction(ButtonType type) {
@@ -198,16 +200,18 @@ class TransferView extends BorderPane {
 				stop();	
 				break;
 			case FILES:
-				FilesView.open("select files to backup", config, fileTree, FilesViewSelector.backup()).setOnCloseRequest(e -> update());	
+				//FIXME FilesView.open("select files to backup", config, fileTree, FilesViewSelector.backup()).setOnCloseRequest(e -> update());	
 				break;
 			default:
 				throw new IllegalStateException("unknown action: "+type);
 		}
 	}
 	public void stop() {
-		setState(CANCELLED);
+		/* FIXME
+		 * setState(CANCELLED);
 		uploadCancelBtn.setType(ButtonType.UPLOAD);
-		summery.stop();
+		//FIXME summery.stop();
+		 */
 	}
 	 
 	private void start() {
@@ -272,7 +276,8 @@ class TransferView extends BorderPane {
 		return center;
 	}
 
-	private State run2() {
+	/* TODO
+	 * 	private State run2() {
 		fx(() -> getChildren().setAll(getHeaderText(),progressTA, currentProgressT, currentPB, totalProgressT, totalPB, uploadCancelBtn));
 
 		summery.start();
@@ -396,35 +401,8 @@ class TransferView extends BorderPane {
 	private long filesSelectedSize() { return transferer.getFilesSelectedSize(); }
 	private String speed() { return summery.getSpeedString(); }
 	private long bytesRead() { return transferer.getCurrentBytesRead(); }
+	 */
 
-	@Override
-	public void started(FileEntity f) {
-		// TODO Auto-generated method stub
-		
-	}
 
-	@Override
-	public void end(FileEntity f) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void progressFor(FileEntity f, double progress) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void totalProgress(double progress) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	@Override
-	public void stateChanged(State stage) {
-		// TODO Auto-generated method stub
-		
-	}
 }
 

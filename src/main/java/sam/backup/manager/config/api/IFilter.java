@@ -2,6 +2,8 @@ package sam.backup.manager.config.api;
 
 import java.nio.file.Path;
 
+import sam.backup.manager.config.impl.CombinedFilter;
+
 @FunctionalInterface
 public interface IFilter  { 
 	public boolean test(Path p);

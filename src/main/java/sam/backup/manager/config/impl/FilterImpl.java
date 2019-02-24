@@ -1,4 +1,4 @@
-package sam.backup.manager.config.api;
+package sam.backup.manager.config.impl;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -21,14 +21,15 @@ import java.util.stream.Stream;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.Utils;
+import sam.backup.manager.config.api.IFilter;
 import sam.myutils.System2;
 import sam.string.StringUtils;
 
-public abstract class Filter implements IFilter, HasFilterArrays {
-	private transient static final Logger LOGGER = Utils.getLogger(Filter.class);
+public abstract class FilterImpl implements IFilter, HasFilterArrays {
+	private transient static final Logger LOGGER = Utils.getLogger(FilterImpl.class);
 
 	protected String[] name, glob, regex, path, startsWith, endsWith, classes;
-	protected Filter invert;
+	protected FilterImpl invert;
 
 	@Override
 	public boolean test(Path p) {
@@ -44,7 +45,6 @@ public abstract class Filter implements IFilter, HasFilterArrays {
 				glob(p) ||
 				regex(p) ||
 				classes(p);
-		
 	}
 
 	@Override
@@ -191,7 +191,7 @@ public abstract class Filter implements IFilter, HasFilterArrays {
 		return globs.test(p);
 	}
 	public boolean isAlwaysFalse() {
-		return Stream.of(name, glob, regex, path, startsWith, endsWith, classes).allMatch(Filter::invalidArray);
+		return Stream.of(name, glob, regex, path, startsWith, endsWith, classes).allMatch(FilterImpl::invalidArray);
 	}
 	@Override
 	public String toString() {

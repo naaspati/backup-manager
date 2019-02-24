@@ -92,9 +92,9 @@ public class WalkTask extends Task<FileTree> {
 
 	private Walker walker(WalkMode w, List<Path> exucludePaths) {
 		if(w == WalkMode.SOURCE)
-			return new Walker(rootTree, config, listener, source, config.getSourceFilter(), w, exucludePaths);
+			return new Walker(rootTree, config, listener, source, config.getSourceExcluder(), w, exucludePaths);
 		else if(w == WalkMode.BACKUP) 
-			return new Walker(rootTree, config, listener, target, config.getTargetFilter(), w, exucludePaths);
+			return new Walker(rootTree, config, listener, target, config.getTargetExcluder(), w, exucludePaths);
 		else 
 			throw new IllegalStateException("unknown walk mode: "+w);
 	}

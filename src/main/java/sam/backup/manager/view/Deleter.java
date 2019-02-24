@@ -18,7 +18,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Text;
-import sam.backup.manager.config.api.PathWrap;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.FileTreeDeleter;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;

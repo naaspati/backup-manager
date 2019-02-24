@@ -51,7 +51,7 @@ import javafx.stage.Window;
 import sam.backup.manager.ParentWindow;
 import sam.backup.manager.StopTasksQueue;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.config.api.PathWrap;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.Status;
 import sam.backup.manager.file.api.Attr;

@@ -1,4 +1,4 @@
-package sam.backup.manager.config.api;
+package sam.backup.manager.config.impl;
 
 import java.util.Map;
 

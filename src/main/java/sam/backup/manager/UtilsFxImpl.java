@@ -27,9 +27,10 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
-import sam.backup.manager.config.api.PathWrap;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxHyperlink;
+import sam.fx.helpers.FxText;
 import sam.fx.helpers.FxUtils;
 import sam.myutils.Checker;
 
@@ -113,8 +114,7 @@ class UtilsFxImpl implements IUtilsFx {
 	}
 	@Override
 	public Node bigPlaceholder(String text) {
-		// FIXME something beutiful 
-		return new Text(text);
+		return FxText.text(text, "big-placeholder");
 	}
 	@Override
 	public void fx(Runnable runnable) {

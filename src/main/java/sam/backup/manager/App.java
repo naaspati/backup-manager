@@ -37,11 +37,13 @@ import javafx.application.Preloader;
 import javafx.scene.Group;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
+import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
@@ -111,6 +113,7 @@ public class App extends Application implements StopTasksQueue, Executor {
 		}
 		String name = getClass().getName()+".bindings.properties";
 		s.accept("loading: "+name);
+		@SuppressWarnings("rawtypes")
 		Map<Class, Class> map = AppInitHelper.getClassesMapping(App.class, name, logger);
 		s.accept("loaded: "+name);
 
@@ -121,6 +124,7 @@ public class App extends Application implements StopTasksQueue, Executor {
 		UtilsFx.setFx(fx);
 		
 		this.configManager = AppInitHelper.instance(map, ConfigManager.class, null, s);
+		//FIXME configManager.load(path);
 		this.fileTreeFactory = AppInitHelper.instance(map, FileTreeManager.class, null, s);
 		
 		map.keySet().removeAll(Arrays.asList(IUtils.class, IUtilsFx.class, ConfigManager.class, FileTreeManager.class));
@@ -158,10 +162,11 @@ public class App extends Application implements StopTasksQueue, Executor {
 		stage.show();
 
 		if(tabs.isEmpty()) {
-			//FIXME
-		} else {
-			setView(tabs.get(0));			
+			scene.setRoot(new BorderPane(fx.bigPlaceholder("NO TABS SPECIFIED")));
+			return;
 		}
+		
+		setView(tabs.get(0));
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -191,7 +196,6 @@ public class App extends Application implements StopTasksQueue, Executor {
 		stops.add(new RunWrap(Thread.currentThread().getStackTrace()[2].toString(), runnable));
 	}
 
-	//TODO
 	@Override
 	public void stop() throws Exception {
 		if(!stopping.compareAndSet(false, true))
@@ -311,12 +315,12 @@ public class App extends Application implements StopTasksQueue, Executor {
 		@Provides
 		@Backups
 		private Collection<Config> backups() {
-			return configManager.getBackups();
+			return configManager.get(ConfigType.BACKUP);
 		}
 		@Provides
 		@Lists
 		private Collection<Config> lists() {
-			return configManager.getLists();
+			return configManager.get(ConfigType.LIST);
 		}
 		@Provides
 		@ParentWindow

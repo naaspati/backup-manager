@@ -1,4 +1,4 @@
-package sam.backup.manager.config.api;
+package sam.backup.manager.config.impl;
 
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -8,6 +8,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
+
+import sam.backup.manager.config.api.IFilter;
 
 public class CombinedFilter implements IFilter, HasFilterArrays {
 	IFilter[] filters = new IFilter[0]; 
@@ -20,7 +22,7 @@ public class CombinedFilter implements IFilter, HasFilterArrays {
 		return false;
 	}
 
-	void add(IFilter f) {
+	public void add(IFilter f) {
 		filters = Arrays.copyOf(filters, filters.length + 1);
 		filters[filters.length - 1] = f;
 	}

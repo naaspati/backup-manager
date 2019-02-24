@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.BitSet;
 
-import sam.backup.manager.config.api.PathWrap;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Attrs;

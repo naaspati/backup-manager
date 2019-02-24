@@ -2,7 +2,7 @@ package sam.backup.manager.file;
 
 import java.util.Objects;
 
-import sam.backup.manager.config.api.PathWrap;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileTree;

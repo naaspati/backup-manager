@@ -4,6 +4,9 @@ package sam.backup.manager;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.net.URISyntaxException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +53,7 @@ import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
 import sam.myutils.Checker;
 import sam.nopkg.EnsureSingleton;
+import sam.nopkg.Junk;
 
 @SuppressWarnings("restriction")
 @Singleton
@@ -124,7 +128,6 @@ public class App extends Application implements StopTasksQueue, Executor {
 		UtilsFx.setFx(fx);
 		
 		this.configManager = AppInitHelper.instance(map, ConfigManager.class, null, s);
-		//FIXME configManager.load(path);
 		this.fileTreeFactory = AppInitHelper.instance(map, FileTreeManager.class, null, s);
 		
 		map.keySet().removeAll(Arrays.asList(IUtils.class, IUtilsFx.class, ConfigManager.class, FileTreeManager.class));
@@ -145,6 +148,9 @@ public class App extends Application implements StopTasksQueue, Executor {
 		
 		pool =  Executors.newSingleThreadExecutor();
 		this.injector = new InjectorImpl(map);
+		
+		Path configPath = Junk.notYetImplemented(); //FIXME 
+		configManager.load(configPath, injector);
 		notifyPreloader(new Preloader.ProgressNotification(1));
 	}
 	@Override
@@ -274,7 +280,8 @@ public class App extends Application implements StopTasksQueue, Executor {
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private class InjectorImpl implements Injector {
 		final Feather feather;
-		final Map<Class, Class> mapping ; 
+		final Map<Class, Class> mapping ;
+		final FileSystem fs = FileSystems.getDefault();	
 		
 		public InjectorImpl(Map<Class, Class> mapping) throws IOException, ClassNotFoundException {
 			this.mapping = Checker.isEmpty(mapping) ? Collections.emptyMap() : Collections.unmodifiableMap(mapping);
@@ -295,6 +302,10 @@ public class App extends Application implements StopTasksQueue, Executor {
 		@Provides
 		private Injector me() {
 			return this;
+		}
+		@Provides
+		private FileSystem fs() {
+			return fs;
 		}
 		@Provides
 		private ConfigManager configManager() {

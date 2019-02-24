@@ -5,12 +5,13 @@ import java.util.Collection;
 
 import javax.inject.Singleton;
 
+import sam.backup.manager.Injector;
 import sam.nopkg.Junk;
 
 @Singleton
 public interface ConfigManager {
 	Collection<Config> get(ConfigType type);
-	void load(Path path) throws Exception; 
+	void load(Path path, Injector injector) throws Exception; 
 	
 	Long getBackupLastPerformed(ConfigType type, Config config) ;
 	void putBackupLastPerformed(ConfigType type, Config config, long time);

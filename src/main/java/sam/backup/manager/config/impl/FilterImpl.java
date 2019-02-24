@@ -5,7 +5,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
@@ -22,6 +21,7 @@ import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.IFilter;
+import sam.myutils.Checker;
 import sam.myutils.System2;
 import sam.string.StringUtils;
 
@@ -34,7 +34,7 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 	@Override
 	public boolean test(Path p) {
 		if(invert != null && invert.test(p)){
-			LOGGER.debug("INVERT FILTER for: "+p);
+			LOGGER.debug("INVERT FILTER for: {}", p);
 			return false;
 		}
 		
@@ -68,7 +68,7 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 
 	private static boolean isNull(Object o) { return o == null; }
 	private static boolean invalidArray(String[] array) {
-		return array == null || array.length ==  0;
+		return Checker.isEmpty(array);
 	}
 	private static Stream<String> stream(String[] array) { 
 		return Arrays.stream(array).filter(s -> !s.trim().isEmpty()); 
@@ -152,7 +152,6 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 
 		return paths.contains(p);
 	}
-	protected abstract Path resolve(String path);
 	
 	private Set<Path> names;
 	private boolean name(Path p) {
@@ -164,37 +163,41 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 		return names.contains(p); 
 	}
 
-	private static final FileSystem fs = FileSystems.getDefault();
-
 	private Predicate<Path> regexs;
 	private boolean regex(Path p) {
 		if(invalidArray(regex))
 			return false;
 		if(isNull(regexs)) {
 			regexs = toPredicate(regex, s -> {
-				PathMatcher m = fs.getPathMatcher("regex:".concat(s.replace("/", "\\\\")));
+				PathMatcher m = fs().getPathMatcher("regex:".concat(s.replace("/", "\\\\")));
 				return x -> m.matches(x);
 			});
 		}
 		return regexs.test(p);
 	}
 	private Predicate<Path> globs;
+	
 	private boolean glob(Path p) {
 		if(invalidArray(glob))
 			return false;
 		if(isNull(globs)) {
 			globs = toPredicate(glob, s -> {
-				PathMatcher rgx =  fs.getPathMatcher("glob:".concat(s));
+				PathMatcher rgx =  fs().getPathMatcher("glob:".concat(s));
 				return StringUtils.contains(s, '/') ? (x -> rgx.matches(x)) : (x -> rgx.matches(x.getFileName())); 
 			}); 
 		}
 		return globs.test(p);
 	}
 	public boolean isAlwaysFalse() {
-		return Stream.of(name, glob, regex, path, startsWith, endsWith, classes).allMatch(FilterImpl::invalidArray);
+		return Checker.allMatch(FilterImpl::invalidArray, name, glob, regex, path, startsWith, endsWith, classes);
 	}
 	@Override
 	public String toString() {
 		return asString();
 	}
+
+	protected abstract Path resolve(String path);
+	protected abstract FileSystem fs();
+	
+	
 }

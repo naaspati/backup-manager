@@ -22,6 +22,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import sam.backup.manager.FileStoreManager;
+import sam.backup.manager.Injector;
 import sam.backup.manager.Stoppable;
 import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
@@ -61,6 +63,7 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	
 	private Map<String, String> variables; 
 	private List<ConfigImpl> backups, lists;
+	private boolean driveFound;
 	
 	public JsonConfigManager() {
 		singleton.init();
@@ -71,11 +74,12 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	}
 	
 	@Override
-	public void load(Path jsonPath) throws Exception {
+	public void load(Path jsonPath, Injector injector) throws Exception {
 		if(loaded)
 			return;
 		
 		loaded = true;
+		driveFound = injector.instance(FileStoreManager.class).getBackupDrive() != null;
 		
 		backupLastPerformed =  new SavedResource<TsvMapTemp>() {
 			private final Path path = jsonPath.resolveSibling("backup-last-performed.tsv");

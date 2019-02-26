@@ -1,14 +1,11 @@
 package sam.backup.manager.file.api;
 
-import java.io.IOException;
+import java.nio.file.Path;
 
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.extra.TreeType;
 
 public interface FileTreeManager {
-	FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws IOException ;
-	boolean saveFileTree(Config config); 
-	boolean saveFileTree(FileTree fileTree) ;
-	boolean saveFileTree(Config c, FileTree fileTree);
 	void walk(Dir start, FileTreeWalker walker) ;
+	void save(Config config, Path saveDir, FileTree filetree) throws Exception;
+	FileTree read(Config config, Path saveDir, boolean createNewIfNotExists);
 }

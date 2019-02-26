@@ -25,12 +25,13 @@ import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.file.api.FileTreeWalker;
 import sam.io.serilizers.ObjectReader;
 import sam.io.serilizers.ObjectWriter;
+import sam.nopkg.Junk;
 import sam.nopkg.SavedResource;
 
 @Singleton
 public class FileTreeManagerImpl implements FileTreeManager  { /* FIXME implements FileTreeFactory {
-	 
-	 * public FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
+
+ * public FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
 		//FIXME 
 		return Junk.notYetImplemented();
 		// return FileTree.getInstance().newFileTree(c, type, createNewIfNotExists);
@@ -53,8 +54,8 @@ public class FileTreeManagerImpl implements FileTreeManager  { /* FIXME implemen
 			return false;
 		}
 	}
-	 */
-	
+ */
+
 	//FIXME remove command after implementing FileTreeFactory @Override
 	public void walk(Dir start, FileTreeWalker walker) {
 		walk0(start, walker);
@@ -79,26 +80,14 @@ public class FileTreeManagerImpl implements FileTreeManager  { /* FIXME implemen
 	private Dir asDir(FileEntity f) {
 		return (Dir)f;
 	}
-
 	@Override
-	public FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws IOException {
+	public FileTree read(Config config, Path saveDir, boolean createNewIfNotExists) {
 		// TODO Auto-generated method stub
-		return null;
+		return Junk.notYetImplemented();
 	}
 	@Override
-	public boolean saveFileTree(Config config) {
+	public void save(Config config, Path saveDir, FileTree filetree) {
 		// TODO Auto-generated method stub
-		return false;
+		Junk.notYetImplemented();
 	}
-	@Override
-	public boolean saveFileTree(FileTree fileTree) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-	@Override
-	public boolean saveFileTree(Config c, FileTree fileTree) {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
 }

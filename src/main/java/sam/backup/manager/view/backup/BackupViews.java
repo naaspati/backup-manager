@@ -1,7 +1,6 @@
 package sam.backup.manager.view.backup;
 
 import java.util.Collection;
-import java.util.function.Function;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -15,13 +14,12 @@ import sam.backup.manager.Backups;
 import sam.backup.manager.Injector;
 import sam.backup.manager.JsonRequired;
 import sam.backup.manager.SelectionListener;
-import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.config.api.ConfigManager;
-import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.file.api.FileTreeManager;
+import sam.backup.manager.view.Deleter;
 import sam.nopkg.EnsureSingleton;
+import sam.reference.WeakAndLazy;
 
 @Singleton
 public class BackupViews extends BorderPane implements JsonRequired, SelectionListener {
@@ -50,10 +48,11 @@ public class BackupViews extends BorderPane implements JsonRequired, SelectionLi
 		
 		init = true;
 		FileTreeManager fac = instance(FileTreeManager.class);
-		ConfigManager cm = instance(ConfigManager.class);
-		backups.forEach(c -> root.getChildren().add(new BackupView(c, cm.getBackupLastPerformed(ConfigType.BACKUP, c), fac, null)));
+		WeakAndLazy<Deleter> deleter = new WeakAndLazy<>(Deleter::new);
+		Provider<Deleter> deleter2 = deleter::get;
+		
+		backups.forEach(c -> root.getChildren().add(new BackupView(c, fac, deleter2)));
 	}
-
 	private <E> E instance(Class<E> cls) {
 		return injector.get().instance(cls);
 	}

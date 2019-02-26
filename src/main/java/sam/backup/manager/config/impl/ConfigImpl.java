@@ -4,6 +4,7 @@ import java.util.List;
 
 import sam.backup.manager.config.api.BackupConfig;
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.config.api.FileTreeMeta;
 import sam.backup.manager.config.api.WalkConfig;
@@ -19,9 +20,11 @@ public class ConfigImpl implements Config {
 	protected final IFilter targetExcludes;
 	protected final BackupConfig backupConfig;
 	protected final WalkConfig walkConfig;
+	protected final ConfigType type;
 
 	public ConfigImpl(
 			String name, 
+			ConfigType type,
 			List<FileTreeMeta> ftms, 
 			boolean disable, 
 			IFilter zip,
@@ -33,6 +36,7 @@ public class ConfigImpl implements Config {
 		
 		Checker.requireNonNull("name, ftms", name, ftms);
 		
+		this.type = type;
 		this.name = name;
 		this.ftms = ftms;
 		this.disable = disable;
@@ -51,4 +55,5 @@ public class ConfigImpl implements Config {
 	@Override public IFilter getTargetExcluder() { return targetExcludes; }
 	@Override public BackupConfig getBackupConfig() { return backupConfig; }
 	@Override public WalkConfig getWalkConfig() { return walkConfig; }
+	@Override public ConfigType getType() { return type; }
 }

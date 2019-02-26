@@ -14,7 +14,7 @@ import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.removeClass;
 import static sam.fx.helpers.FxMenu.menuitem;
 
-import java.nio.file.Files;
+import java.util.List;
 
 import javax.inject.Provider;
 
@@ -28,14 +28,18 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.Utils;
+import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.extra.TreeType;
+import sam.backup.manager.config.api.FileTreeMeta;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
@@ -53,155 +57,287 @@ import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.fx.helpers.FxLabel;
 import sam.fx.helpers.FxText;
-import sam.fx.popup.FxPopupShop;
 import sam.nopkg.Junk;
 
-class BackupView extends BorderPane implements ButtonAction, WalkListener {
-	private static final Logger LOGGER = Utils.getLogger(BackupView.class);
+class BackupView extends BorderPane {
+	private final Logger LOGGER = Utils.getLogger(BackupView.class);
 
 	private final Config config;
-	private final VBox container = new VBox(5);
-	private final CustomButton files = new CustomButton(FILES, this);
-	private final CustomButton delete = new CustomButton(DELETE, this);
-	private final CustomButton walk = new CustomButton(WALK, this); 
-	private final Text sourceSizeT, targetSizeT, sourceFileCountT; 
-	private final Text sourceDirCountT, targetFileCountT, targetDirCountT;
-	private final Text backupSizeT, backupFileCountT;
 	private final SimpleObjectProperty<FileTree> currentFileTree = new SimpleObjectProperty<>();
-	private final Text bottomText;
 	private final Provider<Deleter> deleter;
 	private final FileTreeManager factory;
-	private final SimpleObjectProperty<FilteredDir>  backupFFT = new SimpleObjectProperty<>();
-	private final SimpleObjectProperty<FilteredDir>  deleteFFT = new SimpleObjectProperty<>();
+	private final Node root;
 	
-	public BackupView(Config config, Long lastUpdated, FileTreeManager factory, Provider<Deleter> deleter) {
+	public BackupView(Config config, FileTreeManager factory, Provider<Deleter> deleter) {
 		this.config = config;
 		this.deleter = deleter;
 		this.factory = factory;
 		
 		addClass(this, "config-view");
-		addClass(container, "grid");
-		setContextMenu();
-
-		Label l = FxLabel.label(valueOf(config.getSource()),"title");
+		
+		List<FileTreeMeta> metas = config.getFileTreeMetas();
+		
+		if(metas.isEmpty())
+			root = UtilsFx.bigPlaceholder("NO FileTreeMeta Specified");
+		else if(metas.size() == 1)
+			root = new MetaTabContent(metas.get(0));
+		else 
+			root = new TabPane(metas.stream().map(MetaTab::new).toArray(Tab[]::new));
+		
+		Label l = FxLabel.label(config.getName(),"title");
 		l.setMaxWidth(Double.MAX_VALUE);
 		setTop(l);
 		l.setOnMouseClicked(e -> {
 			if(getCenter() == null)
-				setCenter(container);
+				setCenter(root);
 			else 
-				getChildren().remove(container);
+				getChildren().remove(root);
 		});
-
-		sourceSizeT = text("---");
-		sourceFileCountT = text("---");
-		sourceDirCountT = text("---"); 
-
-		String st = config.getWalkConfig().walkBackup() ? "--" : "N/A";
-		targetSizeT = text(st); 
-		targetFileCountT = text(st); 
-		targetDirCountT = text(st);
-
-		backupSizeT = text("---");
-		backupFileCountT = text("---");
-
-		ObservableList<Node> container = this.container.getChildren();
-
-		container.add(text("Source: "));
-		container.addAll(new Text("  "),  hyperlink(config.getSource()));
-		container.add(text("Target: "));
-		container.addAll(new Text("  "),  hyperlink(config.getBaseTarget()));
-		container.add(new HBox(5, text("Last updated: "), text(lastUpdated == null ? "N/A" : millsToTimeString(lastUpdated))));
-
-		Label t = FxLabel.label("SUMMERY", "summery");
-		t.setMaxWidth(Double.MAX_VALUE);
-		t.setAlignment(Pos.CENTER);
-		container.add(t);
 		
-		TilePane tiles = new TilePane(2, 2,
-				new Text(), header("Source"), header("Backup"), header("New/Modified"),
-				new Text("size  |"), sourceSizeT, targetSizeT, backupSizeT,
-				new Text("files |"), sourceFileCountT, targetFileCountT, backupFileCountT,
-				new Text("dirs  |"), sourceDirCountT, targetDirCountT);
+		
+	}
+	
+	private class MetaTab extends Tab {
+		
+		public MetaTab(FileTreeMeta ft) {
+			getStyleClass().add("meta-tab");
+			setText(title(ft));
+			setContent(new MetaTabContent(ft));
+		}
 
-		container.add(tiles);
+		private String title(FileTreeMeta ft) {
+			return ft.toString(); //FIXME
+		}
+	}
+	private class MetaTabContent extends VBox implements ButtonAction, WalkListener  {
+		final FileTreeMeta meta;
+		final Text bottomText;
+		
+		private final CustomButton files = new CustomButton(FILES, this);
+		private final CustomButton delete = new CustomButton(DELETE, this);
+		private final CustomButton walk = new CustomButton(WALK, this); 
+		
+		private final Text sourceSizeT, targetSizeT, sourceFileCountT; 
+		private final Text sourceDirCountT, targetFileCountT, targetDirCountT;
+		private final Text backupSizeT, backupFileCountT;
+		
+		private final SimpleObjectProperty<FilteredDir>  backupFFT = new SimpleObjectProperty<>();
+		private final SimpleObjectProperty<FilteredDir>  deleteFFT = new SimpleObjectProperty<>();
 
-		if(config.getSource().stream().allMatch(p -> p.path() == null || Files.notExists(p.path())))
-			finish("Source not found", true);
-		else {
-			container.add(new HBox(5, walk, files, delete));
-			files.setVisible(false);
-			delete.setVisible(false);
+		public MetaTabContent(FileTreeMeta ft) {
+			super(5);
+			this.meta = ft;
+			
+			addClass(this, "meta-content");
+			setContextMenu();
+			
+			
+			ObservableList<Node> list = getChildren();
+			PathWrap source = ft.getSource();
+			PathWrap target = ft.getTarget();
+
+			list.add(text("Source: "));
+			list.addAll(new Text("  "),  hyperlink(source));
+			list.add(text("Target: "));
+			list.addAll(new Text("  "),  hyperlink(target));
+			long lastUpdated = ft.getLastModified();
+			list.add(new HBox(5, text("Last updated: "), text(lastUpdated <= 0 ? "N/A" : millsToTimeString(lastUpdated))));
+
+			Label t = FxLabel.label("SUMMERY", "summery");
+			t.setMaxWidth(Double.MAX_VALUE);
+			t.setAlignment(Pos.CENTER);
+			list.add(t);
+			
+			sourceSizeT = text("---");
+			sourceFileCountT = text("---");
+			sourceDirCountT = text("---"); 
+
+			String st = config.getWalkConfig().walkBackup() ? "--" : "N/A";
+			targetSizeT = text(st); 
+			targetFileCountT = text(st); 
+			targetDirCountT = text(st);
+
+			backupSizeT = text("---");
+			backupFileCountT = text("---");
+			
+			TilePane tiles = new TilePane(2, 2,
+					new Text(), header("Source"), header("Backup"), header("New/Modified"),
+					new Text("size  |"), sourceSizeT, targetSizeT, backupSizeT,
+					new Text("files |"), sourceFileCountT, targetFileCountT, backupFileCountT,
+					new Text("dirs  |"), sourceDirCountT, targetDirCountT);
+
+			list.add(tiles);
+
+			if(ft.getSource() == null || !ft.getSource().exists())
+				finish(this, "Source not found", true);
+			else {
+				list.add(new HBox(5, walk, files, delete));
+				files.setVisible(false);
+				delete.setVisible(false);
+			}
+			
+			bottomText = new Text();
+			list.add(bottomText);
 		}
 		
-		bottomText = new Text();
-		container.add(bottomText);
+		@Override
+		public void handle(ButtonType type) {
+			FilesView view;
+			
+			switch (type) {
+				case FILES:
+					view = openFilesView("select files to backup", backupFFT.get(), FilesViewSelector.backup());
+					break;
+				case DELETE:
+					view = openFilesView("select files to delete", deleteFFT.get(), FilesViewSelector.delete());
+					view.setButtons(new CustomButton(ButtonType.DELETE, e -> deleteAction()));
+					break;
+				case WALK:
+					walk.setType(ButtonType.LOADING);
+					//FIXME handler.start(config, this);
+					walk.setType(ButtonType.CANCEL);	
+					break;
+				case SET_MODIFIED:
+					throw new IllegalStateException("not yet implemented");
+				default:
+					throw new IllegalArgumentException("unknown action: "+type);
+			}
+		}
+		
+		public boolean hashBackups() {
+			return backupFFT.get() != null && !backupFFT.get().isEmpty();
+		}
+		public FilteredDir getBackupFileTree() {
+			return backupFFT.get();
+		}
+		public FilteredDir getDeleteFileTree() {
+			return deleteFFT.get();
+		}
+		public boolean hashDeleteBackups() {
+			return deleteFFT.get() != null && !deleteFFT.get().isEmpty();
+		}
+		public FilteredDir getDeleteBackups() {
+			return deleteFFT.get();
+		}
+		public boolean loadFileTree() {
+			if(fileTree() != null)
+				return true;
+
+			if(config.getWalkConfig().getDepth() <= 0) {
+				fx(() -> finish(this, "Walk failed: \nbad value for depth: "+config.getWalkConfig().getDepth(), true));
+				return false;
+			}
+			if(fileTree() == null) {
+				try {
+					if(meta.loadFiletree(factory, false) == null)
+						meta.loadFiletree(factory, true);
+				} catch (Exception e) {
+					showErrorDialog(null, "failed to read TreeFile: ", e);
+					LOGGER.error("failed to read TreeFile: ", e);
+					return false;
+				}
+				
+				return true;
+			}
+			return false;
+		}
+		
+		private volatile long sourceSize, targetSize;
+		private volatile int sourceFileCount, sourceDirCount, targetFileCount, targetDirCount;
+
+		@Override
+		public void onFileFound(FileEntity ft, long size, WalkMode mode) {
+			fx(() -> {
+				if(mode == WalkMode.SOURCE) {
+					sourceSizeT.setText(bytesToString(sourceSize += size));
+					sourceFileCountT.setText(valueOf(++sourceFileCount));
+				} else if(mode == WalkMode.BACKUP){
+					targetSizeT.setText(bytesToString(targetSize += size));
+					targetFileCountT.setText(valueOf(++targetFileCount));
+				} else {
+					throw new IllegalStateException("invalid walkMode: "+mode);
+				}
+			});
+		}
+		@Override
+		public void onDirFound(Dir ft, WalkMode mode) {
+			fx(() -> {
+				if(mode == WalkMode.SOURCE) 
+					sourceDirCountT.setText(valueOf(++sourceDirCount));
+				else if(mode == WalkMode.BACKUP)
+					targetDirCountT.setText(valueOf(++targetDirCount));
+				else 
+					throw new IllegalStateException("invalid walkMode: "+mode);
+			});
+		}
+
+		private void updateDeleteCounts(FilteredDir deleteFT) {
+			fx(() -> delete.setVisible(true));
+		}
+		private void updateBackupCounts(FilteredDir backup) {
+			fx(() -> files.setVisible(true));
+
+			long[] l = {0,0};
+			walk(backup, l);
+			fx(() -> {
+				backupSizeT.setText(bytesToString(l[1]));
+				backupFileCountT.setText(valueOf(l[0]));
+			});
+		}
+		private void walk(Dir backup, long[] l) {
+			for (FileEntity f : backup) {
+				if(f.isDirectory())
+					walk((Dir)f, l);
+				else {
+					l[0]++;
+					l[1] += f.getSourceAttrs().size();	
+				}
+			}
+		}
+		
+		private void allfilesAction(ActionEvent e) {
+			if(backupFFT.get() == null)
+				if(!loadFileTree())
+					return;
+			openFilesView("all files", null, FilesViewSelector.all());
+		}
+		private void setAsLatestAction(ActionEvent e) {
+			((ForcedMarkable)fileTree()).forcedMarkUpdated();
+		};
+		
+		private void setContextMenu() {
+			setOnContextMenuRequested(e -> {
+				ContextMenu menu = new ContextMenu( 
+						menuitem("Set as latest", this::setAsLatestAction, backupFFT.isNull().or(Bindings.createBooleanBinding(() -> fileTree() == null || !(fileTree() instanceof ForcedMarkable), currentFileTree))),
+						menuitem("All files", this::allfilesAction)
+						) ;
+				menu.show(this, e.getScreenX(), e.getScreenY());
+			});
+		}
+		
+		private void deleteAction() {
+			writeInTempDir(config, "delete", null, new FileTreeString(deleteFFT.get()), LOGGER);
+			deleter.get()
+			.start(fileTree(), deleteFFT.get());
+		}
+		
+		private FileTree fileTree() {
+			return meta.getFileTree();
+		}
+
 	}
-	private FileTree fileTree() {
-		return currentFileTree.get();
-	}
-	private void setContextMenu() {
-		setOnContextMenuRequested(e -> {
-			ContextMenu menu = new ContextMenu( 
-					menuitem("Set as latest", this::setAsLatestAction, backupFFT.isNull().or(Bindings.createBooleanBinding(() -> fileTree() == null || !(fileTree() instanceof ForcedMarkable), currentFileTree))),
-					menuitem("All files", this::allfilesAction)
-					// menuitem("clean backup", e1 -> new BackupCleanup(config))
-					) ;
-			menu.show(this, e.getScreenX(), e.getScreenY());
-		});
-	}
+	
 	private FilesView openFilesView(String title, Dir dir, FilesViewSelector selector) {
 		// FIXME Auto-generated method stub
 		return Junk.notYetImplemented();
 	}
-	private void allfilesAction(ActionEvent e) {
-		if(backupFFT.get() == null)
-			if(!loadFileTree())
-				return;
-		openFilesView("all files", null, FilesViewSelector.all());
-	}
-	private void setAsLatestAction(ActionEvent e) {
-		((ForcedMarkable)fileTree()).forcedMarkUpdated();
-		
-		if(factory.saveFileTree(config))
-			FxPopupShop.showHidePopup("marked as letest", 1500);
-	};
-	private Node header(String string) {
+		private Node header(String string) {
 		return addClass(new Label(string), "text", "header");
 	}
 	private Text text(String str) {
 		return FxText.text(str, "text");
 	}
-	@Override
-	public void handle(ButtonType type) {
-		FilesView view;
-		
-		switch (type) {
-			case FILES:
-				view = openFilesView("select files to backup", backupFFT.get(), FilesViewSelector.backup());
-				break;
-			case DELETE:
-				view = openFilesView("select files to delete", deleteFFT.get(), FilesViewSelector.delete());
-				view.setButtons(new CustomButton(ButtonType.DELETE, e -> deleteAction()));
-				break;
-			case WALK:
-				walk.setType(ButtonType.LOADING);
-				//FIXME handler.start(config, this);
-				walk.setType(ButtonType.CANCEL);	
-				break;
-			case SET_MODIFIED:
-				throw new IllegalStateException("not yet implemented");
-			default:
-				throw new IllegalArgumentException("unknown action: "+type);
-		}
-	}
 	
-	private void deleteAction() {
-		writeInTempDir(config, "delete", null, new FileTreeString(deleteFFT.get()), LOGGER);
-		Deleter d = deleter.get();
-		d.start(fileTree(), deleteFFT.get())
-		.thenAccept(NULL -> factory.saveFileTree(config));
-	}
 	/** FIXME
 	 * 	@Override
 	public boolean isCancelled() {
@@ -267,117 +403,13 @@ class BackupView extends BorderPane implements ButtonAction, WalkListener {
 		fx(() -> startEndAction.onComplete(this));
 	}
 	 */
-
-
-	private volatile long sourceSize, targetSize;
-	private volatile int sourceFileCount, sourceDirCount, targetFileCount, targetDirCount;
-
-	@Override
-	public void onFileFound(FileEntity ft, long size, WalkMode mode) {
-		fx(() -> {
-			if(mode == WalkMode.SOURCE) {
-				sourceSizeT.setText(bytesToString(sourceSize += size));
-				sourceFileCountT.setText(valueOf(++sourceFileCount));
-			} else if(mode == WalkMode.BACKUP){
-				targetSizeT.setText(bytesToString(targetSize += size));
-				targetFileCountT.setText(valueOf(++targetFileCount));
-			} else {
-				throw new IllegalStateException("invalid walkMode: "+mode);
-			}
-		});
-	}
-
-	@Override
-	public void onDirFound(Dir ft, WalkMode mode) {
-		fx(() -> {
-			if(mode == WalkMode.SOURCE) 
-				sourceDirCountT.setText(valueOf(++sourceDirCount));
-			else if(mode == WalkMode.BACKUP)
-				targetDirCountT.setText(valueOf(++targetDirCount));
-			else 
-				throw new IllegalStateException("invalid walkMode: "+mode);
-		});
-	}
-
-	private void updateDeleteCounts(FilteredDir deleteFT) {
-		fx(() -> delete.setVisible(true));
-	}
-	private void updateBackupCounts(FilteredDir backup) {
-		fx(() -> files.setVisible(true));
-
-		long[] l = {0,0};
-		walk(backup, l);
-		fx(() -> {
-			backupSizeT.setText(bytesToString(l[1]));
-			backupFileCountT.setText(valueOf(l[0]));
-		});
-	}
-	private void walk(Dir backup, long[] l) {
-		for (FileEntity f : backup) {
-			if(f.isDirectory())
-				walk((Dir)f, l);
-			else {
-				l[0]++;
-				l[1] += f.getSourceAttrs().size();	
-			}
-		}
-	}
-	public void finish(String msg, boolean failed) {
-		if(failed) {
-			config.isDisabled();
-		}
-		removeClass(this, "disable", "completed");
-		removeClass(bottomText, "disable-text", "completed-text");
+	
+	public void finish(MetaTabContent v, String msg, boolean failed) {
+		removeClass(v, "disable", "completed");
+		removeClass(v.bottomText, "disable-text", "completed-text");
 		String s = failed ? "disable" : "completed";
-		addClass(this, s);
-		addClass(bottomText, s+"-text");
-		bottomText.setText(msg);
-	}
-	public boolean hashBackups() {
-		return backupFFT.get() != null && !backupFFT.get().isEmpty();
-	}
-	public FilteredDir getBackupFileTree() {
-		return backupFFT.get();
-	}
-	public FilteredDir getDeleteFileTree() {
-		return deleteFFT.get();
-	}
-	public boolean hashDeleteBackups() {
-		return deleteFFT.get() != null && !deleteFFT.get().isEmpty();
-	}
-	public FilteredDir getDeleteBackups() {
-		return deleteFFT.get();
-	}
-	public boolean loadFileTree() {
-		if(fileTree() != null)
-			return true;
-
-		if(config.getWalkConfig().getDepth() <= 0) {
-			fx(() -> finish("Walk failed: \nbad value for depth: "+config.getWalkConfig().getDepth(), true));
-			return false;
-		}
-		if(fileTree() == null) {
-			FileTree ft;
-			try {
-				ft = factory.readFiletree(config, TreeType.BACKUP, false);
-			} catch (Exception e) {
-				showErrorDialog(null, "failed to read TreeFile: ", e);
-				LOGGER.error("failed to read TreeFile: ", e);
-				return false;
-			}
-			if(ft == null) {
-				try {
-					ft = factory.readFiletree(config, TreeType.BACKUP, true);
-				} catch (Exception e) {
-					showErrorDialog(null, "failed to read TreeFile: ", e);
-					LOGGER.error("failed to read TreeFile: ", e);
-					return false;	
-				} 
-				config.setFileTree(ft);	
-			} else
-				config.setFileTree(ft);
-			return true;
-		}
-		return false;
+		addClass(v, s);
+		addClass(v.bottomText, s+"-text");
+		v.bottomText.setText(msg);
 	}
 }

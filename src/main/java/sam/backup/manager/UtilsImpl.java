@@ -170,8 +170,8 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired {
 	}
 
 	@Override
-	public String millsToTimeString(Long d) {
-		return d == null || d <= 0 ? "--"
+	public String millsToTimeString(long d) {
+		return d <= 0 ? "--"
 				: LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneOffset.of("+05:30"))
 				.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM));
 	}

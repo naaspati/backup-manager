@@ -2,13 +2,11 @@ package sam.backup.manager;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.format.FormatStyle;
 
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Writable;
-import sam.backup.manager.file.api.FileEntity;
 
 public interface IUtils {
 	Path appDataDir(); 
@@ -18,7 +16,7 @@ public interface IUtils {
 	String millisToString(long millis) ;
 	String durationToString(Duration d) ;
 	double divide(long dividend, long divisor) ;
-	String millsToTimeString(Long d) ;
+	String millsToTimeString(long d) ;
 	String hashedName(Path p, String ext) ;
 	void write(Path path, CharSequence data) throws IOException ;
 	void writeInTempDir0(Config config, String prefix, String suffix, CharSequence data, Logger logger) throws IOException ;

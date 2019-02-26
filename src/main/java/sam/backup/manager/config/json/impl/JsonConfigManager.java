@@ -1,5 +1,7 @@
 package sam.backup.manager.config.json.impl;
 
+import static java.util.Collections.*;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
@@ -34,6 +36,7 @@ import sam.backup.manager.config.impl.ConfigImpl;
 import sam.backup.manager.config.impl.FilterImpl;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FileTreeManager;
 import sam.myutils.Checker;
 import sam.nopkg.EnsureSingleton;
 import sam.nopkg.Junk;
@@ -64,6 +67,7 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	private Map<String, String> variables; 
 	private List<ConfigImpl> backups, lists;
 	private boolean driveFound;
+	private Path listPath, backupPath;
 	
 	public JsonConfigManager() {
 		singleton.init();
@@ -77,6 +81,12 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	public void load(Path jsonPath, Injector injector) throws Exception {
 		if(loaded)
 			return;
+		
+		listPath = Utils.appDataDir().resolve("saved-trees").resolve(ConfigType.LIST.toString());
+		backupPath = listPath.resolveSibling(ConfigType.BACKUP.toString());
+		
+		Files.createDirectories(listPath);
+		Files.createDirectory(backupPath);
 		
 		loaded = true;
 		driveFound = injector.instance(FileStoreManager.class).getBackupDrive() != null;
@@ -127,7 +137,7 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			}
 			
 			if(Checker.isEmpty(variables))
-				variables = Collections.emptyMap();
+				variables = emptyMap();
 			
 			Config temp = (Config) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{Config.class}, new InvocationHandler() {
 				@Override
@@ -139,30 +149,36 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			if(!json.has(NAME))
 				json.put(NAME, "root-json-config");
 				
-			ConfigImpl root = config(temp, json); 
+			ConfigImpl root = config(temp, null, json); 
 			
-			backups = parseArray(root, json, BACKUPS);
-			lists = parseArray(root, json, LISTS);
+			backups = parseArray(root, ConfigType.BACKUP, json);
+			lists = parseArray(root, ConfigType.LIST, json);
 		}
 	}
 
-	private List<ConfigImpl> parseArray(ConfigImpl root, JSONObject json, String key) {
+	private List<ConfigImpl> parseArray(ConfigImpl root,ConfigType type, JSONObject json) {
+		String key = type == ConfigType.BACKUP ? BACKUPS : LISTS;
+		
 		Object obj = json.get(key);
 		if(obj == null)
-			return Collections.emptyList();
+			return emptyList();
 		if(!(obj instanceof JSONArray))
 			throw new JSONException("expected type: JSONArray, found: "+obj.getClass()+", for key: "+key);
 
 		JSONArray array = (JSONArray) obj;
 		
 		if(array.isEmpty())
-			return Collections.emptyList();
-		
-		ConfigImpl config[] = new ConfigImpl[array.length()]; 
-		
-		for (int i = 0; i < config.length; i++) 
-			config[i] = config(root, array.getJSONObject(i));
-		return Collections.unmodifiableList(Arrays.asList(config));
+			return emptyList();
+		else if(array.length() == 1) 
+			return singletonList(config(root, type, array.getJSONObject(0)));
+		else {
+			ConfigImpl config[] = new ConfigImpl[array.length()];
+			
+			for (int i = 0; i < config.length; i++) 
+				config[i] = config(root, type, array.getJSONObject(i));
+			
+			return unmodifiableList(Arrays.asList(config));	
+		}
 	}
 	public Path resolve(String s) {
 		return Junk.notYetImplemented();
@@ -220,15 +236,15 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	}
 	public static List<String> getList(Object obj, boolean unmodifiable) {
 		if(obj == null)
-			return Collections.emptyList();
-		if(obj.getClass() == String.class)
-			return Collections.singletonList((String)obj);
-		if(obj instanceof JSONArray) {
+			return emptyList();
+		else if(obj.getClass() == String.class)
+			return singletonList((String)obj);
+		else if(obj instanceof JSONArray) {
 			JSONArray array = ((JSONArray) obj);
 			if(array.isEmpty())
-				return Collections.emptyList();
+				return emptyList();
 			if(array.length() == 1)
-				return Collections.singletonList(array.getString(0));
+				return singletonList(array.getString(0));
 
 			String[] str = new String[array.length()];
 			for (int i = 0; i < array.length(); i++) 
@@ -236,9 +252,10 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 
 			List<String> list = Arrays.asList(str);
 
-			return unmodifiable ? Collections.unmodifiableList(list) : list;
+			return unmodifiable ? unmodifiableList(list) : list;
+		} else {
+			throw new IllegalArgumentException("bad type: "+obj);	
 		}
-		throw new IllegalArgumentException("bad type: "+obj);
 	}
 
 	public static FilterImpl getFilter(Object obj, String jsonKey) {
@@ -246,7 +263,7 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 		return Junk.notYetImplemented();
 	}
 	
-	private ConfigImpl config(Config global, JSONObject json) {
+	private ConfigImpl config(Config global, ConfigType type, JSONObject json) {
 		try {
 			/* FIXME configure it to create to List<FiletreeMeta>
 			 *  
@@ -266,7 +283,7 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			BackupConfigImpl backupConfig = set(json.get(BACKUP_CONFIG), new BackupConfigImpl((BackupConfigImpl) global.getBackupConfig()));
 			WalkConfigImpl walkConfig = set(json.get(WALK_CONFIG), new WalkConfigImpl((WalkConfigImpl) global.getWalkConfig()));
 			
-			return new ConfigImpl(name, ftms, disabled, zip, excludes, targetExcludes, backupConfig, walkConfig);
+			return new ConfigImpl(name, type, ftms, disabled, zip, excludes, targetExcludes, backupConfig, walkConfig);
 		} catch (Exception e) {
 			throw new JSONException(e.getMessage()+"\n"+json, e);
 		}
@@ -285,6 +302,7 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	
 	public class FiletreeMetaImpl implements FileTreeMeta {
 		FileTree filetree;
+		Config config;
 
 		@Override
 		public PathWrap getSource() {
@@ -302,6 +320,14 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			return filetree;
 		}
 
+		@Override
+		public long getLastModified() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+		@Override
+		public FileTree loadFiletree(FileTreeManager manager, boolean createNewIfNotExists) throws Exception {
+			return this.filetree = manager.read(config, config.getType() == ConfigType.LIST ? listPath : backupPath, createNewIfNotExists);
+		}
 	}
-
 }

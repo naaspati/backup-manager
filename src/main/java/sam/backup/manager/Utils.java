@@ -44,7 +44,7 @@ public final class Utils {
 		return utils.divide(dividend, divisor);
 	}
 
-	public static String millsToTimeString(Long d) {
+	public static String millsToTimeString(long d) {
 		return utils.millsToTimeString(d);
 	}
 	public static String hashedName(Path p, String ext) {

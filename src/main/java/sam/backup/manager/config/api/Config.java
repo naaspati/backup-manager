@@ -11,6 +11,7 @@ public interface Config {
 	public IFilter getSourceExcluder();
 	public IFilter getTargetExcluder();
 	public IFilter getZipSelector();
+	public ConfigType getType();
 }
 
 

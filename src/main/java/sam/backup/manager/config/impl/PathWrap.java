@@ -1,5 +1,7 @@
 package sam.backup.manager.config.impl;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -30,7 +32,7 @@ public class PathWrap {
 	}
 	@Override
 	public String toString() {
-		return (string == null ? path : string).toString();
+		return string();
 	}
 	public PathWrap resolve(String child) {
 		if(path != null)
@@ -66,5 +68,8 @@ public class PathWrap {
 	private static boolean isSlash(CharSequence cs, int i) {
 		char c = cs.charAt(i);
 		return c == '\\' || c == '/';
+	}
+	public boolean exists() {
+		return path == null ? new File(string).exists() : Files.exists(path);
 	}
 }

@@ -17,23 +17,28 @@ import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.file.api.FileTreeWalker;
 import sam.nopkg.Junk;
 
-class ProcessFileTree implements FileTreeWalker {
+class ProcessFileTree implements FileTreeWalker, Runnable {
 	private final boolean checkModified;
 	private final boolean hardSync;
 	private final boolean backupWalked;
 	private final FileTree filetree;
 	private final List<FileEntity> willRemoved = new ArrayList<>();
+	private final FileTreeManager ftf;
 
 	public ProcessFileTree(FileTreeManager ftf, FileTree filetree, Config config, boolean backupWalked) {
 		this.filetree = filetree;
 		this.backupWalked = backupWalked;
 		this.checkModified = config.getBackupConfig().checkModified();
 		this.hardSync = config.getBackupConfig().hardSync();
-		
+		this.ftf = ftf;
+	}
+	
+	@Override
+	public void run() {
 		ftf.walk(filetree, this);
 		Junk.notYetImplemented();
 		
-		//FIXME willRemoved.forEach(FileEntity::remove); 
+		//FIXME willRemoved.forEach(FileEntity::remove);
 	}
 
 	@Override

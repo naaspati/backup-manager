@@ -27,7 +27,7 @@ import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeEditor;
 
-class Walker implements FileVisitor<Path>, Callable<FileTree> {
+class Walker implements FileVisitor<Path>, Callable<Void> {
 	private static final Logger LOGGER = Utils.getLogger(Walker.class);
 	
 	private final boolean skipDirNotModified;
@@ -57,13 +57,15 @@ class Walker implements FileVisitor<Path>, Callable<FileTree> {
 		this.excluder = excluder;
 		this.walkMode = mode;
 	}
-	public FileTree call() throws IOException {
+	public Void call() throws IOException {
+		listener.startWalking(start);
 		try(FileTreeEditor editor = rootTree.getEditor(start)) {
 			this.editor = editor;
 			Files.walkFileTree(start, EnumSet.noneOf(FileVisitOption.class), config.getWalkConfig().getDepth(), this);
 		}
+		listener.endWalking(start);
 		this.editor = null;
-		return rootTree;
+		return null;
 	}
 	@Override
 	public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {

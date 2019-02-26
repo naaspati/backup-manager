@@ -6,6 +6,7 @@ import java.time.Duration;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.extra.Writable;
 
 public interface IUtils {

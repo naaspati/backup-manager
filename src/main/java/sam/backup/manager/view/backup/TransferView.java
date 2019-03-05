@@ -1,21 +1,14 @@
 package sam.backup.manager.view.backup;
 
-import static javafx.concurrent.Worker.State.CANCELLED;
-import static sam.backup.manager.UtilsFx.fx;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.function.LongConsumer;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javafx.application.Platform;
 import javafx.concurrent.Worker.State;
-import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.ProgressBar;
@@ -24,7 +17,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.RowConstraints;
 import javafx.scene.layout.VBox;
@@ -32,19 +24,13 @@ import javafx.scene.text.Text;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.impl.PathWrap;
-import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.backup.manager.view.FilesView;
-import sam.backup.manager.view.FilesViewSelector;
 import sam.fx.helpers.FxConstants;
 import sam.fx.helpers.FxGridPane;
 import sam.fx.helpers.FxHBox;
 import sam.fx.helpers.FxText;
-import sam.fx.popup.FxPopupShop;
-import sam.myutils.MyUtilsCmd;
-import sam.string.BasicFormat;
 
 
 @SuppressWarnings("rawtypes")

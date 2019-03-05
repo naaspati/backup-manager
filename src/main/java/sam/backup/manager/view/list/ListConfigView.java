@@ -1,11 +1,8 @@
 package sam.backup.manager.view.list;
 
-import static sam.backup.manager.Utils.hashedName;
 import static sam.backup.manager.Utils.millsToTimeString;
 import static sam.backup.manager.UtilsFx.fx;
 import static sam.backup.manager.UtilsFx.hyperlink;
-import static sam.backup.manager.UtilsFx.showErrorDialog;
-import static sam.backup.manager.UtilsFx.showStage;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
 
@@ -13,24 +10,19 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
 import java.util.function.Consumer;
 
-import javax.inject.Provider;
-
 import org.apache.logging.log4j.Logger;
 
 import javafx.application.Platform;
+import javafx.concurrent.Worker.State;
 import javafx.scene.Node;
-import javafx.scene.control.TextArea;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.Injector;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
@@ -39,23 +31,18 @@ import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
-import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
-import sam.backup.manager.view.TextViewer;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.console.ANSI;
 import sam.functions.IOExceptionFunction;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxText;
-import sam.fx.popup.FxPopupShop;
 import sam.myutils.Checker;
-import sam.myutils.System2;
 import sam.nopkg.Junk;
 import sam.reference.WeakAndLazy;
-import sam.string.StringUtils;
 
 public class ListConfigView extends VBox {
 	private static final Logger LOGGER =  Utils.getLogger(ListConfigView.class);
@@ -191,6 +178,30 @@ public class ListConfigView extends VBox {
 		public void walkFailed(String reason, Throwable e) {
 			LOGGER.info(ANSI.red(reason));
 			e.printStackTrace();
+		}
+
+		@Override
+		public void stateChange(State s) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void failed(String msg, Throwable error) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void startWalking(Path path) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void endWalking(Path path) {
+			// TODO Auto-generated method stub
+			
 		}
 		
 	}

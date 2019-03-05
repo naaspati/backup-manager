@@ -1,7 +1,6 @@
 package sam.backup.manager.view.backup;
 
 import java.io.IOException;
-import java.nio.file.Path;
 
 import sam.backup.manager.file.api.FileEntity;
 

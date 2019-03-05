@@ -14,6 +14,7 @@ import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.removeClass;
 import static sam.fx.helpers.FxMenu.menuitem;
 
+import java.nio.file.Path;
 import java.util.List;
 
 import javax.inject.Provider;
@@ -23,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Worker.State;
 import javafx.event.ActionEvent;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -323,6 +325,30 @@ class BackupView extends BorderPane {
 		
 		private FileTree fileTree() {
 			return meta.getFileTree();
+		}
+
+		@Override
+		public void stateChange(State s) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void failed(String msg, Throwable error) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void startWalking(Path path) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public void endWalking(Path path) {
+			// TODO Auto-generated method stub
+			
 		}
 
 	}

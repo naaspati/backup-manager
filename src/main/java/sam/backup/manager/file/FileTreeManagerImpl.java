@@ -5,28 +5,18 @@ import static java.nio.file.FileVisitResult.SKIP_SIBLINGS;
 import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
 import static java.nio.file.FileVisitResult.TERMINATE;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
 
 import javax.inject.Singleton;
 
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.extra.TreeType;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.file.api.FileTreeWalker;
-import sam.io.serilizers.ObjectReader;
-import sam.io.serilizers.ObjectWriter;
 import sam.nopkg.Junk;
-import sam.nopkg.SavedResource;
 
 @Singleton
 public class FileTreeManagerImpl implements FileTreeManager  { /* FIXME implements FileTreeFactory {

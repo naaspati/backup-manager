@@ -1,9 +1,6 @@
 package sam.backup.manager.view.backup;
 
-import java.util.List;
-
 import javafx.concurrent.Worker.State;
-import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 
 interface TransferListener {

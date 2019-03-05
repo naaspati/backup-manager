@@ -5,8 +5,8 @@ import java.util.List;
 import sam.backup.manager.config.api.BackupConfig;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigType;
-import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.config.api.FileTreeMeta;
+import sam.backup.manager.config.api.IFilter;
 import sam.backup.manager.config.api.WalkConfig;
 import sam.myutils.Checker;
 

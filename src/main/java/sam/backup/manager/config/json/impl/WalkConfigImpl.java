@@ -3,7 +3,6 @@ package sam.backup.manager.config.json.impl;
 import static sam.backup.manager.config.api.ConfigManager.either;
 
 import sam.backup.manager.config.api.WalkConfig;
-import sam.backup.manager.config.json.impl.Settable;
 
 class WalkConfigImpl implements Settable,WalkConfig {
 	private Integer depth;

@@ -6,7 +6,9 @@ import java.lang.annotation.Annotation;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import javax.inject.Singleton;
 
@@ -52,6 +55,8 @@ import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;
 import sam.myutils.Checker;
+import sam.myutils.MyUtilsPath;
+import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 import sam.nopkg.Junk;
 
@@ -90,6 +95,8 @@ public class App extends Application implements StopTasksQueue, Executor {
 	private ArrayList<RunWrap> stops = new ArrayList<>();
 	private ExecutorService pool;
 	private Injector injector; 
+	private AppConfigImpl appConfig;
+	private Path configPath;
 
 	@Override
 	public void init() throws Exception {
@@ -127,6 +134,9 @@ public class App extends Application implements StopTasksQueue, Executor {
 		Utils.setUtils(utils);
 		UtilsFx.setFx(fx);
 		
+		this.appConfig = new AppConfigImpl();
+		utils.setAppConfig(appConfig);
+		
 		this.configManager = AppInitHelper.instance(map, ConfigManager.class, null, s);
 		this.fileTreeFactory = AppInitHelper.instance(map, FileTreeManager.class, null, s);
 		
@@ -149,8 +159,7 @@ public class App extends Application implements StopTasksQueue, Executor {
 		pool =  Executors.newSingleThreadExecutor();
 		this.injector = new InjectorImpl(map);
 		
-		Path configPath = Junk.notYetImplemented(); //FIXME 
-		configManager.load(configPath, injector);
+		this.configPath = Junk.notYetImplemented(); //FIXME 
 		notifyPreloader(new Preloader.ProgressNotification(1));
 	}
 	@Override
@@ -275,6 +284,46 @@ public class App extends Application implements StopTasksQueue, Executor {
 			return instance; 
 		}
 	}
+	
+	private class AppConfigImpl implements AppConfig {
+		public final boolean SAVE_EXCLUDE_LIST = System2.lookupBoolean("SAVE_EXCLUDE_LIST", true);
+		public final Path app_data = Paths.get("app_data");
+		public final Path temp_dir;
+		
+		public AppConfigImpl() throws IOException {
+			String dt = MyUtilsPath.pathFormattedDateTime();
+			String dir = Stream.of(MyUtilsPath.TEMP_DIR.toFile().list())
+					.filter(s -> s.endsWith(dt))
+					.findFirst()
+					.orElse(null);
+
+			if(dir != null) {
+				temp_dir = MyUtilsPath.TEMP_DIR.resolve(dir);
+			} else {
+				int n = Utils.number(MyUtilsPath.TEMP_DIR);
+				temp_dir = MyUtilsPath.TEMP_DIR.resolve((n+1)+" - "+MyUtilsPath.pathFormattedDateTime());
+				Files.createDirectories(temp_dir);		
+			}
+		}
+
+		@Override
+		public Path appDataDir() {
+			return app_data;
+		}
+		@Override
+		public Path tempDir() {
+			return temp_dir;
+		}
+		@Override
+		public Object getConfig(ConfigName name) {
+			switch (name) {
+				case CONFIG_PATH_JSON: return configPath;
+				case SAVE_EXCLUDE_LIST:  return SAVE_EXCLUDE_LIST;
+			}
+			
+			throw new IllegalArgumentException();
+		}
+	}
 
 	
 	@SuppressWarnings({"unchecked", "rawtypes"})
@@ -298,6 +347,10 @@ public class App extends Application implements StopTasksQueue, Executor {
 		}
 		private <E> Class<E> map(Class<E> type) {
 			return mapping.getOrDefault(type, type);
+		}
+		@Provides
+		private AppConfig config() {
+			return appConfig;
 		}
 		@Provides
 		private Injector me() {

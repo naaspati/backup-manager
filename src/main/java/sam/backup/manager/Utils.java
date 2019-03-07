@@ -1,8 +1,12 @@
 package sam.backup.manager;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,15 +19,6 @@ public final class Utils {
 
 	static void setUtils(IUtils utils) {
 		Utils.utils = utils;
-	}
-	public static Path appDataDir() {
-		return utils.appDataDir();
-	}
-	public static boolean isSaveExcludeList() {
-		return utils.isSaveExcludeList();
-	}
-	public static Path tempDir() {
-		return utils.tempDir();
 	}
 	public static String bytesToString(long bytes) {
 		return utils.bytesToString(bytes);
@@ -67,5 +62,19 @@ public final class Utils {
 	}
 	public static void setTextNoError(Path target, CharSequence content, String errorMessage) {
 		utils.setTextNoError(target, content, errorMessage);
+	}
+	
+	static int number(Path path) {
+		if(Files.notExists(path)) return 0;
+
+		Pattern p = Pattern.compile("^(\\d+) - "); 
+
+		return Stream.of(path.toFile().list())
+				.map(p::matcher)
+				.filter(Matcher::find)
+				.map(m -> m.group(1))
+				.mapToInt(Integer::parseInt)
+				.max()
+				.orElse(0);
 	}
 }

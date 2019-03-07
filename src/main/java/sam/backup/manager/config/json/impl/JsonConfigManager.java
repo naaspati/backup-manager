@@ -1,28 +1,29 @@
 package sam.backup.manager.config.json.impl;
 
-import static sam.string.StringUtils.*;
-import static java.util.Collections.*;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.unmodifiableList;
+import static sam.string.StringUtils.contains;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.net.URI;
+import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.StringTokenizer;
-import java.util.function.Function;
-import java.util.function.UnaryOperator;
-import java.util.stream.Collectors;
 
+import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import org.apache.logging.log4j.Logger;
@@ -31,6 +32,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import sam.backup.manager.AppConfig;
+import sam.backup.manager.AppConfig.ConfigName;
 import sam.backup.manager.FileStoreManager;
 import sam.backup.manager.Injector;
 import sam.backup.manager.Stoppable;
@@ -54,7 +57,6 @@ import sam.nopkg.SavedResource;
 import sam.nopkg.TsvMapTemp;
 import sam.reference.WeakPool;
 import sam.string.StringResolver;
-import sam.string.StringUtils;
 
 @Singleton
 public class JsonConfigManager implements ConfigManager, Stoppable {
@@ -73,36 +75,28 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 
 
 	private static final EnsureSingleton singleton = new EnsureSingleton();
+	{
+		singleton.init();
+	}
+
 	private final Logger logger = Utils.getLogger(JsonConfigManager.class);
 	private Runnable backupLastPerformed_mod;
 	private SavedResource<TsvMapTemp> backupLastPerformed;
-	private boolean loaded = false;
 
 	private JConfig root_config; 
 	private List<ConfigImpl> backups, lists;
 	private boolean driveFound;
 	private Path listPath, backupPath;
 
-	public JsonConfigManager() {
-		singleton.init();
-	}
-	private void ensureLoaded() {
-		if(!loaded)
-			throw new IllegalStateException("not loaded");
-	}
-
-	@Override
-	public void load(Path jsonPath, Injector injector) throws Exception {
-		if(loaded)
-			return;
-
-		listPath = Utils.appDataDir().resolve("saved-trees").resolve(ConfigType.LIST.toString());
+	@Inject
+	public JsonConfigManager(AppConfig config, Injector injector) throws IOException {
+		listPath = config.appDataDir().resolve("saved-trees").resolve(ConfigType.LIST.toString());
 		backupPath = listPath.resolveSibling(ConfigType.BACKUP.toString());
 
 		Files.createDirectories(listPath);
 		Files.createDirectory(backupPath);
+		Path jsonPath = (Path)config.getConfig(ConfigName.CONFIG_PATH_JSON);
 
-		loaded = true;
 		driveFound = injector.instance(FileStoreManager.class).getBackupDrive() != null;
 
 		backupLastPerformed =  new SavedResource<TsvMapTemp>() {
@@ -139,7 +133,6 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			}
 		};
 
-
 		try(BufferedReader reader = Files.newBufferedReader(jsonPath)) {
 			JSONObject json = new JSONObject(new JSONTokener(reader));	
 
@@ -152,18 +145,20 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 
 			if(!json.has(NAME))
 				json.put(NAME, "root-json-config");
-			
+
 			Map<String, String> globalvars = new HashMap<>();
 			globalvars.put("DETECTED_DRIVE", Junk.notYetImplemented()); //FIXME
 
-			root_config = config(temp, null, json, globalvars); 
+			root_config = config(temp, null, json, globalvars);
 
-			backups = parseArray(root_config, ConfigType.BACKUP, json);
-			lists = parseArray(root_config, ConfigType.LIST, json);
+			globalvars.putAll(root_config.vars.map);
+
+			backups = parseArray(root_config, ConfigType.BACKUP, json, globalvars);
+			lists = parseArray(root_config, ConfigType.LIST, json, globalvars);
 		}
 	}
 
-	private List<ConfigImpl> parseArray(ConfigImpl root,ConfigType type, JSONObject json) {
+	private List<ConfigImpl> parseArray(ConfigImpl root,ConfigType type, JSONObject json, Map<String, String> globalvars) {
 		String key = type == ConfigType.BACKUP ? BACKUPS : LISTS;
 
 		Object obj = json.get(key);
@@ -177,35 +172,20 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 		if(array.isEmpty())
 			return emptyList();
 		else if(array.length() == 1) 
-			return singletonList(config(root, type, array.getJSONObject(0)));
+			return singletonList(config(root, type, array.getJSONObject(0), globalvars));
 		else {
 			ConfigImpl config[] = new ConfigImpl[array.length()];
 
 			for (int i = 0; i < config.length; i++) 
-				config[i] = config(root, type, array.getJSONObject(i));
+				config[i] = config(root, type, array.getJSONObject(i), globalvars);
 
 			return unmodifiableList(Arrays.asList(config));	
 		}
-	}
-	public Path resolve(String s) {
-		return Junk.notYetImplemented();
-		/* FIXME
-		 * {
-						if(s.charAt(0) == '\\' || s.charAt(0) == '/')
-							return config.getSource().resolve(s.substring(1));
-						if(s.contains("%source%"))
-							s = s.replace("%source%", config.getSource().toString());
-						if(s.contains("%target%") && config.getTarget() != null)
-							s = s.replace("%target%", config.getTarget().toString());
-						return Paths.get(s);
-					}
-		 */
 	}
 
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	@Override
 	public List<Config> get(ConfigType type) {
-		ensureLoaded();
 		Objects.requireNonNull(type);
 		return (List)(type == ConfigType.LIST ? lists : backups);
 	}
@@ -215,8 +195,6 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 
 	@Override
 	public Long getBackupLastPerformed(ConfigType type, Config config) {
-		ensureLoaded();
-
 		String s = backupLastPerformed.get().getOrDefault(key(type, config), DEFAULT_STRING);
 		if(s == null || DEFAULT_STRING.equals(s))
 			return ZERO;
@@ -231,8 +209,6 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 
 	@Override
 	public void putBackupLastPerformed(ConfigType type, Config config, long time) {
-		ensureLoaded();
-
 		backupLastPerformed.get().put(key(type, config), time == 0 ? DEFAULT_STRING : Long.toString(time));
 		backupLastPerformed_mod.run();
 	}
@@ -265,9 +241,71 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 		}
 	}
 
-	public static FilterImpl getFilter(JSONObject json, String key) {
-		// TODO Auto-generated method stub
-		return Junk.notYetImplemented();
+	private class JFilter extends FilterImpl implements Settable {
+		private JConfig config;
+
+		@Override
+		protected Path resolve(String path) {
+			return Paths.get(config.vars.resolve(path, config));
+		}
+
+		@Override
+		protected FileSystem fs() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public void set(String key, Object value) {
+			switch (key) {
+				case "name":       this.name = array(value); break;
+				case "glob":       this.name = array(value); break;
+				case "regex":      this.name = array(value); break;
+				case "path":       this.name = array(value); break;
+				case "startsWith": this.name = array(value); break;
+				case "endsWith":   this.name = array(value); break;
+				case "classes":    this.name = array(value); break;
+				case "invert":
+					if(value != null) 
+						this.invert = (FilterImpl) getFilter((JSONObject) value);
+					break;
+				default:
+					throw new IllegalArgumentException("unknown key: "+key+", value: "+value);
+			}
+		}
+
+		private String[] array(Object value) {
+			if(value == null)
+				return null;
+
+			JSONArray array = (JSONArray) value;
+			if(array.length() == 0)
+				return null;
+
+			String[] str = new String[array.length()];
+			for (int i = 0; i < str.length; i++) 
+				str[i] = array.getString(i);
+
+			return str;
+		}
+
+		public void setConfig(JConfig config) {
+			this.config = config;
+			JsonConfigManager.setConfig(invert, config);
+		}
+	}
+
+	public IFilter getFilter(JSONObject json, String key) {
+		json = json.optJSONObject(key);
+		return getFilter(json);
+	}
+	public IFilter getFilter(JSONObject json) {
+		if(json == null)
+			return (f -> false);
+
+		JFilter filter = new JFilter();
+		json.keySet().forEach(s -> filter.set(s, json.get(s)));
+		return filter;
 	}
 
 	private final WeakPool<List<String>> listsPool = new WeakPool<>(ArrayList::new);
@@ -300,21 +338,29 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			buffer.addAll(map.keySet());
 
 			for (String k : buffer) 
-				map.put(k, get(k, map, global, 0));
+				map.put(k, getByKey(k, map, global, 0));
 
 			buffer.clear();
 			listsPool.add(buffer);
 
 			return map;
 		}
-
-		private String get(String key, HashMap<String, String> source, Map<String, String> global, int count) {
+		
+		private String getByKey(String key, Map<String, String> source, Map<String, String> global, int count) { 
 			String value = source.get(key);
 			if(value == null)
 				value = global.get(key);
 			if(value == null)
 				throw new IllegalArgumentException("no value found for var: "+key);
+			
+			return resolve(value, source, global, count);
+		}
+		
+		private String resolve(String value, JConfig config) {
+			return resolve(value, config.vars.map, root_config.vars.map, 0);
+		}
 
+		private String resolve(String value, Map<String, String> source, Map<String, String> global, int count) {
 			if(!contains(value, '%')) 
 				return value;
 
@@ -323,13 +369,13 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			StringBuilder sb = sbPool.poll();
 			sb.setLength(0);
 
-			StringResolver.resolve(value, '%', sb, s -> get(s, source, global, count + 1));
+			StringResolver.resolve(value, '%', sb, s -> getByKey(s, source, global, count + 1));
 
 			value = sb.toString();
-			
+
 			sb.setLength(0);
 			sbPool.add(sb);
-			
+
 			return value;
 		}
 	}
@@ -351,16 +397,31 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			List<FileTreeMeta> ftms = Junk.notYetImplemented(); //FIXME
 
 			Boolean disabled = json.optBoolean(DISABLE, false);
-			FilterImpl zip = getFilter(json, ZIP_IF);
-			FilterImpl excludes = getFilter(json, EXCLUDES);
-			FilterImpl targetExcludes = getFilter(json, TARGET_EXCLUDES);
-			BackupConfigImpl backupConfig = set(json.get(BACKUP_CONFIG), new BackupConfigImpl((BackupConfigImpl) global.getBackupConfig()));
-			WalkConfigImpl walkConfig = set(json.get(WALK_CONFIG), new WalkConfigImpl((WalkConfigImpl) global.getWalkConfig()));
+			if(Boolean.TRUE.equals(disabled)) {
+				return new JConfig(vars, name, type, ftms, disabled, null, null, null, null, null);
+			} else {
+				IFilter zip = getFilter(json, ZIP_IF);
+				IFilter excludes = getFilter(json, EXCLUDES);
+				IFilter targetExcludes = getFilter(json, TARGET_EXCLUDES);
+				BackupConfigImpl backupConfig = set(json.get(BACKUP_CONFIG), new BackupConfigImpl((BackupConfigImpl) global.getBackupConfig()));
+				WalkConfigImpl walkConfig = set(json.get(WALK_CONFIG), new WalkConfigImpl((WalkConfigImpl) global.getWalkConfig()));
 
-			return new JConfig(name, type, ftms, disabled, zip, excludes, targetExcludes, backupConfig, walkConfig);
+				JConfig config = new JConfig(vars, name, type, ftms, disabled, zip, excludes, targetExcludes, backupConfig, walkConfig);
+				
+				setConfig(zip,config);
+				setConfig(excludes,config);
+				setConfig(targetExcludes,config);
+				
+				return config;
+			}
 		} catch (Exception e) {
 			throw new JSONException(e.getMessage()+"\n"+json, e);
 		}
+	}
+
+	private static void setConfig(IFilter f, JConfig config) {
+		if(f != null && f instanceof JFilter)
+			((JFilter) f).setConfig(config);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -375,10 +436,14 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	}
 
 	class JConfig extends ConfigImpl {
+		private final Vars vars;
 
-		public JConfig(String name, ConfigType type, List<FileTreeMeta> ftms, boolean disable, IFilter zip,
+		public JConfig(Vars vars, String name, ConfigType type, List<FileTreeMeta> ftms, boolean disable, IFilter zip,
 				IFilter excludes, IFilter targetExcludes, BackupConfig backupConfig, WalkConfig walkConfig) {
 			super(name, type, ftms, disable, zip, excludes, targetExcludes, backupConfig, walkConfig);
+
+			this.vars = vars;
+
 		}
 
 		class FiletreeMetaImpl implements FileTreeMeta {

@@ -9,9 +9,8 @@ import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Writable;
 
 public interface IUtils {
-	Path appDataDir(); 
-	boolean isSaveExcludeList() ;
-	Path tempDir() ;
+	void setAppConfig(AppConfig config);
+	
 	String bytesToString(long bytes) ;
 	String millisToString(long millis) ;
 	String durationToString(Duration d) ;

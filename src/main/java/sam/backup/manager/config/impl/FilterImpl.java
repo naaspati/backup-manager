@@ -1,5 +1,8 @@
 package sam.backup.manager.config.impl;
 
+import static sam.myutils.Checker.isEmpty;
+import static sam.myutils.Checker.isNull;
+
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -9,13 +12,13 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.logging.log4j.Logger;
 
@@ -65,24 +68,31 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 		}
 		return map;
 	}
-
-	private static boolean isNull(Object o) { return o == null; }
-	private static boolean invalidArray(String[] array) {
-		return Checker.isEmpty(array);
-	}
-	private static Stream<String> stream(String[] array) { 
-		return Arrays.stream(array).filter(s -> !s.trim().isEmpty()); 
+	
+	private static <E> Set<E> set(String[] array, Function<String, E> mapper) {
+		Set<E> set = null;
+		for (String s : array) {
+			if(Checker.isNotEmptyTrimmed(s)) {
+				if(set == null)
+					set = new HashSet<>();
+				set.add(mapper.apply(s));
+			}
+		}
+		return set == null ? Collections.emptySet() : set;
 	}
 
 	private static Predicate<Path> toPredicate(String[] array, Function<String, Predicate<Path>> mapper) {
-		return stream(array).map(mapper)
-				.reduce((x, y) -> x.or(y))
-				.get();
+		Predicate<Path> p  = null;
+		for (String s : array) {
+			Predicate<Path> p2 = mapper.apply(s);
+			p = p == null ? p2 : p.or(p2);
+		}
+		return p;
 	}
 	Predicate<Path> clss;
 	@SuppressWarnings("unchecked")
 	private boolean classes(Path p) {
-		if(invalidArray(classes))
+		if(isEmpty(classes))
 			return false;
 
 		if(isNull(clss)) {
@@ -115,7 +125,7 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 
 	private Predicate<Path> endsWiths;
 	private boolean endsWith(Path p) {
-		if(invalidArray(endsWith))
+		if(isEmpty(endsWith))
 			return false;
 		if(isNull(endsWiths)) {
 			endsWiths = toPredicate(endsWith, s -> {
@@ -128,7 +138,7 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 
 	private Predicate<Path> startsWiths;
 	private boolean startsWith(Path p) {
-		if(invalidArray(startsWith))
+		if(isEmpty(startsWith))
 			return false;
 		if(isNull(startsWiths)) {
 			startsWiths = toPredicate(startsWith, s -> {
@@ -141,55 +151,57 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 
 	private Set<Path> paths;
 	private boolean path(Path p) {
-		if(invalidArray(path))
+		if(isEmpty(path))
 			return false;
 		
-		if(isNull(paths)) {
-			paths = stream(path)
-					.map(this::resolve)
-					.collect(Collectors.toSet());
-		}
+		if(isNull(paths)) 
+			paths = set(path, this::resolve);
 
 		return paths.contains(p);
 	}
 	
 	private Set<Path> names;
-	private boolean name(Path p) {
-		if(invalidArray(name))
+	private boolean name(Path filename) {
+		if(isEmpty(name))
 			return false;
 		if(isNull(names))
-			names = stream(name).map(Paths::get).collect(Collectors.toSet());
+			names = set(name, Paths::get);
 
-		return names.contains(p); 
+		return names.contains(filename); 
 	}
-
+	
 	private Predicate<Path> regexs;
+	
 	private boolean regex(Path p) {
-		if(invalidArray(regex))
+		if(isEmpty(regex))
 			return false;
 		if(isNull(regexs)) {
+			FileSystem fs = fs();
 			regexs = toPredicate(regex, s -> {
-				PathMatcher m = fs().getPathMatcher("regex:".concat(s.replace("/", "\\\\")));
+				PathMatcher m = fs.getPathMatcher("regex:".concat(s.replace("/", "\\\\")));
 				return x -> m.matches(x);
 			});
 		}
 		return regexs.test(p);
 	}
+	
 	private Predicate<Path> globs;
 	
 	private boolean glob(Path p) {
-		if(invalidArray(glob))
+		if(isEmpty(glob))
 			return false;
+		
 		if(isNull(globs)) {
+			FileSystem fs = fs();
 			globs = toPredicate(glob, s -> {
-				PathMatcher rgx =  fs().getPathMatcher("glob:".concat(s));
+				PathMatcher rgx =  fs.getPathMatcher("glob:".concat(s));
 				return StringUtils.contains(s, '/') ? (x -> rgx.matches(x)) : (x -> rgx.matches(x.getFileName())); 
 			}); 
 		}
 		return globs.test(p);
 	}
 	public boolean isAlwaysFalse() {
-		return Checker.allMatch(FilterImpl::invalidArray, name, glob, regex, path, startsWith, endsWith, classes);
+		return Checker.allMatch(Checker::isEmpty, name, glob, regex, path, startsWith, endsWith, classes);
 	}
 	@Override
 	public String toString() {

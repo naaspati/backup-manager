@@ -19,9 +19,6 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 import javax.inject.Singleton;
 
@@ -31,75 +28,35 @@ import org.apache.logging.log4j.Logger;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.extra.Writable;
 import sam.io.serilizers.StringWriter2;
-import sam.myutils.MyUtilsPath;
-import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 import sam.reference.WeakAndLazy;
 
 @Singleton
 class UtilsImpl implements IUtils, ErrorHandlerRequired {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
+	
+	{
+		singleton.init();
+	}
 
 	private final Logger logger = getLogger(UtilsImpl.class);
-	public final Path app_data = Paths.get("app_data");
-	public final Path temp_dir;
-	private final Supplier<String> counter;
-	public final boolean SAVE_EXCLUDE_LIST = System2.lookupBoolean("SAVE_EXCLUDE_LIST", true);
 	private BiConsumer<Object, Exception> errorHandler = (o, e) -> {throw new RuntimeException(e);};
-
+	private Path temp_dir;
+	private Supplier<String> counter;
+	
 	@Override
-	public Path appDataDir() {
-		return app_data;
-	}
-	@Override
-	public boolean isSaveExcludeList() {
-		return SAVE_EXCLUDE_LIST;
-	}
-	@Override
-	public Path tempDir() {
-		return temp_dir;
-	}
-
-	public UtilsImpl() throws IOException {
-		singleton.init();
-
-		String dt = MyUtilsPath.pathFormattedDateTime();
-		String dir = Stream.of(MyUtilsPath.TEMP_DIR.toFile().list())
-				.filter(s -> s.endsWith(dt))
-				.findFirst()
-				.orElse(null);
-
-		if(dir != null) {
-			temp_dir = MyUtilsPath.TEMP_DIR.resolve(dir);
-		} else {
-			int n = number(MyUtilsPath.TEMP_DIR);
-			temp_dir = MyUtilsPath.TEMP_DIR.resolve((n+1)+" - "+MyUtilsPath.pathFormattedDateTime());
-			Files.createDirectories(temp_dir);				
-		}
-
+	public void setAppConfig(AppConfig config) {
+		this.temp_dir = config.tempDir();
+		
 		counter = new Supplier<String>() {
-			AtomicInteger n = new AtomicInteger(number(temp_dir));
+			AtomicInteger n = new AtomicInteger(Utils.number(temp_dir));
 
 			@Override
 			public String get() {
 				return n.incrementAndGet()+" - ";
 			}
 		};
-
-		Thread.setDefaultUncaughtExceptionHandler((thread, exception) -> logger.error("thread: {}", thread.getName(), exception));
-	}
-	private int number(Path path) {
-		if(Files.notExists(path)) return 0;
-
-		Pattern p = Pattern.compile("^(\\d+) - "); 
-
-		return Stream.of(path.toFile().list())
-				.map(p::matcher)
-				.filter(Matcher::find)
-				.map(m -> m.group(1))
-				.mapToInt(Integer::parseInt)
-				.max()
-				.orElse(0);
+		
 	}
 
 	@Override

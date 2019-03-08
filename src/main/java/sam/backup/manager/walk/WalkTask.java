@@ -17,7 +17,6 @@ import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.FileTreeMeta;
 import sam.backup.manager.config.impl.PathWrap;
-import sam.backup.manager.file.PathListToFileTree;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.myutils.Checker;
@@ -36,6 +35,8 @@ public class WalkTask implements Runnable {
 	private final AtomicBoolean cancel = new AtomicBoolean(false);
 	private final FileTreeManager ftm;
 
+	private List<Path> exucludePaths;
+
 	public WalkTask(FileTreeMeta meta, Config config, WalkMode walkMode, FileTreeManager ftm, WalkListener listener) throws Exception {
 		this.ftm = ftm;
 		this.config = config;
@@ -47,6 +48,10 @@ public class WalkTask implements Runnable {
 		
 		setState(State.READY);
 	}
+	
+	public List<Path> getExucludePaths() {
+		return exucludePaths;
+	}
 
 	private void setState(State s) {
 		state.set(s);
@@ -55,12 +60,16 @@ public class WalkTask implements Runnable {
 
 	@Override
 	public void run() {
+		if(cancel.get())
+			return;
+		
 		if(!state.compareAndSet(State.READY, State.RUNNING))
 			throw new IllegalStateException("expected state: "+State.READY+", was: "+state.get());
 		
 		setState(State.RUNNING);
 		thread.set(Thread.currentThread());
-		
+
+		exucludePaths = null;
 		boolean sourceWalkFailed = true;
 		boolean backupWalked = true;
 		Path target = null, src = null;
@@ -89,13 +98,11 @@ public class WalkTask implements Runnable {
 				walk(target, WalkMode.BACKUP, exucludePaths);
 				backupWalked = true;
 			}
-
-			if(!exucludePaths.isEmpty() && Utils.isSaveExcludeList())
-				Utils.saveInTempDirHideError(new PathListToFileTree(exucludePaths), config, "excluded", src.getFileName()+".txt");
-
+			
 			new ProcessFileTree(ftm, fileTree, config, backupWalked)
 			.run();
-			
+
+			this.exucludePaths = exucludePaths;
 			setState(State.SUCCEEDED);
 		} catch (Throwable e) {
 			if(cancel.get()) {
@@ -114,13 +121,15 @@ public class WalkTask implements Runnable {
 	}
 	
 	public void cancel() {
+		if(!cancel.compareAndSet(false, true))
+			return;
 		if(state.get() != State.RUNNING)
 			return;
+		
 		Thread t = thread.getAndSet(null);
 		if(t == null)
 			return;
 		
-		cancel.set(true);
 		t.interrupt();
 	}
 

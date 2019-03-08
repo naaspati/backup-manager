@@ -1,16 +1,17 @@
 package sam.backup.manager.walk;
 
 import java.nio.file.Path;
+import java.util.List;
 
 import javafx.concurrent.Worker.State;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 
 public interface WalkListener {
-	public void onFileFound(FileEntity ft, long size, WalkMode mode);
-	public void onDirFound(Dir ft, WalkMode mode);
-	public void stateChange(State s);
-	public void failed(String msg, Throwable error);
-	public void startWalking(Path path);
-	public void endWalking(Path path);
+	void onFileFound(FileEntity ft, long size, WalkMode mode);
+	void onDirFound(Dir ft, WalkMode mode);
+	void stateChange(State s);
+	void failed(String msg, Throwable error);
+	void startWalking(Path path);
+	void endWalking(Path path);
 }

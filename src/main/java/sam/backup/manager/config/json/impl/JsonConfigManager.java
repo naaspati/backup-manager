@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
@@ -30,7 +31,6 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import sam.backup.manager.AppConfig;
-import sam.backup.manager.AppConfig.ConfigName;
 import sam.backup.manager.Stoppable;
 import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.BackupConfig;
@@ -66,12 +66,8 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	public static final String  ZIP_IF = "zipIf";
 
 	private static final EnsureSingleton singleton = new EnsureSingleton();
-	{
-		singleton.init();
-	}
-
-	private final Logger logger = Utils.getLogger(JsonConfigManager.class);
-	private final WeakPool<StringBuilder> sbPool = new WeakPool<>(StringBuilder::new);
+	private final Logger logger;
+	private final WeakPool<StringBuilder> sbPool;
 
 	private Runnable backupLastPerformed_mod;
 	private SavedResource<TsvMapTemp> backupLastPerformed;
@@ -80,19 +76,29 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	private JConfig root_config; 
 	private List<ConfigImpl> backups, lists;
 	private Path listPath, backupPath;
-	private final AppConfig appConfig;
 	private final Path backupDrive;
 
 	@Inject
 	public JsonConfigManager(AppConfig config) throws IOException {
+		singleton.init();
+		
+		String js = config.getConfig(getClass().getName()+".file");
+		if(js == null)
+			throw new IllegalStateException("property not found: \""+getClass().getName()+".file"+"\"");
+		
+		Path jsonPath = Paths.get(js);
+		if(!Files.isRegularFile(jsonPath))
+			throw new IOException("file not found: \""+js+"\"");
+		
 		listPath = config.appDataDir().resolve("saved-trees").resolve(ConfigType.LIST.toString());
 		backupPath = listPath.resolveSibling(ConfigType.BACKUP.toString());
-		this.appConfig = config;
 		this.backupDrive = config.backupDrive();
 
 		Files.createDirectories(listPath);
 		Files.createDirectory(backupPath);
-		Path jsonPath = (Path)config.getConfig(ConfigName.CONFIG_PATH_JSON);
+		
+		sbPool = new WeakPool<>(StringBuilder::new);
+		logger = Utils.getLogger(getClass());
 
 		backupLastPerformed =  new SavedResource<TsvMapTemp>() {
 			private final Path path = jsonPath.resolveSibling("backup-last-performed.tsv");

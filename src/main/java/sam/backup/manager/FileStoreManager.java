@@ -1,40 +1,72 @@
 package sam.backup.manager;
 
+import java.io.IOException;
 import java.nio.file.FileStore;
-import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
-import java.util.Arrays;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import org.apache.logging.log4j.Logger;
+import org.json.JSONObject;
 
 import sam.nopkg.EnsureSingleton;
-import sam.nopkg.Junk;
 
-@Singleton
 public class FileStoreManager {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 	private final List<FileStore> drives;
+	private final Path backupDrive;
+	private final String id;
 	
-	@Inject
-	public FileStoreManager(FileSystem fs) {
+	public FileStoreManager() {
 		singleton.init();
 		
-		FileStore[] drive = StreamSupport.stream(FileSystems.getDefault().getFileStores().spliterator(), false)
-		.toArray(FileStore[]::new);
+		Logger log = Utils.getLogger(getClass());
+
+		Path drive = null;
+		for (Path p : FileSystems.getDefault().getRootDirectories()) {
+			if(Files.exists(p.resolve(".iambackup"))) {
+				drive = p;
+				break;
+			}
+		}
+
+		Properties p = new Properties();
+		String id = null;
+
+		if(drive != null) {
+			try {
+				p.load(Files.newInputStream(drive.resolve(".iambackup")));
+				id = p.getProperty("id");
+				if(id == null)
+					id = Files.getFileStore(drive).getAttribute("volume:vsn").toString(); 
+			} catch (IOException e) {
+				log.error("failed to read: "+drive.resolve(".iambackup"), e);
+			}
+		}
+		this.backupDrive = drive;
+		this.id = id;
+
+		log.info(() -> new JSONObject().put("DRIVE", backupDrive).put("id", this.id).toString());
 		
-		this.drives = Collections.unmodifiableList(Arrays.asList(drive));
+		this.drives = StreamSupport.stream(FileSystems.getDefault().getFileStores().spliterator(), false).collect(Collectors.collectingAndThen(Collectors.toCollection(ArrayList::new), (ArrayList<FileStore> list) -> {
+			list.trimToSize();
+			return Collections.unmodifiableList(list);
+		}));
 	}
 	
 	public List<FileStore> getDrives() {
 		return drives;
 	}
-
-	public FileStore getBackupDrive() {
-		// TODO Auto-generated method stub
-		return Junk.notYetImplemented();
+	public Path getBackupDrive() {
+		return backupDrive;
+	}
+	public String getId() {
+		return id;
 	}
 }

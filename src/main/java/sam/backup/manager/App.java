@@ -1,11 +1,10 @@
 
 package sam.backup.manager;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -17,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.PrimitiveIterator.OfDouble;
+import java.util.Properties;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,7 +46,6 @@ import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
-import javafx.stage.Window;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.ConfigType;
@@ -58,7 +57,6 @@ import sam.myutils.Checker;
 import sam.myutils.MyUtilsPath;
 import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
-import sam.nopkg.Junk;
 
 @SuppressWarnings("restriction")
 @Singleton
@@ -96,7 +94,7 @@ public class App extends Application implements StopTasksQueue, Executor {
 	private ExecutorService pool;
 	private Injector injector; 
 	private AppConfigImpl appConfig;
-	private Path configPath;
+	private FileStoreManager fileStoreManager;
 
 	@Override
 	public void init() throws Exception {
@@ -136,6 +134,7 @@ public class App extends Application implements StopTasksQueue, Executor {
 		
 		this.appConfig = new AppConfigImpl();
 		utils.setAppConfig(appConfig);
+		this.fileStoreManager = new FileStoreManager();
 		
 		this.configManager = AppInitHelper.instance(map, ConfigManager.class, null, s);
 		this.fileTreeFactory = AppInitHelper.instance(map, FileTreeManager.class, null, s);
@@ -159,7 +158,6 @@ public class App extends Application implements StopTasksQueue, Executor {
 		pool =  Executors.newSingleThreadExecutor();
 		this.injector = new InjectorImpl(map);
 		
-		this.configPath = Junk.notYetImplemented(); //FIXME 
 		notifyPreloader(new Preloader.ProgressNotification(1));
 	}
 	@Override
@@ -286,11 +284,17 @@ public class App extends Application implements StopTasksQueue, Executor {
 	}
 	
 	private class AppConfigImpl implements AppConfig {
-		public final boolean SAVE_EXCLUDE_LIST = System2.lookupBoolean("SAVE_EXCLUDE_LIST", true);
 		public final Path app_data = Paths.get("app_data");
+		private final Properties properties = new Properties(); 
 		public final Path temp_dir;
 		
 		public AppConfigImpl() throws IOException {
+			String apf = System2.lookup(AppConfig.class.getName()+".file");
+			if(apf == null)
+				throw new IOException("no property found: \""+AppConfig.class.getName()+".file\"");
+			
+			properties.load(new FileInputStream(apf));
+			
 			String dt = MyUtilsPath.pathFormattedDateTime();
 			String dir = Stream.of(MyUtilsPath.TEMP_DIR.toFile().list())
 					.filter(s -> s.endsWith(dt))
@@ -315,22 +319,19 @@ public class App extends Application implements StopTasksQueue, Executor {
 			return temp_dir;
 		}
 		@Override
-		public Object getConfig(ConfigName name) {
-			switch (name) {
-				case CONFIG_PATH_JSON: return configPath;
-				case SAVE_EXCLUDE_LIST:  return SAVE_EXCLUDE_LIST;
-			}
-			
-			throw new IllegalArgumentException();
+		public String getConfig(String name) {
+			return properties.getProperty(name);
+		}
+		@Override
+		public Path backupDrive() {
+			return fileStoreManager.getBackupDrive();
 		}
 	}
-
 	
 	@SuppressWarnings({"unchecked", "rawtypes"})
 	private class InjectorImpl implements Injector {
 		final Feather feather;
 		final Map<Class, Class> mapping ;
-		final FileSystem fs = FileSystems.getDefault();	
 		
 		public InjectorImpl(Map<Class, Class> mapping) throws IOException, ClassNotFoundException {
 			this.mapping = Checker.isEmpty(mapping) ? Collections.emptyMap() : Collections.unmodifiableMap(mapping);
@@ -353,12 +354,12 @@ public class App extends Application implements StopTasksQueue, Executor {
 			return appConfig;
 		}
 		@Provides
-		private Injector me() {
-			return this;
+		private FileStoreManager fsm() {
+			return fileStoreManager;
 		}
 		@Provides
-		private FileSystem fs() {
-			return fs;
+		private Injector me() {
+			return this;
 		}
 		@Provides
 		private ConfigManager configManager() {
@@ -385,11 +386,6 @@ public class App extends Application implements StopTasksQueue, Executor {
 		@Lists
 		private Collection<Config> lists() {
 			return configManager.get(ConfigType.LIST);
-		}
-		@Provides
-		@ParentWindow
-		private Window stage() {
-			return stage;
 		}
 		@Provides
 		private Executor executor() {

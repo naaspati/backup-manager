@@ -37,6 +37,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
+import sam.backup.manager.AppConfig;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
@@ -69,11 +70,13 @@ class BackupView extends BorderPane {
 	private final Provider<Deleter> deleter;
 	private final FileTreeManager factory;
 	private final Node root;
+	private final boolean SAVE_EXCLUDE_LIST;
 	
-	public BackupView(Config config, FileTreeManager factory, Provider<Deleter> deleter) {
+	public BackupView(Config config, FileTreeManager factory, Provider<Deleter> deleter, boolean saveExcludedList) {
 		this.config = config;
 		this.deleter = deleter;
 		this.factory = factory;
+		this.SAVE_EXCLUDE_LIST = saveExcludedList;
 		
 		addClass(this, "config-view");
 		
@@ -95,8 +98,6 @@ class BackupView extends BorderPane {
 			else 
 				getChildren().remove(root);
 		});
-		
-		
 	}
 	
 	private class MetaTab extends Tab {
@@ -111,6 +112,7 @@ class BackupView extends BorderPane {
 			return ft.toString(); //FIXME
 		}
 	}
+	
 	private class MetaTabContent extends VBox implements ButtonAction, WalkListener  {
 		final FileTreeMeta meta;
 		final Text bottomText;
@@ -132,7 +134,6 @@ class BackupView extends BorderPane {
 			
 			addClass(this, "meta-content");
 			setContextMenu();
-			
 			
 			ObservableList<Node> list = getChildren();
 			PathWrap source = ft.getSource();
@@ -364,7 +365,7 @@ class BackupView extends BorderPane {
 		return FxText.text(str, "text");
 	}
 	
-	/** FIXME
+	/* FIXME
 	 * 	@Override
 	public boolean isCancelled() {
 		return cancel.get();
@@ -427,6 +428,13 @@ class BackupView extends BorderPane {
 			updateDeleteCounts(delete);
 
 		fx(() -> startEndAction.onComplete(this));
+		
+		// task is WalkTask which is completed
+		List<Path> exucludePaths = task.getExucludePaths(); 
+		
+		if(!exucludePaths.isEmpty() && saveExcludeList)
+		  Utils.saveInTempDirHideError(new PathListToFileTree(exucludePaths), config, "excluded", src.getFileName()+".txt");
+
 	}
 	 */
 	

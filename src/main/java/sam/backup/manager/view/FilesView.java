@@ -1,6 +1,5 @@
 package sam.backup.manager.view;
 
-import static sam.backup.manager.Utils.appDataDir;
 import static sam.backup.manager.Utils.bytesToString;
 import static sam.backup.manager.Utils.getLogger;
 import static sam.backup.manager.Utils.millsToTimeString;
@@ -48,6 +47,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import javafx.stage.Window;
+import sam.backup.manager.AppConfig;
 import sam.backup.manager.ParentWindow;
 import sam.backup.manager.StopTasksQueue;
 import sam.backup.manager.config.api.Config;
@@ -85,11 +85,11 @@ public class FilesView extends BorderPane {
 	
 
 	@Inject
-	public FilesView(StopTasksQueue queue, @ParentWindow Provider<Window> parent) {
+	public FilesView(AppConfig config, StopTasksQueue queue, @ParentWindow Provider<Window> parent) {
 		this.parent = parent;
 		
 		if(lastVisited == null) {
-			lastVisited = new SavedAsStringResource<>(appDataDir().resolve(getClass().getName()+".last.visited"), s -> s);
+			lastVisited = new SavedAsStringResource<>(config.appDataDir().resolve(getClass().getName()+".last.visited"), s -> s);
 			queue.add(() -> {
 				try {
 					lastVisited.close();

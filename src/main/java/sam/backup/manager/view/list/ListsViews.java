@@ -1,6 +1,7 @@
 package sam.backup.manager.view.list;
 
 import java.io.IOException;
+import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 
@@ -24,6 +25,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import sam.backup.manager.Backups;
 import sam.backup.manager.Injector;
+import sam.backup.manager.Lists;
 import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
@@ -33,89 +35,81 @@ import sam.backup.manager.config.api.FileTreeMeta;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.view.TextViewer;
+import sam.backup.manager.view.ViewsBase;
 import sam.functions.IOExceptionFunction;
 import sam.fx.helpers.FxCss;
+import sam.nopkg.EnsureSingleton;
 import sam.reference.WeakAndLazy;
 
 @Singleton
-public class ListsViews extends BorderPane implements SelectionListener {
-	private static final Logger LOGGER = Utils.getLogger(ListsViews.class);
-
-	private VBox root;
-	private ScrollPane rootSp;
-	private FileTreeManager factory;
-	private ConfigManager cm;
-	private Provider<Injector> injector;
-
+public class ListsViews extends ViewsBase {
+	private static final EnsureSingleton singleton = new EnsureSingleton();
+	
 	@Inject
 	public ListsViews(Provider<Injector> injector) {
-		this.injector = injector;
+		super(injector);
+		singleton.init();
 	}
-
-	private boolean init = false;
 
 	@Override
-	public void selected() {
-		if(init)
-			return;
-
-		init = true;
-		Injector injector = this.injector.get();
-		@SuppressWarnings("unchecked")
-		Collection<? extends Config> configs = injector.instance(Collection.class, Backups.class);
-
-		Node banner = UtilsFx.headerBanner("Lists"+(configs.isEmpty() ? "" : " ("+configs.size()+")"));
-		
-		if(configs.isEmpty()) {
-			setTop(banner);
-			setCenter(UtilsFx.bigPlaceholder("Nothing Specified"));
-		} else {
-			this.factory = injector.instance(FileTreeManager.class);
-			this.cm = injector.instance(ConfigManager.class);
-			Executor executor = injector.instance(Executor.class);
-
-			CheckBox cb = new CheckBox("save without asking");
-			cb.setOnAction(e -> ListConfigView.saveWithoutAsking = cb.isSelected());
-
-			HBox buttons = new HBox(10, cb);
-			buttons.setPadding(new Insets(2, 5, 2, 5));
-			buttons.setBorder(FxCss.border(Color.LIGHTGRAY, BorderStrokeStyle.SOLID, new BorderWidths(1, 0, 1, 0)));
-			buttons.setAlignment(Pos.CENTER_LEFT);
-
-			root  = new VBox(2);
-			rootSp = new ScrollPane(root);
-
-			root.setFillWidth(true);
-			rootSp.setFitToWidth(true);
-			rootSp.setHbarPolicy(ScrollBarPolicy.NEVER);
-			IOExceptionFunction<FileTreeMeta, FileTree> filetreeGetter = ftm -> {
-				try {
-					return ftm.loadFiletree(factory, true);
-				} catch (Exception e1) {
-					if(e1 instanceof IOException)
-						throw (IOException)e1;
-					else 
-						throw new IOException(e1);
-				}
-			};
-
-			configs.forEach(c -> root.getChildren().add(new ListConfigView(c, executor, this::textView, filetreeGetter)));
-
-			setTop(new BorderPane(banner, null, null, buttons, null));
-			setCenter(root);
-		}
-
-		this.injector = null;
+	protected Class<? extends Annotation> annotation() {
+		return Lists.class;
 	}
-	
+	@Override
+	protected String header(int size) {
+		return (title != null ? title : "Lists") +" ("+size+")";
+	}
+	@Override
+	protected String nothingFoundString() {
+		return "NO LIST CONFIG(s) FOUND";
+	}
+	@Override
+	protected Node initView(Injector injector, Collection<? extends Config> configs) {
+		FileTreeManager factory = injector.instance(FileTreeManager.class);
+		ConfigManager cm = injector.instance(ConfigManager.class);
+		Executor executor = injector.instance(Executor.class);
+
+		CheckBox cb = new CheckBox("save without asking");
+		cb.setOnAction(e -> ListConfigView.saveWithoutAsking = cb.isSelected());
+
+		HBox buttons = new HBox(10, cb);
+		buttons.setPadding(new Insets(2, 5, 2, 5));
+		buttons.setBorder(FxCss.border(Color.LIGHTGRAY, BorderStrokeStyle.SOLID, new BorderWidths(1, 0, 1, 0)));
+		buttons.setAlignment(Pos.CENTER_LEFT);
+
+		VBox root  = new VBox(2);
+		ScrollPane rootSp = new ScrollPane(root);
+
+		root.setFillWidth(true);
+		rootSp.setFitToWidth(true);
+		rootSp.setHbarPolicy(ScrollBarPolicy.NEVER);
+		IOExceptionFunction<FileTreeMeta, FileTree> filetreeGetter = ftm -> {
+			try {
+				return ftm.loadFiletree(factory, true);
+			} catch (Exception e1) {
+				if(e1 instanceof IOException)
+					throw (IOException)e1;
+				else 
+					throw new IOException(e1);
+			}
+		};
+		
+		configs.forEach(c -> root.getChildren().add(new ListConfigView(c, executor, this::textView, filetreeGetter)));
+		Node node = getTop();
+		setTop(null);
+		setTop(new BorderPane(node, null, null, buttons, null));
+		
+		return rootSp;
+	}
+
 	private WeakAndLazy<TextViewer> wtextViewer = new WeakAndLazy<>(TextViewer::new); 
-	
+
 	private void textView(String s) {
 		TextViewer ta = wtextViewer.get();
 		ta.setText(s);
-		
+
 		Node node = getCenter();
-		
+
 		ta.setOnBackAction(() -> setCenter(node));
 		setCenter(ta);
 	} 

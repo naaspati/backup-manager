@@ -1,68 +1,58 @@
 package sam.backup.manager.view.backup;
 
+import java.lang.annotation.Annotation;
 import java.util.Collection;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
-import org.json.JSONObject;
-
-import javafx.scene.layout.BorderPane;
+import javafx.scene.Node;
 import javafx.scene.layout.VBox;
+import sam.backup.manager.AppConfig;
 import sam.backup.manager.Backups;
 import sam.backup.manager.Injector;
-import sam.backup.manager.JsonRequired;
-import sam.backup.manager.SelectionListener;
-import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.view.Deleter;
+import sam.backup.manager.view.ViewsBase;
 import sam.nopkg.EnsureSingleton;
 import sam.reference.WeakAndLazy;
 
 @Singleton
-public class BackupViews extends BorderPane implements JsonRequired, SelectionListener {
+public class BackupViews extends ViewsBase {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 	
-//	private static final Logger LOGGER = Utils.getLogger(ConfigManager.class);
-	private final VBox root = new VBox();
-	private final Collection<? extends Config> backups;
-	private final Provider<Injector> injector;
-
 	@Inject
-	public BackupViews(Provider<Injector> injector, FileTreeManager factory, @Backups Collection<? extends Config> backups) {
-		this.backups = backups;
-		this.injector = injector;
-		
-		setCenter(root);
+	public BackupViews(Provider<Injector> injector) {
+		super(injector);
 		singleton.init();
 	}
 	
-	private boolean init;
-	
 	@Override
-	public void selected() {
-		if(init)
-			return;
-		
-		init = true;
-		FileTreeManager fac = instance(FileTreeManager.class);
+	protected Node initView(Injector injector, Collection<? extends Config> configs) {
+		FileTreeManager fac = injector.instance(FileTreeManager.class);
 		WeakAndLazy<Deleter> deleter = new WeakAndLazy<>(Deleter::new);
 		Provider<Deleter> deleter2 = deleter::get;
-		
-		backups.forEach(c -> root.getChildren().add(new BackupView(c, fac, deleter2)));
-	}
-	private <E> E instance(Class<E> cls) {
-		return injector.get().instance(cls);
-	}
+		boolean SAVE_EXCLUDE_LIST = Boolean.parseBoolean(injector.instance(AppConfig.class).getConfig("SAVE_EXCLUDE_LIST"));
 
-	@Override
-	public void setJson(String key, JSONObject json) {
-		String title = json.optString("title");
+		VBox root = new VBox();
+		configs.forEach(c -> root.getChildren().add(new BackupView(c, fac, deleter2, SAVE_EXCLUDE_LIST)));
 		
-		if(title != null)
-			setTop(UtilsFx.headerBanner(title));
+		return root;
+	}
+	
+	@Override
+	protected Class<? extends Annotation> annotation() {
+		return Backups.class;
+	}
+	@Override
+	protected String header(int size) {
+		return (title != null ? title : "Backups") +" ("+size+")";
+	}
+	@Override
+	protected String nothingFoundString() {
+		return "NO BACKUP CONFIG(s) FOUND";
 	}
 
 	/* FIXME 

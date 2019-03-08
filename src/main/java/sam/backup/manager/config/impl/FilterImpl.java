@@ -8,6 +8,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
@@ -32,7 +33,7 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 	private transient static final Logger LOGGER = Utils.getLogger(FilterImpl.class);
 
 	protected String[] name, glob, regex, path, startsWith, endsWith, classes;
-	protected FilterImpl invert;
+	protected IFilter invert;
 
 	@Override
 	public boolean test(Path p) {
@@ -62,8 +63,8 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 		if(endsWith != null) map.put("endsWith", Arrays.copyOf(endsWith, endsWith.length));
 		if(classes != null) map.put("classes", Arrays.copyOf(classes, classes.length));
 
-		if(invert != null) {
-			Map<String, String[]> map2 = invert.getArrays();
+		if(invert != null && invert instanceof FilterImpl) {
+			Map<String, String[]> map2 = ((FilterImpl)invert) .getArrays();
 			map2.forEach((s,t) -> map.put("invert-"+s, t));
 		}
 		return map;
@@ -71,6 +72,7 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 	
 	private static <E> Set<E> set(String[] array, Function<String, E> mapper) {
 		Set<E> set = null;
+		
 		for (String s : array) {
 			if(Checker.isNotEmptyTrimmed(s)) {
 				if(set == null)
@@ -78,10 +80,9 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 				set.add(mapper.apply(s));
 			}
 		}
-		return set == null ? Collections.emptySet() : set;
+		return isEmpty(set) ? Collections.emptySet() : set;
 	}
-
-	private static Predicate<Path> toPredicate(String[] array, Function<String, Predicate<Path>> mapper) {
+	private Predicate<Path> toPredicate(String[] array, Function<String, Predicate<Path>> mapper) {
 		Predicate<Path> p  = null;
 		for (String s : array) {
 			Predicate<Path> p2 = mapper.apply(s);
@@ -155,7 +156,7 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 			return false;
 		
 		if(isNull(paths)) 
-			paths = set(path, this::resolve);
+			paths = set(path, Paths::get);
 
 		return paths.contains(p);
 	}
@@ -176,7 +177,6 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 		if(isEmpty(regex))
 			return false;
 		if(isNull(regexs)) {
-			FileSystem fs = fs();
 			regexs = toPredicate(regex, s -> {
 				PathMatcher m = fs.getPathMatcher("regex:".concat(s.replace("/", "\\\\")));
 				return x -> m.matches(x);
@@ -186,13 +186,13 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 	}
 	
 	private Predicate<Path> globs;
+	private final static FileSystem fs = FileSystems.getDefault();
 	
 	private boolean glob(Path p) {
 		if(isEmpty(glob))
 			return false;
 		
 		if(isNull(globs)) {
-			FileSystem fs = fs();
 			globs = toPredicate(glob, s -> {
 				PathMatcher rgx =  fs.getPathMatcher("glob:".concat(s));
 				return StringUtils.contains(s, '/') ? (x -> rgx.matches(x)) : (x -> rgx.matches(x.getFileName())); 
@@ -207,9 +207,4 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 	public String toString() {
 		return asString();
 	}
-
-	protected abstract Path resolve(String path);
-	protected abstract FileSystem fs();
-	
-	
 }

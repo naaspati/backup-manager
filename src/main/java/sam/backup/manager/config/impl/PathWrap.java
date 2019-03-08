@@ -40,6 +40,9 @@ public class PathWrap {
 		
 		return new PathWrap(concat(string, child));
 	}
+	public PathWrap resolve(Path child) {
+		return of(path().resolve(child));
+	}
 
 	private static final StringBuilder sb = new StringBuilder();
 
@@ -71,5 +74,11 @@ public class PathWrap {
 	}
 	public boolean exists() {
 		return path == null ? new File(string).exists() : Files.exists(path);
+	}
+	public static PathWrap of(String string) {
+		return new PathWrap(string);
+	}
+	public static PathWrap of(Path path) {
+		return new PathWrap(path);
 	}
 }

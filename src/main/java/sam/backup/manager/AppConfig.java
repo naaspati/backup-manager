@@ -10,4 +10,5 @@ public interface AppConfig {
 	Path appDataDir(); 
 	Path tempDir() ;
 	Object getConfig(ConfigName name);
+	Path backupDrive();
 }

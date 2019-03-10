@@ -14,15 +14,14 @@ import java.text.MessageFormat;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
@@ -49,12 +48,13 @@ import sam.nopkg.TsvMapTemp;
 import sam.reference.WeakPool;
 import sam.string.StringResolver;
 
-@Singleton
-public class JsonConfigManager implements ConfigManager, Stoppable {
+class JsonConfigManager implements ConfigManager, Stoppable {
 	public static final String  DETECTED_DRIVE = "DETECTED_DRIVE";
-	public static final String  VARS = "vars";
+
 	public static final String  BACKUPS = "backups";
 	public static final String  LISTS = "lists";
+
+	public static final String  VARS = "vars";
 	public static final String  NAME = "name";
 	public static final String  SOURCE = "source";
 	public static final String  TARGET = "target";
@@ -63,7 +63,9 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	public static final String  EXCLUDES = "excludes";
 	public static final String  TARGET_EXCLUDES  = "targetExcludes"; 
 	public static final String  DISABLE = "disable";
-	public static final String  ZIP_IF = "zipIf";
+	public static final String  ZIP_IF = "zip";
+
+	private Set<String> JCONFIG_VALID_KEYS;
 
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 	private final Logger logger;
@@ -78,25 +80,24 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 	private Path listPath, backupPath;
 	private final Path backupDrive;
 
-	@Inject
 	public JsonConfigManager(AppConfig config) throws IOException {
 		singleton.init();
-		
+
 		String js = config.getConfig(getClass().getName()+".file");
 		if(js == null)
 			throw new IllegalStateException("property not found: \""+getClass().getName()+".file"+"\"");
-		
+
 		Path jsonPath = Paths.get(js);
 		if(!Files.isRegularFile(jsonPath))
 			throw new IOException("file not found: \""+js+"\"");
-		
+
 		listPath = config.appDataDir().resolve("saved-trees").resolve(ConfigType.LIST.toString());
 		backupPath = listPath.resolveSibling(ConfigType.BACKUP.toString());
 		this.backupDrive = config.backupDrive();
 
 		Files.createDirectories(listPath);
-		Files.createDirectory(backupPath);
-		
+		Files.createDirectories(backupPath);
+
 		sbPool = new WeakPool<>(StringBuilder::new);
 		logger = Utils.getLogger(getClass());
 
@@ -140,32 +141,33 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			global_vars = Collections.singletonMap(DETECTED_DRIVE, backupDrive.toString());
 
 		try(BufferedReader reader = Files.newBufferedReader(jsonPath)) {
-			JSONObject json = new JSONObject(new JSONTokener(reader));	
+			JSONObject json = new JSONObject(new JSONTokener(reader));
 
-			if(!json.has(NAME))
-				json.put(NAME, "root-json-config");
+			JCONFIG_VALID_KEYS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(VARS,NAME,SOURCE,TARGET,BACKUP_CONFIG,WALK_CONFIG,EXCLUDES,TARGET_EXCLUDES ,DISABLE,ZIP_IF)));
+
+			JSONArray backups = get(json, BACKUPS, JSONArray.class);
+			JSONArray lists = get(json, LISTS, JSONArray.class);
+
+			json.remove(BACKUPS);
+			json.remove(LISTS);
+
+			json.put(NAME, "root");
+			json.put(SOURCE, "root");
+			json.put(TARGET, "root");
 
 			root_config = config(null, null, json);
 			root_config.vars.putAll(global_vars);
-			global_vars = root_config.vars; 
+			global_vars = root_config.vars;
 
-			backups = parseArray(root_config, ConfigType.BACKUP, json);
-			lists = parseArray(root_config, ConfigType.LIST, json);
+			this.backups = parseArray(root_config, ConfigType.BACKUP, backups);
+			this.lists = parseArray(root_config, ConfigType.LIST, lists);
+
+			JCONFIG_VALID_KEYS = null;
 		}
 	}
 
-	private List<ConfigImpl> parseArray(ConfigImpl root,ConfigType type, JSONObject json) {
-		String key = type == ConfigType.BACKUP ? BACKUPS : LISTS;
-
-		Object obj = json.get(key);
-		if(obj == null)
-			return emptyList();
-		if(!(obj instanceof JSONArray))
-			throw new JSONException("expected type: JSONArray, found: "+obj.getClass()+", for key: "+key);
-
-		JSONArray array = (JSONArray) obj;
-
-		if(array.isEmpty())
+	private List<ConfigImpl> parseArray(ConfigImpl root,ConfigType type, JSONArray array) {
+		if(array == null || array.isEmpty())
 			return emptyList();
 		else if(array.length() == 1) 
 			return singletonList(config(root, type, array.getJSONObject(0)));
@@ -343,7 +345,13 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 		return map;
 	}
 
+	private <E> E get(JSONObject json, String key, Class<E> expected) {
+		return cast(json.opt(key), expected);
+	}
 	private <E> E cast(Object obj, Class<E> expected) {
+		if(obj == null)
+			return null;
+
 		if(!expected.isInstance(obj))
 			throw new JSONException(MessageFormat.format("expected: {0}, was: {1}", expected, obj.getClass()));
 		return expected.cast(obj);
@@ -351,14 +359,15 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 
 	private JConfig config(Config global, ConfigType type, JSONObject json) {
 		try {
+			validateKeys(json, JCONFIG_VALID_KEYS, JConfig.class);
 
 			Map<String, String> vars = map(json, VARS);
 			Function<Object, PathWrap> wrap = s -> PathWrap.of(resolve((String)s, vars));
 
+			List<FileTreeMeta> ftms = null;
+
 			Object source = json.get(SOURCE);
 			Object target = json.get(TARGET);
-
-			List<FileTreeMeta> ftms = null;
 
 			if(source == null || target == null)
 				throw new NullPointerException("source or/and target cannot be null");
@@ -405,6 +414,30 @@ public class JsonConfigManager implements ConfigManager, Stoppable {
 			}
 		} catch (Exception e) {
 			throw new JSONException(e.getMessage()+"\n"+json.toString(4), e);
+		}
+	}
+
+	private void validateKeys(JSONObject json, Set<String> validKeys, @SuppressWarnings("rawtypes") Class cls) {
+		if(json.isEmpty())
+			return;
+
+		if(json.keySet().stream().anyMatch(s -> !validKeys.contains(s))) {
+			StringBuilder sb = sbPool.poll();
+			sb.setLength(0);
+			sb.append("invalid key found: \nfor: ")
+			.append("\ninvalid Keys: [");
+			json.keySet().forEach(s -> {
+				if(!validKeys.contains(s))
+					sb.append('"').append(s).append("\", ");
+			});
+			sb.setLength(sb.length() - 2);
+			sb.append(']');
+
+			String s = sb.toString();
+			sb.setLength(0);
+			sbPool.add(sb);
+
+			throw new JSONException(s);
 		}
 	}
 

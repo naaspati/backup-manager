@@ -3,12 +3,11 @@ package sam.backup.manager;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.annotation.Annotation;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,8 +35,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
-import com.sun.javafx.application.LauncherImpl;
-
 import javafx.application.Application;
 import javafx.application.Preloader;
 import javafx.scene.Group;
@@ -48,6 +45,7 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
+import sam.backup.manager.config.api.ConfigManagerFactory;
 import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.fx.alert.FxAlert;
@@ -61,10 +59,6 @@ import sam.nopkg.EnsureSingleton;
 @SuppressWarnings("restriction")
 @Singleton
 public class App extends Application implements StopTasksQueue, Executor {
-	public static void main(String[] args) throws URISyntaxException, IOException, SQLException {
-		LauncherImpl.launchApplication(App.class, PreloaderImpl.class, args);
-	}
-	
 	private final Logger logger = Utils.getLogger(App.class);
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 
@@ -120,7 +114,7 @@ public class App extends Application implements StopTasksQueue, Executor {
 				old.accept(t);
 			};
 		}
-		String name = getClass().getName()+".bindings.properties";
+		String name = getClass().getSimpleName()+".bindings.properties";
 		s.accept("loading: "+name);
 		@SuppressWarnings("rawtypes")
 		Map<Class, Class> map = AppInitHelper.getClassesMapping(App.class, name, logger);
@@ -136,14 +130,15 @@ public class App extends Application implements StopTasksQueue, Executor {
 		utils.setAppConfig(appConfig);
 		this.fileStoreManager = new FileStoreManager();
 		
-		this.configManager = AppInitHelper.instance(map, ConfigManager.class, null, s);
+		ConfigManagerFactory fac = AppInitHelper.instance(map, ConfigManagerFactory.class, null, s);
+		this.configManager = fac.newInstance(appConfig);
 		this.fileTreeFactory = AppInitHelper.instance(map, FileTreeManager.class, null, s);
 		
 		map.keySet().removeAll(Arrays.asList(IUtils.class, IUtilsFx.class, ConfigManager.class, FileTreeManager.class));
 		
 		s.accept("Load tabs");
 
-		new JSONObject(new JSONTokener(getClass().getResourceAsStream(getClass().getName()+".tabs.json"))) {
+		new JSONObject(new JSONTokener(getClass().getResourceAsStream(getClass().getSimpleName()+".tabs.json"))) {
 			@Override
 			public JSONObject put(String key, Object value) throws JSONException {
 				try {

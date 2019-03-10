@@ -229,4 +229,9 @@
 	
 }
 
+.big-placeholder {
+	-fx-font-size:3em;
+	-fx-text-alignment: center;
+	
+}
 

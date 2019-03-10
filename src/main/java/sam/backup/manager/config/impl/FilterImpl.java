@@ -24,16 +24,25 @@ import java.util.function.Predicate;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.Utils;
-import sam.backup.manager.config.api.IFilter;
+import sam.backup.manager.config.api.Filter;
 import sam.myutils.Checker;
 import sam.myutils.System2;
 import sam.string.StringUtils;
 
-public abstract class FilterImpl implements IFilter, HasFilterArrays {
+public abstract class FilterImpl implements Filter {
+	public static final String NAME = "name";
+	public static final String GLOB = "glob";
+	public static final String REGEX = "regex";
+	public static final String PATH = "path";
+	public static final String STARTS_WITH = "startsWith";
+	public static final String ENDS_WITH = "endsWith";
+	public static final String CLASSES = "classes";
+	public static final String INVERT = "invert";
+	
 	private transient static final Logger LOGGER = Utils.getLogger(FilterImpl.class);
 
 	protected String[] name, glob, regex, path, startsWith, endsWith, classes;
-	protected IFilter invert;
+	protected Filter invert;
 
 	@Override
 	public boolean test(Path p) {
@@ -41,7 +50,7 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 			LOGGER.debug("INVERT FILTER for: {}", p);
 			return false;
 		}
-		
+
 		return path(p) ||
 				name(p.getFileName()) ||
 				startsWith(p) ||
@@ -52,27 +61,36 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 	}
 
 	@Override
-	public Map<String, String[]> getArrays() {
-		Map<String, String[]> map = new HashMap<>();
+	public Map<String, Object> toMap() {
+		if(isAlwaysFalse())
+			return Collections.emptyMap();
 
-		if(name != null) map.put("name", Arrays.copyOf(name, name.length));
-		if(glob != null) map.put("glob", Arrays.copyOf(glob, glob.length));
-		if(regex != null) map.put("regex", Arrays.copyOf(regex, regex.length));
-		if(path != null) map.put("path", Arrays.copyOf(path, path.length));
-		if(startsWith != null) map.put("startsWith", Arrays.copyOf(startsWith, startsWith.length));
-		if(endsWith != null) map.put("endsWith", Arrays.copyOf(endsWith, endsWith.length));
-		if(classes != null) map.put("classes", Arrays.copyOf(classes, classes.length));
+		Map<String, Object> map = new HashMap<>();
 
-		if(invert != null && invert instanceof FilterImpl) {
-			Map<String, String[]> map2 = ((FilterImpl)invert) .getArrays();
-			map2.forEach((s,t) -> map.put("invert-"+s, t));
+		put(NAME, name, map);
+		put(GLOB, glob, map);
+		put(REGEX, regex, map);
+		put(PATH, path, map);
+		put(STARTS_WITH, startsWith, map);
+		put(ENDS_WITH, endsWith, map);
+		put(CLASSES, classes, map);
+
+		if(invert != null) {
+			Map<String, Object> map2 = invert.toMap();
+			if(map2 != null)
+				map.put(INVERT, map2);
 		}
 		return map;
 	}
-	
+
+	protected void put(String title, String[] array, Map<String, Object> map) {
+		if(Checker.isNotEmpty(array))
+			map.put(title, Collections.unmodifiableList(Arrays.asList(array)));
+	}
+
 	private static <E> Set<E> set(String[] array, Function<String, E> mapper) {
 		Set<E> set = null;
-		
+
 		for (String s : array) {
 			if(Checker.isNotEmptyTrimmed(s)) {
 				if(set == null)
@@ -154,13 +172,13 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 	private boolean path(Path p) {
 		if(isEmpty(path))
 			return false;
-		
+
 		if(isNull(paths)) 
 			paths = set(path, Paths::get);
 
 		return paths.contains(p);
 	}
-	
+
 	private Set<Path> names;
 	private boolean name(Path filename) {
 		if(isEmpty(name))
@@ -170,9 +188,9 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 
 		return names.contains(filename); 
 	}
-	
+
 	private Predicate<Path> regexs;
-	
+
 	private boolean regex(Path p) {
 		if(isEmpty(regex))
 			return false;
@@ -184,14 +202,14 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 		}
 		return regexs.test(p);
 	}
-	
+
 	private Predicate<Path> globs;
 	private final static FileSystem fs = FileSystems.getDefault();
-	
+
 	private boolean glob(Path p) {
 		if(isEmpty(glob))
 			return false;
-		
+
 		if(isNull(globs)) {
 			globs = toPredicate(glob, s -> {
 				PathMatcher rgx =  fs.getPathMatcher("glob:".concat(s));
@@ -201,10 +219,6 @@ public abstract class FilterImpl implements IFilter, HasFilterArrays {
 		return globs.test(p);
 	}
 	public boolean isAlwaysFalse() {
-		return Checker.allMatch(Checker::isEmpty, name, glob, regex, path, startsWith, endsWith, classes);
-	}
-	@Override
-	public String toString() {
-		return asString();
+		return invert == null && Checker.allMatch(Checker::isEmpty, name, glob, regex, path, startsWith, endsWith, classes);
 	}
 }

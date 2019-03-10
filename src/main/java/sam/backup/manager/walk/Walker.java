@@ -18,7 +18,7 @@ import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.config.api.IFilter;
+import sam.backup.manager.config.api.Filter;
 import sam.backup.manager.config.api.WalkConfig;
 import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Attrs;
@@ -40,11 +40,11 @@ class Walker implements FileVisitor<Path>, Callable<Void> {
 	private boolean isRoot = true;
 	
 	private WalkMode walkMode;
-	private IFilter excluder;
+	private Filter excluder;
 	
 	private final List<Path> excludeFilesList;
 
-	public Walker(FileTree filetree, Config config, WalkListener listener, Path start, IFilter excluder, WalkMode mode, List<Path> exucludePaths) {
+	public Walker(FileTree filetree, Config config, WalkListener listener, Path start, Filter excluder, WalkMode mode, List<Path> exucludePaths) {
 		WalkConfig c = config.getWalkConfig();
 		this.skipDirNotModified = c.skipDirNotModified();
 		this.skipFiles = c.skipFiles();

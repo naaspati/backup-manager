@@ -9,8 +9,6 @@ import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
-import org.apache.logging.log4j.Logger;
-
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -23,12 +21,8 @@ import javafx.scene.layout.BorderWidths;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import sam.backup.manager.Backups;
 import sam.backup.manager.Injector;
 import sam.backup.manager.Lists;
-import sam.backup.manager.SelectionListener;
-import sam.backup.manager.Utils;
-import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.FileTreeMeta;

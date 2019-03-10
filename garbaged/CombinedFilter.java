@@ -9,20 +9,20 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
-import sam.backup.manager.config.api.IFilter;
+import sam.backup.manager.config.api.Filter;
 
-public class CombinedFilter implements IFilter, HasFilterArrays {
-	IFilter[] filters = new IFilter[0]; 
+public class CombinedFilter implements Filter, HasFilterArrays {
+	Filter[] filters = new Filter[0]; 
 
 	@Override
 	public boolean test(Path p) {
-		for (IFilter f : filters) 
+		for (Filter f : filters) 
 			if(f.test(p))
 				return true;
 		return false;
 	}
 
-	public void add(IFilter f) {
+	public void add(Filter f) {
 		filters = Arrays.copyOf(filters, filters.length + 1);
 		filters[filters.length - 1] = f;
 	}

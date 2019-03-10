@@ -1,35 +1,52 @@
 package sam.backup.manager.config.json.impl;
 
+import java.util.function.BiFunction;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import sam.backup.manager.config.api.IFilter;
+import sam.backup.manager.config.api.Filter;
 import sam.backup.manager.config.impl.FilterImpl;
-import sam.backup.manager.config.json.impl.JsonConfigManager.JConfig;
+import sam.backup.manager.config.json.impl.JsonConfigManager.Vars;
+import sam.myutils.Checker;
 
-abstract class JFilter extends FilterImpl implements Settable {
-	protected JConfig config;
+class JFilter extends FilterImpl implements Settable {
+	public static String[] validKeys() {
+		return new String[]{NAME, GLOB, REGEX, PATH, STARTS_WITH, ENDS_WITH, CLASSES, INVERT};
+	}
+	
+	private Vars vars;
+	private BiFunction<JSONObject, Vars, Filter> filterMaker;
+
+	public JFilter(Vars vars, BiFunction<JSONObject, Vars, Filter> filterMaker) {
+		this.vars = vars;
+		this.filterMaker = filterMaker;
+	}
 
 	@Override
 	public void set(String key, Object value) {
-		switch (key) {
-			case "name":       this.name = array(value); break;
-			case "glob":       this.name = array(value); break;
-			case "regex":      this.name = array(value); break;
-			case "path":       this.name = array(value); break;
-			case "startsWith": this.name = array(value); break;
-			case "endsWith":   this.name = array(value); break;
-			case "classes":    this.name = array(value); break;
-			case "invert":
-				if(value != null) 
-					this.invert = getFilter((JSONObject) value);
-				break;
-			default:
-				throw new IllegalArgumentException("unknown key: "+key+", value: "+value);
+		if(INVERT.equals(key)) {
+			if(value != null) 
+				this.invert = filterMaker.apply((JSONObject) value, vars);
+		} else {
+			String[] array = array(value);
+			
+			if(Checker.isEmpty(array))
+				return;
+			
+			switch (key) {
+				case NAME:       this.name        = array; break;
+				case GLOB:       this.glob        = array; break;
+				case REGEX:      this.regex       = array; break;
+				case PATH:       this.path        = array; break;
+				case STARTS_WITH: this.startsWith  = array; break;
+				case ENDS_WITH:   this.endsWith    = array; break;
+				case CLASSES:    this.classes     = array; break;
+				default:
+					throw new IllegalArgumentException("unknown key: "+key+", value: "+value);
+			}
 		}
 	}
-
-	protected abstract IFilter getFilter(JSONObject value);
 
 	private String[] array(Object value) {
 		if(value == null)
@@ -45,10 +62,14 @@ abstract class JFilter extends FilterImpl implements Settable {
 
 		return str;
 	}
-
-	public void setConfig(JConfig config) {
-		this.config = config;
-		JsonConfigManager.setConfig(invert, config);
+	void init() {
+		for (String[] sar : new String[][]{name, glob, regex, path, startsWith, endsWith, classes}) {
+			if(Checker.isNotEmpty(sar)) {
+				for (int i = 0; i < sar.length; i++) 
+					sar[i] = vars.resolve(sar[i]);
+			}
+		}
+		
+		filterMaker = null;
 	}
 }
-

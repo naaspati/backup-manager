@@ -8,6 +8,7 @@ import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import javafx.scene.Node;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import sam.backup.manager.AppConfig;
 import sam.backup.manager.Backups;
@@ -39,7 +40,10 @@ public class BackupViews extends ViewsBase {
 		VBox root = new VBox();
 		configs.forEach(c -> root.getChildren().add(new BackupView(c, fac, deleter2, SAVE_EXCLUDE_LIST)));
 		
-		return root;
+		ScrollPane scroll = new ScrollPane(root);
+		scroll.setFitToHeight(true);
+		scroll.setFitToWidth(true);
+		return scroll;
 	}
 	
 	@Override

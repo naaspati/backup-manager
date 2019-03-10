@@ -143,7 +143,7 @@ class BackupView extends BorderPane {
 			list.addAll(new Text("  "),  hyperlink(source));
 			list.add(text("Target: "));
 			list.addAll(new Text("  "),  hyperlink(target));
-			long lastUpdated = ft.getLastModified();
+			long lastUpdated = 0;//FIXME ft.getLastModified();
 			list.add(new HBox(5, text("Last updated: "), text(lastUpdated <= 0 ? "N/A" : millsToTimeString(lastUpdated))));
 
 			Label t = FxLabel.label("SUMMERY", "summery");
@@ -170,6 +170,8 @@ class BackupView extends BorderPane {
 					new Text("dirs  |"), sourceDirCountT, targetDirCountT);
 
 			list.add(tiles);
+			bottomText = new Text();
+			list.add(bottomText);
 
 			if(ft.getSource() == null || !ft.getSource().exists())
 				finish(this, "Source not found", true);
@@ -179,8 +181,7 @@ class BackupView extends BorderPane {
 				delete.setVisible(false);
 			}
 			
-			bottomText = new Text();
-			list.add(bottomText);
+			
 		}
 		
 		@Override

@@ -7,6 +7,7 @@ import static sam.string.StringUtils.contains;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -37,12 +38,14 @@ import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.config.api.FileTreeMeta;
-import sam.backup.manager.config.api.IFilter;
+import sam.backup.manager.config.api.Filter;
 import sam.backup.manager.config.api.WalkConfig;
 import sam.backup.manager.config.impl.ConfigImpl;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.myutils.Checker;
+import sam.myutils.ThrowException;
 import sam.nopkg.EnsureSingleton;
+import sam.nopkg.Junk;
 import sam.nopkg.SavedResource;
 import sam.nopkg.TsvMapTemp;
 import sam.reference.WeakPool;
@@ -65,7 +68,7 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 	public static final String  DISABLE = "disable";
 	public static final String  ZIP_IF = "zip";
 
-	private Set<String> JCONFIG_VALID_KEYS;
+	private Set<String> JCONFIG_VALID_KEYS, JFILTER_VALID_KEYS;
 
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 	private final Logger logger;
@@ -74,14 +77,16 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 	private Runnable backupLastPerformed_mod;
 	private SavedResource<TsvMapTemp> backupLastPerformed;
 
-	private Map<String, String> global_vars;
-	private JConfig root_config; 
+	private Vars global_vars = new Vars(new HashMap<>());
 	private List<ConfigImpl> backups, lists;
 	private Path listPath, backupPath;
 	private final Path backupDrive;
 
 	public JsonConfigManager(AppConfig config) throws IOException {
 		singleton.init();
+		logger = Utils.getLogger(getClass());
+
+		logger.debug("INIT {}", getClass());
 
 		String js = config.getConfig(getClass().getName()+".file");
 		if(js == null)
@@ -99,7 +104,6 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 		Files.createDirectories(backupPath);
 
 		sbPool = new WeakPool<>(StringBuilder::new);
-		logger = Utils.getLogger(getClass());
 
 		backupLastPerformed =  new SavedResource<TsvMapTemp>() {
 			private final Path path = jsonPath.resolveSibling("backup-last-performed.tsv");
@@ -135,15 +139,14 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 			}
 		};
 
-		if(backupDrive == null)
-			global_vars = Collections.emptyMap();
-		else
-			global_vars = Collections.singletonMap(DETECTED_DRIVE, backupDrive.toString());
+		if(backupDrive != null)
+			global_vars.map.put(DETECTED_DRIVE, backupDrive.toString());
 
 		try(BufferedReader reader = Files.newBufferedReader(jsonPath)) {
 			JSONObject json = new JSONObject(new JSONTokener(reader));
 
 			JCONFIG_VALID_KEYS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(VARS,NAME,SOURCE,TARGET,BACKUP_CONFIG,WALK_CONFIG,EXCLUDES,TARGET_EXCLUDES ,DISABLE,ZIP_IF)));
+			JFILTER_VALID_KEYS = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(JFilter.validKeys())));
 
 			JSONArray backups = get(json, BACKUPS, JSONArray.class);
 			JSONArray lists = get(json, LISTS, JSONArray.class);
@@ -155,14 +158,26 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 			json.put(SOURCE, "root");
 			json.put(TARGET, "root");
 
-			root_config = config(null, null, json);
-			root_config.vars.putAll(global_vars);
-			global_vars = root_config.vars;
+			Config proxy = new Config() {
+				@Override public boolean isDisabled() { return ThrowException.illegalAccessError(); }
+				@Override public Filter getZipSelector()  { return ThrowException.illegalAccessError(); }
+				@Override public WalkConfig getWalkConfig() { return new WalkConfigImpl(null); }
+				@Override public ConfigType getType()  { return ThrowException.illegalAccessError(); }
+				@Override public Filter getTargetExcluder()  { return ThrowException.illegalAccessError(); }
+				@Override public Filter getSourceExcluder()  { return ThrowException.illegalAccessError(); }
+				@Override public String getName()  { return ThrowException.illegalAccessError(); }
+				@Override public List<FileTreeMeta> getFileTreeMetas()  { return ThrowException.illegalAccessError(); }
+				@Override public BackupConfig getBackupConfig() { return new BackupConfigImpl(null); }
+			};
+
+			JConfig root_config = config(proxy, null, json);
+			global_vars.map.putAll(root_config.vars().map);
 
 			this.backups = parseArray(root_config, ConfigType.BACKUP, backups);
 			this.lists = parseArray(root_config, ConfigType.LIST, lists);
 
 			JCONFIG_VALID_KEYS = null;
+			JFILTER_VALID_KEYS = null;
 		}
 	}
 
@@ -238,40 +253,54 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 			throw new IllegalArgumentException("bad type: "+obj);	
 		}
 	}
-	public IFilter getFilter(JSONObject json, String key) {
-		json = json.optJSONObject(key);
-		return getFilter(json);
+
+	private final Vars EMPTY_VARS = new Vars(Collections.emptyMap());
+
+	class Vars {
+		private final Map<String, String> map;
+
+		public Vars(Map<String, String> map) {
+			this.map = map;
+		}
+
+		public String get(String key) {
+			return map.get(key);
+		}
+
+		public String resolve(String value) {
+			return JsonConfigManager.this.resolve(value, this);
+		}
+
+		public int size() {
+			return map.size();
+		}
+		public boolean containsKey(String key) {
+			return map.containsKey(key);
+		}
+		public void replace(String key, String result) {
+			map.replace(key, result);
+		}
 	}
 
-	public IFilter getFilter(JSONObject json) {
-		if(json == null)
-			return (f -> false);
+	public Filter getFilter(JSONObject json, String key, Vars vars) {
+		json = json.optJSONObject(key);
+		return getFilter(json, vars);
+	}
 
-		JFilter2 filter = new JFilter2();
+	public Filter getFilter(JSONObject json, Vars vars) {
+		if(json == null || json.isEmpty())
+			return null;
+
+		JFilter filter = new JFilter(vars, (js, vrs) -> getFilter(js, vrs));
+		validateKeys(json, JFILTER_VALID_KEYS, JFilter.class);
 		set(json, filter);
 		filter.init();
 		return filter;
 	}
 
-	private class JFilter2 extends JFilter {
-		@Override
-		protected IFilter getFilter(JSONObject json) {
-			return JsonConfigManager.this.getFilter(json);
-		}
-
-		public void init() {
-			for (String[] sar : new String[][]{name, glob, regex, path, startsWith, endsWith, classes}) {
-				if(Checker.isNotEmpty(sar)) {
-					for (int i = 0; i < sar.length; i++) 
-						sar[i] = resolve(sar[i], config.vars);
-				}
-			}
-		}
-	}
-
 	private String detectedDrive;
 
-	private String getByKey(String key, Map<String, String> source, int count) {
+	private String getByKey(String key, Vars source, int count) {
 		if(DETECTED_DRIVE.equals(key) && !source.containsKey(key)) {
 			if(detectedDrive == null)
 				detectedDrive = backupDrive == null ? "%"+key+"%" : backupDrive.toString();
@@ -294,7 +323,8 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 		if(value != result) {
 			if(global)
 				global_vars.replace(key, result);
-			source.replace(key, result);
+			else
+				source.replace(key, result);
 
 			logger.debug("var resolved: \"{}\"=\"{}\" -> \"{}\"", key, value, result);
 		}
@@ -302,14 +332,12 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 
 	}
 
-	private String resolve(String value, Map<String, String> vars) {
-		if(value == null)
-			return value;
+	private String resolve(String value, Vars vars) {
 		return resolve(value, vars, 0);
 	}
 
-	private String resolve(String value, Map<String, String> source, int count) {
-		if(!contains(value, '%')) 
+	private String resolve(String value, Vars source, int count) {
+		if(value == null || !contains(value, '%')) 
 			return value;
 
 		if(count > source.size() + global_vars.size())
@@ -319,8 +347,17 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 
 		StringResolver.resolve(value, '%', sb, s -> getByKey(s, source, count + 1));
 
-		if(!Checker.isEqual(sb, value))
-			value = sb.toString();
+		if(!Checker.isEqual(sb, value)) {
+			for (int i = 0; i < sb.length(); i++) {
+				if(sb.charAt(i) == '/')
+					sb.setCharAt(i, '\\');
+			}
+			
+			String s = sb.toString();
+			logger.debug("var resolved: \"{}\" -> \"{}\"", value, s);
+			value = s;
+		} else if(contains(value, '/'))
+			value = value.replace('/', '\\');
 
 		sb.setLength(0);
 		sbPool.add(sb);
@@ -328,21 +365,21 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 		return value;
 	}
 
-	private Map<String, String> map(JSONObject json, String key) {
+	private Vars vars(JSONObject json, String key) {
 		Object obj = json.opt(key);
 		if(obj == null)
-			return Collections.emptyMap();
+			return EMPTY_VARS;
 
 		json = cast(obj, JSONObject.class);
 
 		if(json.isEmpty())
-			return Collections.emptyMap();
+			return EMPTY_VARS;
 
 		Map<String, String> map = new HashMap<>();
 		for (String s : json.keySet()) 
 			map.put(s, cast(json.get(s), String.class));
 
-		return map;
+		return new Vars(map);
 	}
 
 	private <E> E get(JSONObject json, String key, Class<E> expected) {
@@ -361,7 +398,7 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 		try {
 			validateKeys(json, JCONFIG_VALID_KEYS, JConfig.class);
 
-			Map<String, String> vars = map(json, VARS);
+			Vars vars = vars(json, VARS);
 			Function<Object, PathWrap> wrap = s -> PathWrap.of(resolve((String)s, vars));
 
 			List<FileTreeMeta> ftms = null;
@@ -398,17 +435,13 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 			if(backupDrive == null || Boolean.TRUE.equals(disabled)) {
 				return new JConfig(vars, name, type, ftms, disabled, null, null, null, null, null);
 			} else {
-				IFilter zip = getFilter(json, ZIP_IF);
-				IFilter excludes = getFilter(json, EXCLUDES);
-				IFilter targetExcludes = getFilter(json, TARGET_EXCLUDES);
-				BackupConfigImpl backupConfig = set(json.get(BACKUP_CONFIG), new BackupConfigImpl((BackupConfigImpl) global.getBackupConfig()));
-				WalkConfigImpl walkConfig = set(json.get(WALK_CONFIG), new WalkConfigImpl((WalkConfigImpl) global.getWalkConfig()));
+				Filter zip = getFilter(json, ZIP_IF, vars);
+				Filter excludes = getFilter(json, EXCLUDES, vars);
+				Filter targetExcludes = getFilter(json, TARGET_EXCLUDES, vars);
+				BackupConfigImpl backupConfig = createSettable(json.opt(BACKUP_CONFIG), (BackupConfigImpl)global.getBackupConfig(), b -> new BackupConfigImpl(b));
+				WalkConfigImpl walkConfig = createSettable(json.opt(WALK_CONFIG), (WalkConfigImpl)global.getWalkConfig(), b -> new WalkConfigImpl(b));
 
 				JConfig config = new JConfig(vars, name, type, ftms, disabled, zip, excludes, targetExcludes, backupConfig, walkConfig);
-
-				setConfig(zip,config);
-				setConfig(excludes,config);
-				setConfig(targetExcludes,config);
 
 				return config;
 			}
@@ -424,7 +457,7 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 		if(json.keySet().stream().anyMatch(s -> !validKeys.contains(s))) {
 			StringBuilder sb = sbPool.poll();
 			sb.setLength(0);
-			sb.append("invalid key found: \nfor: ")
+			sb.append("invalid key found: \nfor: ").append(cls)
 			.append("\ninvalid Keys: [");
 			json.keySet().forEach(s -> {
 				if(!validKeys.contains(s))
@@ -441,7 +474,7 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 		}
 	}
 
-	private List<FileTreeMeta> generateFtms(JSONArray source, Map<String, String> vars, BiFunction<Integer, PathWrap, PathWrap> targetGetter) {
+	private List<FileTreeMeta> generateFtms(JSONArray source, Vars vars, BiFunction<Integer, PathWrap, PathWrap> targetGetter) {
 		if(source.isEmpty())
 			Collections.emptyList();
 
@@ -468,35 +501,36 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 	private boolean isString(Object o) {
 		return o.getClass() == String.class;
 	}
+	public <E extends Settable> E createSettable(Object jsonObj, E global, Function<E, E> creater) {
+		if(jsonObj == null)
+			return global;
 
-	static void setConfig(IFilter f, JConfig config) {
-		if(f != null && f instanceof JFilter)
-			((JFilter) f).setConfig(config);
+		JSONObject json = cast(jsonObj, JSONObject.class);
+		if(json.isEmpty())
+			return global;
+
+		return set(json, creater.apply(global));
 	}
 
-	@SuppressWarnings("unchecked")
-	public <E> E set(Object jsonObj, Settable settable) {
-		if(jsonObj != null) {
-			JSONObject json = (JSONObject) jsonObj;
+	private <E extends Settable> E set(JSONObject json, E value) {
+		for (String s : json.keySet()) 
+			value.set(s, json.get(s));
 
-			for (String s : json.keySet()) 
-				settable.set(s, json.get(s));
-		}
-		return (E) settable;
+		return value;
 	}
 
 	class JConfig extends ConfigImpl {
-		private final Map<String, String> vars;
+		private final Vars _vars;
 
-		public JConfig(Map<String, String> vars, String name, ConfigType type, List<FileTreeMeta> ftms, boolean disable, IFilter zip,
-				IFilter excludes, IFilter targetExcludes, BackupConfig backupConfig, WalkConfig walkConfig) {
+		public JConfig(Vars vars, String name, ConfigType type, List<FileTreeMeta> ftms, boolean disable, Filter zip,
+				Filter excludes, Filter targetExcludes, BackupConfig backupConfig, WalkConfig walkConfig) {
 			super(name, type, ftms, disable, zip, excludes, targetExcludes, backupConfig, walkConfig);
 
-			this.vars = vars;
+			this._vars = vars;
 
 		}
-		public Map<String, String> vars() {
-			return vars;
+		public Vars vars() {
+			return _vars;
 		}
 
 	}

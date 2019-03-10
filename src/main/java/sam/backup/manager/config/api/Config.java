@@ -8,9 +8,9 @@ public interface Config {
 	public BackupConfig getBackupConfig() ;
 	public WalkConfig getWalkConfig() ;
 	public boolean isDisabled();
-	public IFilter getSourceExcluder();
-	public IFilter getTargetExcluder();
-	public IFilter getZipSelector();
+	public Filter getSourceExcluder();
+	public Filter getTargetExcluder();
+	public Filter getZipSelector();
 	public ConfigType getType();
 }
 

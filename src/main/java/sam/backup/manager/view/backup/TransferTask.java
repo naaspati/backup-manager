@@ -51,7 +51,7 @@ import org.apache.logging.log4j.Logger;
 import javafx.concurrent.Worker.State;
 import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.config.api.IFilter;
+import sam.backup.manager.config.api.Filter;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
@@ -76,7 +76,7 @@ class TransferTask {
 
 	private static final WeakPool<byte[]> buffers = new WeakPool<>(true, () -> new byte[BUFFER_SIZE]);
 
-	private final IFilter zipFilter;
+	private final Filter zipFilter;
 	private final Dir rootDir;
 	private volatile TransferListener listener0;
 	private final AtomicReference<FutureTask> task = new AtomicReference<>(null);

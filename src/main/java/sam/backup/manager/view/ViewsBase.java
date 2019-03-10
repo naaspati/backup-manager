@@ -24,12 +24,15 @@ public abstract class ViewsBase extends BorderPane implements SelectionListener,
 
 	public ViewsBase(Provider<Injector> injector) {
 		this.injector = injector;
+		logger.debug("INIT {}", getClass());
 	}
 
 	private boolean init = false;
 
 	@Override
 	public void selected() {
+		logger.debug("SELECTED {}", getClass());
+		
 		if(init)
 			return;
 

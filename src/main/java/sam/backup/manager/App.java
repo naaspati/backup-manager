@@ -3,7 +3,6 @@ package sam.backup.manager;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.annotation.Annotation;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -56,7 +55,6 @@ import sam.myutils.MyUtilsPath;
 import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 
-@SuppressWarnings("restriction")
 @Singleton
 public class App extends Application implements StopTasksQueue, Executor {
 	private final Logger logger = Utils.getLogger(App.class);
@@ -128,7 +126,7 @@ public class App extends Application implements StopTasksQueue, Executor {
 		
 		this.appConfig = new AppConfigImpl();
 		utils.setAppConfig(appConfig);
-		this.fileStoreManager = new FileStoreManager();
+		this.fileStoreManager = AppInitHelper.instance(map, FileStoreManager.class, FileStoreManagerImpl.class, s);
 		
 		ConfigManagerFactory fac = AppInitHelper.instance(map, ConfigManagerFactory.class, null, s);
 		this.configManager = fac.newInstance(appConfig);
@@ -193,7 +191,11 @@ public class App extends Application implements StopTasksQueue, Executor {
 
 	private void setView(ViewWrap tab) {
 		try {
-			scene.setRoot(tab.instance());
+			Parent parent = tab.instance();
+			scene.setRoot(parent);
+			
+			if(parent instanceof SelectionListener)
+				((SelectionListener) parent).selected();
 		} catch (Exception e) {
 			FxAlert.showErrorDialog(tab, "failed to load view", e);
 		}
@@ -206,6 +208,9 @@ public class App extends Application implements StopTasksQueue, Executor {
 
 	@Override
 	public void stop() throws Exception {
+		if(10 < System.currentTimeMillis())
+			return; //FIXME
+		
 		if(!stopping.compareAndSet(false, true))
 			return;
 		

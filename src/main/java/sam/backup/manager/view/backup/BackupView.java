@@ -16,6 +16,7 @@ import static sam.fx.helpers.FxMenu.menuitem;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 import javax.inject.Provider;
 
@@ -30,7 +31,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
@@ -41,7 +41,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.Utils;
-import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.FileTreeMeta;
 import sam.backup.manager.config.impl.PathWrap;
@@ -58,6 +57,8 @@ import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.view.Deleter;
 import sam.backup.manager.view.FilesView;
 import sam.backup.manager.view.FilesViewSelector;
+import sam.backup.manager.view.ViewBase;
+import sam.backup.manager.view.ViewsBase;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.fx.helpers.FxConstants;
@@ -66,36 +67,22 @@ import sam.fx.helpers.FxLabel;
 import sam.fx.helpers.FxText;
 import sam.nopkg.Junk;
 
-class BackupView extends BorderPane {
+class BackupView extends ViewBase {
 	private final Logger LOGGER = Utils.getLogger(BackupView.class);
 
-	private final Config config;
 	private final SimpleObjectProperty<FileTree> currentFileTree = new SimpleObjectProperty<>();
 	private final Provider<Deleter> deleter;
-	private final FileTreeManager factory;
-	private final Node root;
 	private final boolean SAVE_EXCLUDE_LIST;
 	
-	public BackupView(Config config, FileTreeManager factory, Provider<Deleter> deleter, boolean saveExcludedList) {
-		this.config = config;
+	public BackupView(Config config, FileTreeManager factory, Executor executor, Provider<Deleter> deleter, boolean saveExcludedList) {
+		super(config, "config-view", factory, executor);
 		this.deleter = deleter;
-		this.factory = factory;
 		this.SAVE_EXCLUDE_LIST = saveExcludedList;
-		
-		addClass(this, "config-view");
-		
-		List<FileTreeMeta> metas = config.getFileTreeMetas();
-		
-		if(metas.isEmpty())
-			root = UtilsFx.bigPlaceholder("NO FileTreeMeta Specified");
-		else if(metas.size() == 1)
-			root = new MetaTabContent(metas.get(0));
-		else 
-			root = new TabPane(metas.stream().map(MetaTab::new).toArray(Tab[]::new));
 		
 		Label l = FxLabel.label(config.getName(),"title");
 		l.setMaxWidth(Double.MAX_VALUE);
 		setTop(l);
+		
 		l.setOnMouseClicked(e -> {
 			if(getCenter() == null)
 				setCenter(root);
@@ -104,8 +91,15 @@ class BackupView extends BorderPane {
 		});
 	}
 	
+	@Override
+	protected Node createRoot(List<FileTreeMeta> metas) {
+		if(metas.size() == 1)
+			return new MetaTabContent(metas.get(0));
+		else 
+			return new TabPane(metas.stream().map(MetaTab::new).toArray(Tab[]::new));
+	}
+	
 	private class MetaTab extends Tab {
-		
 		public MetaTab(FileTreeMeta ft) {
 			getStyleClass().add("meta-tab");
 			setText(title(ft));
@@ -132,16 +126,16 @@ class BackupView extends BorderPane {
 		private final SimpleObjectProperty<FilteredDir>  backupFFT = new SimpleObjectProperty<>();
 		private final SimpleObjectProperty<FilteredDir>  deleteFFT = new SimpleObjectProperty<>();
 
-		public MetaTabContent(FileTreeMeta ft) {
+		public MetaTabContent(FileTreeMeta meta) {
 			setPadding(FxConstants.INSETS_10);
-			this.meta = ft;
+			this.meta = meta;
 			
 			addClass(this, "meta-content");
 			setContextMenu();
 			
-			PathWrap source = ft.getSource();
-			PathWrap target = ft.getTarget();
-			long lastUpdated = ft.getLastModified();
+			PathWrap source = meta.getSource();
+			PathWrap target = meta.getTarget();
+			long lastUpdated = meta.getLastModified();
 			
 			VBox top = new VBox(5,
 					hbox("Source: ",source),
@@ -178,7 +172,7 @@ class BackupView extends BorderPane {
 			setCenter(tiles);
 			bottomText = new Text();
 
-			if(ft.getSource() == null || !ft.getSource().exists()) {
+			if(!ViewsBase.exists(meta)) {
 				setBottom(bottomText);
 				finish("Source not found", true);
 			} else {
@@ -273,8 +267,8 @@ class BackupView extends BorderPane {
 			}
 			if(fileTree() == null) {
 				try {
-					if(meta.loadFiletree(factory, false) == null)
-						meta.loadFiletree(factory, true);
+					if(meta.loadFiletree(manager, false) == null)
+						meta.loadFiletree(manager, true);
 				} catch (Exception e) {
 					showErrorDialog(null, "failed to read TreeFile: ", e);
 					LOGGER.error("failed to read TreeFile: ", e);

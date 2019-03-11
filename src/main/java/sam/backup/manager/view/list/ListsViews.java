@@ -60,7 +60,6 @@ public class ListsViews extends ViewsBase {
 	@Override
 	protected Node initView(Injector injector, Collection<? extends Config> configs) {
 		FileTreeManager factory = injector.instance(FileTreeManager.class);
-		ConfigManager cm = injector.instance(ConfigManager.class);
 		Executor executor = injector.instance(Executor.class);
 
 		CheckBox cb = new CheckBox("save without asking");
@@ -77,18 +76,8 @@ public class ListsViews extends ViewsBase {
 		root.setFillWidth(true);
 		rootSp.setFitToWidth(true);
 		rootSp.setHbarPolicy(ScrollBarPolicy.NEVER);
-		IOExceptionFunction<FileTreeMeta, FileTree> filetreeGetter = ftm -> {
-			try {
-				return ftm.loadFiletree(factory, true);
-			} catch (Exception e1) {
-				if(e1 instanceof IOException)
-					throw (IOException)e1;
-				else 
-					throw new IOException(e1);
-			}
-		};
 		
-		configs.forEach(c -> root.getChildren().add(new ListConfigView(c, executor, this::textView, filetreeGetter)));
+		configs.forEach(c -> root.getChildren().add(new ListConfigView(c, factory, executor, this::textView)));
 		Node node = getTop();
 		setTop(null);
 		setTop(new BorderPane(node, null, null, buttons, null));

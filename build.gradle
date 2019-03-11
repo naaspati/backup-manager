@@ -20,8 +20,7 @@ version = 1.12
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
-// mainClassName = 'Main'
-mainClassName = 'sam.backup.manager.view.backup.Main'
+mainClassName = 'Main'
 ext.appdir = file(System.env.SAM_PROGRAMS+'/backup/backup.beta/bin')
 	
 task combineCss {
@@ -96,9 +95,7 @@ def versionText() {
 }
 
 jar {
-  exclude '*.fxgraph'
   exclude 'styles'
-  exclude 'sql-column-change_from_dir_id_to_parent_id.sql'
 }
 
 defaultTasks 'install'

@@ -16,6 +16,7 @@ import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.api.FileTreeMeta;
 import sam.myutils.Checker;
 
 public abstract class ViewsBase extends BorderPane implements SelectionListener, JsonRequired {
@@ -61,5 +62,9 @@ public abstract class ViewsBase extends BorderPane implements SelectionListener,
 	protected abstract String nothingFoundString();
 	protected abstract String header(int size);
 	protected abstract Class<? extends Annotation> annotation();
+
+	public static boolean exists(FileTreeMeta f) {
+		return f != null && f.getSource() != null && f.getSource().exists();
+	}
 
 }

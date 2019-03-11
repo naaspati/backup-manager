@@ -4,12 +4,12 @@ import static sam.backup.manager.Utils.millsToTimeString;
 import static sam.backup.manager.UtilsFx.fx;
 import static sam.backup.manager.UtilsFx.hyperlink;
 import static sam.fx.helpers.FxClassHelper.addClass;
-import static sam.fx.helpers.FxClassHelper.setClass;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
@@ -31,36 +31,43 @@ import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
+import sam.backup.manager.view.ViewBase;
+import sam.backup.manager.view.ViewsBase;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.console.ANSI;
-import sam.functions.IOExceptionFunction;
 import sam.fx.alert.FxAlert;
+import sam.fx.helpers.FxConstants;
 import sam.fx.helpers.FxText;
 import sam.myutils.Checker;
+import sam.myutils.ThrowException;
 import sam.nopkg.Junk;
 import sam.reference.WeakAndLazy;
 
-public class ListConfigView extends VBox {
+public class ListConfigView extends ViewBase {
 	private static final Logger LOGGER =  Utils.getLogger(ListConfigView.class);
 	private static final WeakAndLazy<StringBuilder> wsb = new WeakAndLazy<>(StringBuilder::new); 
 
 	public static boolean saveWithoutAsking;
-
-	private final Config config;  
 	private final Consumer<String> textViewer;
-	private final Executor executor;
-	private IOExceptionFunction<FileTreeMeta, FileTree> filetree;
 
-	public ListConfigView(Config c, Executor executor, Consumer<String> textViewer, IOExceptionFunction<FileTreeMeta, FileTree> filetree) {
-		setClass(this, "listing-view");
-		this.config = c;
-		this.executor = executor;
+	public ListConfigView(Config c, FileTreeManager ftManager, Executor executor, Consumer<String> textViewer) {
+		super(c, "listing-view", ftManager, executor);
 		this.textViewer = textViewer;
-		this.filetree = filetree;
+		
+		setCenter(root);
+	}
+	
+	@Override
+	protected Node createRoot(List<FileTreeMeta> metas) {
+		if(metas.size() == 1)
+			return new PerView(metas.get(0));
+		else 
+			return ThrowException.illegalAccessError();
 	}
 
 	private class PerView extends VBox implements ButtonAction, WalkListener  {
@@ -73,23 +80,22 @@ public class ListConfigView extends VBox {
 		private FutureTask task;
 
 		public PerView(FileTreeMeta meta) {
+			super(5);
 			this.meta = meta;
+			setPadding(FxConstants.INSETS_5);
 
 			Node src = hyperlink(meta.getSource());
-			if(src instanceof VBox)
-				((VBox) src).getChildren().forEach(h -> addClass(h, "header"));
-			else
-				addClass(src, "header");
+			addClass(src, "header");
 
-			if(meta.getSource() == null || !meta.getSource().exists()) {
+			if(!ViewsBase.exists(meta)) {
 				getChildren().addAll(src, FxText.ofString("Last updated: "+millsToTimeString(meta.getLastModified())));
 				setDisable(true);
 			} else {
 				button = new CustomButton(ButtonType.WALK, this);
-				fileCountT = FxText.text("  Files: --", "count-text");
-				dirCountT = FxText.text("  Dirs: --", "count-text");
+				fileCountT = FxText.text("Files: --", "count-text");
+				dirCountT = FxText.text("Dirs: --", "count-text");
 
-				getChildren().addAll(src, new HBox(10, fileCountT, dirCountT), FxText.ofString("Last updated: "+millsToTimeString(meta.getLastModified())), button);
+				getChildren().addAll(src, fileCountT, dirCountT, FxText.ofString("Last updated: "+millsToTimeString(meta.getLastModified())), button);
 			}
 		}
 
@@ -150,11 +156,11 @@ public class ListConfigView extends VBox {
 				if(isRunning())
 					throw new IllegalStateException();
 				try {
-					FileTree f = ListConfigView.this.filetree.apply(meta);
+					FileTree f = meta.loadFiletree(manager, true);
 					Callable<Void> callable = Junk.notYetImplemented();//FIXME  new WalkTask(c, WalkMode.SOURCE, e, e)
 					this.task = new FutureTask<>(callable);
 					executor.execute(task);
-				} catch (IOException e) {
+				} catch (Throwable e) {
 					FxAlert.showErrorDialog(meta, "failed to load filetree", e);
 				}
 			}
@@ -231,7 +237,7 @@ public class ListConfigView extends VBox {
 		sink.append('\n');
 		return names.length;
 	}
-	
+
 	public Config getConfig() {
 		return config;
 	}

@@ -2,6 +2,7 @@ package sam.backup.manager.view.backup;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
+import java.util.concurrent.Executor;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -33,12 +34,13 @@ public class BackupViews extends ViewsBase {
 	@Override
 	protected Node initView(Injector injector, Collection<? extends Config> configs) {
 		FileTreeManager fac = injector.instance(FileTreeManager.class);
+		Executor executor = injector.instance(Executor.class);
 		WeakAndLazy<Deleter> deleter = new WeakAndLazy<>(Deleter::new);
 		Provider<Deleter> deleter2 = deleter::get;
 		boolean SAVE_EXCLUDE_LIST = Boolean.parseBoolean(injector.instance(AppConfig.class).getConfig("SAVE_EXCLUDE_LIST"));
 
 		VBox root = new VBox();
-		configs.forEach(c -> root.getChildren().add(new BackupView(c, fac, deleter2, SAVE_EXCLUDE_LIST)));
+		configs.forEach(c -> root.getChildren().add(new BackupView(c, fac, executor, deleter2, SAVE_EXCLUDE_LIST)));
 		
 		ScrollPane scroll = new ScrollPane(root);
 		scroll.setFitToHeight(true);

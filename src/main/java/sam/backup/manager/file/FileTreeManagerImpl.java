@@ -16,12 +16,18 @@ import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.file.api.FileTreeWalker;
+import sam.nopkg.EnsureSingleton;
 import sam.nopkg.Junk;
 
 @Singleton
-public class FileTreeManagerImpl implements FileTreeManager  { /* FIXME implements FileTreeFactory {
+public class FileTreeManagerImpl implements FileTreeManager  {
+	private static final EnsureSingleton singleton = new EnsureSingleton();
+	{ singleton.init(); }
 
- * public FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
+	/* FIXME implements FileTreeFactory {
+
+
+	 * public FileTree readFiletree(Config c, TreeType type, boolean createNewIfNotExists) throws Exception {
 		//FIXME 
 		return Junk.notYetImplemented();
 		// return FileTree.getInstance().newFileTree(c, type, createNewIfNotExists);
@@ -44,7 +50,7 @@ public class FileTreeManagerImpl implements FileTreeManager  { /* FIXME implemen
 			return false;
 		}
 	}
- */
+	 */
 
 	//FIXME remove command after implementing FileTreeFactory @Override
 	public void walk(Dir start, FileTreeWalker walker) {

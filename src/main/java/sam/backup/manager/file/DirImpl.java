@@ -24,6 +24,7 @@ import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTreeWalker;
 import sam.backup.manager.file.api.FilteredDir;
+import sam.collection.IntList;
 import sam.collection.Iterators;
 import sam.myutils.Checker;
 
@@ -33,17 +34,14 @@ public class DirImpl extends FileImpl implements Dir {
 	public static final FileEntity[] EMPTY_ARRAY = new FileEntity[0];
 
 	protected int mod;
-	private final FileEntity[] old;
-	private List<FileEntity> neew = Collections.emptyList();
+	protected final IntList children = new IntList();
 	private long sourceSize = -1;
 	
-	protected DirImpl(int id, String filename, Attrs source, Attrs backup, FileEntity[] children) {
+	protected DirImpl(int id, String filename, Attrs source, Attrs backup) {
 		super(id, filename, source, backup);
-		this.old = children(children);
 	}
-	protected DirImpl(int id, DirImpl parent, String filename, Attrs source, Attrs backup, FileEntity[] children){
+	protected DirImpl(int id, DirImpl parent, String filename, Attrs source, Attrs backup){
 		super(id, parent, filename, source, backup);
-		this.old = children(children);
 	}
 	private static FileEntity[] children(FileEntity[] children) {
 		return Checker.isEmpty(children) ? EMPTY_ARRAY : children;

@@ -5,11 +5,12 @@ import java.util.Objects;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
+import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.nopkg.Junk;
 
-public class FileImpl implements FileEntityWithId {
-	protected final int id;
+public class FileImpl implements FileEntity {
+	public final int id;
 	protected final DirImpl parent;
 	protected final String filename;
 	protected final Attrs srcAttrs, backupAttrs; // direct
@@ -33,10 +34,6 @@ public class FileImpl implements FileEntityWithId {
 		this.filename = Objects.requireNonNull(filename);
 		this.srcAttrs = source;
 		this.backupAttrs = backup; 
-	}
-	@Override
-	public int getId() {
-		return id;
 	}
 	@Override
 	public Dir getParent() {

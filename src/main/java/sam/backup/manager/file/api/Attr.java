@@ -2,9 +2,9 @@ package sam.backup.manager.file.api;
 
 public class Attr {
 	public final long lastModified;
-	public final long size;
+	public final int size;
 	
-	public Attr(long lastModified, long size){
+	public Attr(long lastModified, int size){
 		this.lastModified = lastModified;
 		this.size = size;
 	}
@@ -17,7 +17,7 @@ public class Attr {
 	public String toString() {
 		return "Attr [lastModified=" + lastModified + ", size=" + size + "]";
 	}
-	public long size() {
+	public int size() {
 		return size;
 	}
 	public long lastModified() {

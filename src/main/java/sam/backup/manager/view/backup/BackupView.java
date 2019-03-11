@@ -23,21 +23,23 @@ import org.apache.logging.log4j.Logger;
 
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleObjectProperty;
-import javafx.collections.ObservableList;
 import javafx.concurrent.Worker.State;
 import javafx.event.ActionEvent;
+import javafx.geometry.HPos;
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.TilePane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
-import sam.backup.manager.AppConfig;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
@@ -58,6 +60,8 @@ import sam.backup.manager.view.FilesView;
 import sam.backup.manager.view.FilesViewSelector;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
+import sam.fx.helpers.FxConstants;
+import sam.fx.helpers.FxGridPane;
 import sam.fx.helpers.FxLabel;
 import sam.fx.helpers.FxText;
 import sam.nopkg.Junk;
@@ -113,7 +117,7 @@ class BackupView extends BorderPane {
 		}
 	}
 	
-	private class MetaTabContent extends VBox implements ButtonAction, WalkListener  {
+	private class MetaTabContent extends BorderPane implements ButtonAction, WalkListener  {
 		final FileTreeMeta meta;
 		final Text bottomText;
 		
@@ -129,27 +133,26 @@ class BackupView extends BorderPane {
 		private final SimpleObjectProperty<FilteredDir>  deleteFFT = new SimpleObjectProperty<>();
 
 		public MetaTabContent(FileTreeMeta ft) {
-			super(5);
+			setPadding(FxConstants.INSETS_10);
 			this.meta = ft;
 			
 			addClass(this, "meta-content");
 			setContextMenu();
 			
-			ObservableList<Node> list = getChildren();
 			PathWrap source = ft.getSource();
 			PathWrap target = ft.getTarget();
+			long lastUpdated = ft.getLastModified();
+			
+			VBox top = new VBox(5,
+					hbox("Source: ",source),
+					hbox("Target: ",target) 
+					);
+			
+			setTop(top);
 
-			list.add(text("Source: "));
-			list.addAll(new Text("  "),  hyperlink(source));
-			list.add(text("Target: "));
-			list.addAll(new Text("  "),  hyperlink(target));
-			long lastUpdated = 0;//FIXME ft.getLastModified();
-			list.add(new HBox(5, text("Last updated: "), text(lastUpdated <= 0 ? "N/A" : millsToTimeString(lastUpdated))));
-
-			Label t = FxLabel.label("SUMMERY", "summery");
-			t.setMaxWidth(Double.MAX_VALUE);
-			t.setAlignment(Pos.CENTER);
-			list.add(t);
+			Label summeyLabel = FxLabel.label("SUMMERY", "summery");
+			summeyLabel.setMaxWidth(Double.MAX_VALUE);
+			summeyLabel.setAlignment(Pos.CENTER);
 			
 			sourceSizeT = text("---");
 			sourceFileCountT = text("---");
@@ -163,27 +166,64 @@ class BackupView extends BorderPane {
 			backupSizeT = text("---");
 			backupFileCountT = text("---");
 			
-			TilePane tiles = new TilePane(2, 2,
-					new Text(), header("Source"), header("Backup"), header("New/Modified"),
-					new Text("size  |"), sourceSizeT, targetSizeT, backupSizeT,
-					new Text("files |"), sourceFileCountT, targetFileCountT, backupFileCountT,
-					new Text("dirs  |"), sourceDirCountT, targetDirCountT);
-
-			list.add(tiles);
+			GridPane tiles = FxGridPane.gridPane(15, 5);
+			int row = 0;
+			tiles.addRow(row++, text("Last updated: "), colSpan(text(lastUpdated <= 0 ? "N/A" : millsToTimeString(lastUpdated)), GridPane.REMAINING));
+			tiles.add(summeyLabel, 0, row++, GridPane.REMAINING, 1);
+			tiles.addRow(row++, colHeaderText(""), header("Source"), header("Backup"), header("New/Modified"));
+			tiles.addRow(row++, colHeaderText(" size |"), sourceSizeT, targetSizeT, backupSizeT);
+			tiles.addRow(row++, colHeaderText("files |"), sourceFileCountT, targetFileCountT, backupFileCountT);
+			tiles.addRow(row++, colHeaderText(" dirs |"), sourceDirCountT, targetDirCountT);
+			
+			setCenter(tiles);
 			bottomText = new Text();
-			list.add(bottomText);
 
-			if(ft.getSource() == null || !ft.getSource().exists())
-				finish(this, "Source not found", true);
-			else {
-				list.add(new HBox(5, walk, files, delete));
+			if(ft.getSource() == null || !ft.getSource().exists()) {
+				setBottom(bottomText);
+				finish("Source not found", true);
+			} else {
+				HBox buttons = new HBox(5, walk, files, delete, bottomText);
+				buttons.setDisable(true); //TODO remove, when app is working
+				setBottom(buttons);
 				files.setVisible(false);
 				delete.setVisible(false);
 			}
 			
+			BorderPane.setMargin(getBottom(), new Insets(15, 5, 0, 5));
 			
 		}
 		
+		private Node colHeaderText(String string) {
+			Text text = new Text(string);
+			GridPane.setHalignment(text, HPos.RIGHT);
+			return text;
+		}
+
+		private Node hbox(String title, PathWrap p) {
+			Text text = new Text(title);
+			Node link = hyperlink(p);
+			
+			HBox hbox = new HBox(5, text, link);
+			hbox.setAlignment(Pos.CENTER_LEFT);
+			HBox.setHgrow(link, Priority.ALWAYS);
+			
+			return hbox;
+		}
+
+		public void finish(String msg, boolean failed) {
+			removeClass(this, "disable", "completed");
+			removeClass(bottomText, "disable-text", "completed-text");
+			String s = failed ? "disable" : "completed";
+			addClass(this, s);
+			addClass(bottomText, s+"-text");
+			bottomText.setText(msg);
+		}
+		
+		private Node colSpan(Node node, int colSpan) {
+			GridPane.setColumnSpan(node, colSpan); 
+			return node;
+		}
+
 		@Override
 		public void handle(ButtonType type) {
 			FilesView view;
@@ -228,7 +268,7 @@ class BackupView extends BorderPane {
 				return true;
 
 			if(config.getWalkConfig().getDepth() <= 0) {
-				fx(() -> finish(this, "Walk failed: \nbad value for depth: "+config.getWalkConfig().getDepth(), true));
+				fx(() -> finish("Walk failed: \nbad value for depth: "+config.getWalkConfig().getDepth(), true));
 				return false;
 			}
 			if(fileTree() == null) {
@@ -438,13 +478,4 @@ class BackupView extends BorderPane {
 
 	}
 	 */
-	
-	public void finish(MetaTabContent v, String msg, boolean failed) {
-		removeClass(v, "disable", "completed");
-		removeClass(v.bottomText, "disable-text", "completed-text");
-		String s = failed ? "disable" : "completed";
-		addClass(v, s);
-		addClass(v.bottomText, s+"-text");
-		v.bottomText.setText(msg);
-	}
 }

@@ -16,6 +16,7 @@ import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
+import sam.myutils.Checker;
 
 public abstract class ViewsBase extends BorderPane implements SelectionListener, JsonRequired {
 	protected final Logger logger = Utils.getLogger(getClass());
@@ -52,6 +53,8 @@ public abstract class ViewsBase extends BorderPane implements SelectionListener,
 	@Override
 	public void setJson(String key, JSONObject json) {
 		this.title = json.optString("title");
+		if(Checker.isEmptyTrimmed(title))
+			this.title = null;
 	}
 
 	protected abstract Node initView(Injector injector, Collection<? extends Config> configs);

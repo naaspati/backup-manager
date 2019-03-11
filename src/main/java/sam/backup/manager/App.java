@@ -197,6 +197,7 @@ public class App extends Application implements StopTasksQueue, Executor {
 			if(parent instanceof SelectionListener)
 				((SelectionListener) parent).selected();
 		} catch (Exception e) {
+			logger.error("failed to load view: {}", tab, e);
 			FxAlert.showErrorDialog(tab, "failed to load view", e);
 		}
 	}

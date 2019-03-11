@@ -231,7 +231,11 @@
 
 .big-placeholder {
 	-fx-font-size:3em;
-	-fx-text-alignment: center;
-	
+	-fx-text-alignment: center;	
+}
+
+.header-banner {
+	-fx-font-size:3em;
+	-fx-padding:10;
 }
 

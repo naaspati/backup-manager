@@ -20,33 +20,33 @@ version = 1.12
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
-mainClassName = 'Main'
+// mainClassName = 'Main'
+mainClassName = 'sam.backup.manager.view.backup.Main'
 ext.appdir = file(System.env.SAM_PROGRAMS+'/backup/backup.beta/bin')
 	
 task combineCss {
-  def rsrc = sourceSets.main.resources.srcDirs[0].toString() 
-  ext.rsrcDir = file(rsrc + '/styles')
-  ext.outputFile = file(rsrc+'/styles.css')
-   
-  inputs.dir rsrcDir
-  outputs.file outputFile
+  def rsrc = sourceSets.main.resources.srcDirs[0] 
+  ext.rsrcDir = new File(rsrc, 'styles')
+  ext.outputFile = new File(rsrc, 'styles.css')
   
   doLast {
-      file(outputFile).text = file(rsrcDir)
-		.listFiles()
+    long mod  = outputFile.lastModified();
+    def filesList = file(rsrcDir).listFiles();
+    if(filesList.any{it.lastModified() != mod}) {
+      file(outputFile).text = 
+        filesList
 		.collect{f -> "/** ${f.name} */ \n"+f.text+'\n\n'}
 		.join()
+	  
+	  mod = outputFile.lastModified();
+	  filesList.each{it.lastModified = mod}
+	  println('css combined');
+    }
+  
   }
 }
 
-jar.excludes << '/styles'
-// ensure combineCss run
-jar.dependsOn << combineCss
-// ensure jar runs after combineCss 
-jar.mustRunAfter combineCss
-
-run.dependsOn << combineCss
-run.mustRunAfter combineCss
+compileJava.dependsOn << combineCss
 
 run {
  main 'Main'

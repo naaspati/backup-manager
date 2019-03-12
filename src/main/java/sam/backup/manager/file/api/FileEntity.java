@@ -5,12 +5,10 @@ import sam.backup.manager.file.Status;
 
 public interface FileEntity {
 	Dir getParent();
-	Attrs getBackupAttrs();
-	Attrs getSourceAttrs();
+	Attrs getAttrs(Type type);
 	boolean isDirectory();
 	Status getStatus();
 	String getName();
-	PathWrap getSourcePath();
-	PathWrap getBackupPath();
+	PathWrap getPath(Type type);
 	long getSourceSize();
 }

@@ -21,7 +21,7 @@ class AttrsHandler {
 
 	private static final int ATTRS_BYTES = 
 			Integer.BYTES + // id
-			(Long.BYTES + Integer.BYTES) * 2; // src_attr + backup_attr
+			Long.BYTES * 4; // src_attr + backup_attr
 
 	private final Path path;
 
@@ -68,12 +68,12 @@ class AttrsHandler {
 	}
 
 	private static void put(ByteBuffer b, Attr attr) {
-		b.putLong(attr.lastModified).putInt(attr.size);
+		b.putLong(attr.lastModified).putLong(attr.size);
 	}
 
 	private static Attr readAttr(ByteBuffer buffer) {
 		long lasmod = buffer.getLong();
-		int size = buffer.getInt();
+		long size = buffer.getLong();
 
 		if (lasmod == EMPTY_ATTR_MARKER || size == EMPTY_ATTR_MARKER)
 			return EMPTY_ATTR;
@@ -83,7 +83,7 @@ class AttrsHandler {
 		return new Attr(lasmod, size);
 	}
 	
-	void write(BitSet attrsMod, FileImpl[] data, ByteBuffer buffer) throws IOException {
+	public void write(BitSet attrsMod, ArrayWrap<FileImpl> files, ArrayWrap<Attr> srcAttrs, ArrayWrap<Attr> backupAttrs, ByteBuffer buffer) throws IOException {
 		buffer.clear();
 		
 		final ByteBuffer deleted = ByteBuffer.allocate(ATTRS_BYTES - 4);
@@ -91,25 +91,25 @@ class AttrsHandler {
 		put(deleted, DELETED_ATTR);
 
 		try (FileChannel fc = FileChannel.open(path, WRITE, APPEND)) {
-			for (int i = 0; i < data.length; i++) {
+			for (int i = 0; i < files.size(); i++) {
 				if (!attrsMod.get(i))
 					continue;
 
 				if (buffer.remaining() < ATTRS_BYTES)
 					IOUtils.write(buffer, fc, true);
 
-				FileImpl f = data[i];
-
-				if (f == null) {
+				if (files.get(i) == null) {
 					deleted.clear();
 					buffer.put(deleted);
 				} else {
-					put(buffer, f.getSourceAttrs());
-					put(buffer, f.getBackupAttrs());
+					put(buffer, srcAttrs.get(i));
+					put(buffer, backupAttrs.get(i));
 				}
 			}
 
 			IOUtils.write(buffer, fc, true);
 		}
 	}
+
+	
 }

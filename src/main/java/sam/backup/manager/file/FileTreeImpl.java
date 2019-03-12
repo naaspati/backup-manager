@@ -1,62 +1,34 @@
 package sam.backup.manager.file;
 
-import static java.nio.charset.CodingErrorAction.REPORT;
-import static java.nio.file.StandardOpenOption.READ;
-import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
-import static java.nio.file.StandardOpenOption.*;
-
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CharsetEncoder;
-import java.nio.charset.CoderResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.BitSet;
-import java.util.Iterator;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.function.IntFunction;
-import java.util.function.Predicate;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.GZIPOutputStream;
-import java.util.zip.ZipError;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Attr;
-import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeEditor;
-import sam.backup.manager.file.api.FileTreeWalker;
-import sam.backup.manager.file.api.FilteredDir;
+import sam.backup.manager.file.api.Status;
+import sam.backup.manager.file.api.Type;
 import sam.backup.manager.walk.WalkMode;
-import sam.functions.IOExceptionConsumer;
-import sam.io.BufferSupplier;
-import sam.io.IOUtils;
-import sam.io.serilizers.StringIOUtils;
 import sam.myutils.Checker;
 import sam.nopkg.Junk;
 import sam.nopkg.Resources;
 
-final class FileTreeImpl implements FileTree, Dir {
+final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 	private static final Logger logger = LogManager.getLogger(FileTreeImpl.class);
 
-	private final FileImpl[] data;
-	private FileImpl[] new_data;
-	private int nextId;
+	private final ArrayWrap<FileImpl> files;
+	private final Aw srcAttrs;
+	private final Aw backupAttrs;
 
 	private final PathWrap srcPath;
 	private PathWrap backupPath;
@@ -64,43 +36,75 @@ final class FileTreeImpl implements FileTree, Dir {
 	public final int tree_id;
 	private final Path saveDir;
 	private final BitSet attrsMod = new BitSet();
-	private final BitSet isDir;
+	private final BitSet status = new BitSet();
+	
+	private final DirHelper helper = new DirHelper() {
+		@Override
+		public Status statusOf(int id) {
+			return new Stat(id);
+		}
+		@Override
+		public Attr attr(int id, Type type) {
+			return attr0(id, type);
+		}
+		@Override
+		public FileEntity file(int id) {
+			return files.get(id);
+		}
+	};
+	
+	private class Aw extends ArrayWrap<Attr> {
+		public Aw(Attr[] data) {
+			super(data);
+		}
+		@Override
+		public void set(int id, Attr e) {
+			super.set(id, e);
+			attrsMod.set(id);
+		}
+		
+	}
 
 	private FileTreeImpl(int tree_id, Path saveDir, String[] filenames, int[] parents, BitSet isDir, Attr[] srcAttrs,
 			Attr[] backupAttrs, Path sourceDirPath, Path backupDirPath) throws IOException {
+		super(0, sourceDirPath.toString(), null, null);
+		
 		Checker.requireNonNull("filenames, parents, isDir, srcAttrs, backupAttrs, sourceDirPath, backupDirPath",
 				filenames, parents, isDir, srcAttrs, backupAttrs, sourceDirPath, backupDirPath);
 
-		this.isDir = isDir;
 		this.tree_id = tree_id;
 		this.saveDir = saveDir;
 
 		this.srcPath = new PathWrap(sourceDirPath);
 		this.backupPath = new PathWrap(backupDirPath);
 
-		data = new FileImpl[filenames.length];
+		FileImpl[] data = new FileImpl[filenames.length];
 		IntFunction<DirImpl> parent = id -> (DirImpl) data[parents[id]];
 
 		for (int id = 0; id < filenames.length; id++) {
 			if (isDir.get(id))
-				data[id] = new DirImpl(id, parent.apply(id), filenames[id], srcAttrs[id], backupAttrs[id]);
+				data[id] = new DirImpl(id, filenames[id], parent.apply(id), helper);
 			else
-				data[id] = new FileImpl(id, parent.apply(id), filenames[id], srcAttrs[id], backupAttrs[id]);
+				data[id] = new FileImpl2(id, filenames[id], parent.apply(id));
 		}
-
-		nextId = data.length;
-		dirWalked = new BitSet(nextId + 100);
+		
+		this.files = new ArrayWrap<>(data);
+		this.srcAttrs = new Aw(srcAttrs);
+		this.backupAttrs = new Aw(backupAttrs);
+		dirWalked = new BitSet(files.size() + 100);
 	}
 
 	private FileTreeImpl(int tree_id, Path saveDir, Path sourceDirPath, Path backupDirPath) {
+		super(0, sourceDirPath.toString(), null, null);
+		
 		this.srcPath = PathWrap.of(Objects.requireNonNull(sourceDirPath));
 		this.backupPath = PathWrap.of(Objects.requireNonNull(backupDirPath));
 
 		this.saveDir = saveDir;
 		this.tree_id = tree_id;
-		this.data = new FileImpl[0];
-		this.nextId = 0;
-		this.isDir = new BitSet(200);
+		this.files = new ArrayWrap<>(new FileImpl[]{this});
+		this.srcAttrs = new Aw(new Attr[]{null});
+		this.backupAttrs = new Aw(new Attr[]{null});
 		this.dirWalked = new BitSet(200);
 	}
 
@@ -159,24 +163,22 @@ final class FileTreeImpl implements FileTree, Dir {
 
 			@Override
 			public boolean isWalked(Dir dir) {
-				return dirWalked.get(id(dir));
+				return dirWalked.get(cast(dir).id);
 			}
 
 			@Override
 			public FileImpl addFile(Dir parent, String filename) {
-				return add(parent,
-						new FileImpl(fileSerial.next(), (DirImpl) parent, filename, EMPTY_ATTRS, EMPTY_ATTRS));
+				return Junk.notYetImplemented();// FIXME add(parent, new FileImpl(fileSerial.next(), (DirImpl) parent, filename, EMPTY_ATTRS, EMPTY_ATTRS));
 			}
 
 			@SuppressWarnings("unchecked")
 			private <E extends FileImpl> E add(Dir parent, E file) {
-				return (E) dir(parent).add(file);
+				return Junk.notYetImplemented();// FIXME (E) dir(parent).add(file);
 			}
 
 			@Override
 			public DirImpl addDir(Dir parent, String dirname) {
-				return add(parent, new DirImpl(dirSerial.next(), (DirImpl) parent, dirname, EMPTY_ATTRS, EMPTY_ATTRS,
-						EMPTY_ARRAY));
+				return Junk.notYetImplemented();// FIXME add(parent, new DirImpl(dirSerial.next(), (DirImpl) parent, dirname, EMPTY_ATTRS, EMPTY_ATTRS, EMPTY_ARRAY));
 			}
 		};
 	}
@@ -191,95 +193,33 @@ final class FileTreeImpl implements FileTree, Dir {
 	}
 
 	@Override
-	public PathWrap getSourcePath() {
-		return srcPath;
-	}
-
-	@Override
-	public PathWrap getBackupPath() {
-		return backupPath;
+	public PathWrap getPath(Type type) {
+		switch (type) {
+			case BACKUP: return backupPath;
+			case SOURCE: return srcPath;
+			default:
+				throw new NullPointerException();
+		}
 	}
 
 	public void forcedMarkUpdated() {
 		// TODO serializer.applyToAll(f -> f.getSourceAttrs().setUpdated());
 		Junk.notYetImplemented();
 	}
-
 	@Override
-	public Dir getParent() {
+	public DirImpl getParent() {
 		return null;
 	}
 
 	@Override
-	public Attrs getBackupAttrs() {
-		// TODO Auto-generated method stub
-		return null;
+	protected Attr attr(Type type) {
+		return attr0(0, type);
 	}
-
 	@Override
-	public Attrs getSourceAttrs() {
-		// TODO Auto-generated method stub
-		return null;
+	protected DirHelper helper() {
+		return helper;
 	}
-
-	@Override
-	public boolean isDirectory() {
-		return true;
-	}
-
-	@Override
-	public Status getStatus() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String getName() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public long getSourceSize() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public Iterator<FileEntity> iterator() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public int childrenCount() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public boolean isEmpty() {
-		// TODO Auto-generated method stub
-		return false;
-	}
-
-	@Override
-	public void walk(FileTreeWalker walker) {
-		// TODO Auto-generated method stub
-
-	}
-
-	@Override
-	public FilteredDir filtered(Predicate<FileEntity> filter) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public int countFilesInTree() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
+	
 	public void save() throws IOException {
 		if (attrsMod.isEmpty())
 			return;
@@ -287,14 +227,14 @@ final class FileTreeImpl implements FileTree, Dir {
 		TreePaths t = new TreePaths(tree_id, saveDir);
 		
 		try (Resources r = Resources.get()) {
-			if (nextId == data.length) {
+			if (!files.isModified()) {
 				logger.debug("no new filenames to save: ", this);
 			} else {
-				new MetaHandler(t.meta, tree_id).write(nextId, data, r);
-				new FileNamesHandler(t.filenamesPath).write(r, nextId, data, new_data);
-				new RemainingHandler(t.remainingPath).write(nextId, data, new_data, isDir, r);
+				new MetaHandler(t.meta, tree_id).write(files, r);
+				new FileNamesHandler(t.filenamesPath).write(r, files);
+				new RemainingHandler(t.remainingPath).write(files, r);
 			}
-			new AttrsHandler(t.attrsPath).write(attrsMod, data, r.buffer());
+			new AttrsHandler(t.attrsPath).write(attrsMod, files, srcAttrs, backupAttrs, r.buffer());
 		}
 	}
 
@@ -333,5 +273,69 @@ final class FileTreeImpl implements FileTree, Dir {
 		}
 
 		return new FileTreeImpl(tree_id, saveDir, filenames, parents, isDir, src, backup, sourceDirPath, backupDirPath);
+	}
+	
+	private class Stat implements Status2 {
+		private final int id;
+		private String reason;
+
+		public Stat(int id) {
+			this.id = id;
+		}
+		@Override
+		public String getBackupReason() {
+			return reason;
+		}
+		int index(int type) {
+			return id * SIZE + type;
+		}
+		@Override
+		public void set(int type, boolean value) {
+			status.set(index(type), value);
+		}
+		@Override
+		public boolean get(int type) {
+			return status.get(index(type));
+		}
+		@Override
+		public void setBackupReason(String reason) {
+			this.reason = reason;
+		}
+	}
+	
+	public class FileImpl2 extends FileImpl {
+		final DirImpl parent;
+		Stat status;
+		
+		public FileImpl2(int id, String filename, DirImpl parent) {
+			super(id, filename);
+			this.parent = parent;
+		}
+		@Override
+		public DirImpl getParent() {
+			return parent;
+		}
+
+		@Override
+		public Status getStatus() {
+			if(status == null)
+				status = new Stat(id);
+			
+			return status;
+		}
+
+		@Override
+		protected Attr attr(Type type) {
+			return attr0(id, type);
+		}
+	}
+
+	public Attr attr0(int id, Type type) {
+		switch (type) {
+			case BACKUP: return backupAttrs.get(id);
+			case SOURCE: return srcAttrs.get(id);
+			default:
+				throw new NullPointerException();
+		}
 	}
 }

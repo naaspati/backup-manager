@@ -29,7 +29,7 @@ class FileNamesHandler {
 		this.path = path;
 	}
 	
-	void write(Resources r, int nextId, FileImpl[] data, FileImpl[] new_data) throws IOException {
+	void write(Resources r, ArrayWrap<FileImpl> files) throws IOException {
 		StringBuilder sb = r.sb();
 		ByteBuffer buffer = r.buffer();
 		CharsetEncoder encoder = r.encoder();
@@ -47,11 +47,8 @@ class FileNamesHandler {
 			CharBuffer separator = CharBuffer.allocate(1);
 			separator.put('\t');
 
-			int len = nextId - data.length;
-			Checker.assertTrue(len == new_data.length || new_data[len] == null);
-
-			for (int i = 0; i < len; i++) {
-				FileImpl f = new_data[i];
+			for (int i = files.oldSize(); i < files.size(); i++) {
+				FileImpl f = files.get(i);
 				if (f != null)
 					encode(CharBuffer.wrap(f.filename), buffer, bytes, encoder, gos);
 

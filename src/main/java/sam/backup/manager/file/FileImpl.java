@@ -3,85 +3,93 @@ package sam.backup.manager.file;
 import java.util.Objects;
 
 import sam.backup.manager.config.impl.PathWrap;
+import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Attrs;
-import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
-import sam.nopkg.Junk;
+import sam.backup.manager.file.api.Type;
 
-public class FileImpl implements FileEntity {
+public abstract class FileImpl implements FileEntity {
 	public final int id;
-	protected final DirImpl parent;
 	protected final String filename;
-	protected final Attrs srcAttrs, backupAttrs; // direct
-	protected PathWrap sourcePath;
+	protected Attrs srcAttrs, backupAttrs; // direct
+	protected PathWrap srcPath;
 	protected PathWrap backupPath;
 	
 	// to used by FileTree
-	protected FileImpl(int id, String filename, Attrs source, Attrs backup) {
+	protected FileImpl(int id, String filename) {
 		this.id = id;
-		this.parent = null;
 		this.filename = Objects.requireNonNull(filename);
-		this.srcAttrs = source;
-		this.backupAttrs = backup;
 		
 		if(!(this instanceof FileTree))
 			throw new IllegalAccessError("can on be accessed by FileTree");
-	}
-	FileImpl(int id, DirImpl parent, String filename, Attrs source, Attrs backup) {
-		this.id = id;
-		this.parent = Objects.requireNonNull(parent);
-		this.filename = Objects.requireNonNull(filename);
-		this.srcAttrs = source;
-		this.backupAttrs = backup; 
-	}
-	@Override
-	public Dir getParent() {
-		return parent;
 	}
 	@Override
 	public boolean isDirectory() {
 		return false;
 	}
 	@Override
+	public Attrs getAttrs(Type type) {
+		switch (type) {
+			case BACKUP: return getBackupAttrs();
+			case SOURCE: return getSourceAttrs();
+			default:
+				throw new NullPointerException();
+		}
+	}
+	
+	@Override
+	public abstract DirImpl getParent() ;
+	
 	public Attrs getSourceAttrs() {
+		if(srcAttrs == null)
+			srcAttrs = new Attrs(attr(Type.BACKUP));
 		return srcAttrs;
 	}
-	@Override
 	public Attrs getBackupAttrs() {
+		if(backupAttrs == null)
+			backupAttrs = new Attrs(attr(Type.BACKUP));
 		return backupAttrs;
 	}
-	@Override
-	public String toString() {
-		return "FileImpl [dir_id=" + parent + ", filename=" + filename + "]";
-	}
+	protected abstract Attr attr(Type type);
+	
 	@Override
 	public String getName() {
 		return filename;
 	}
 	
 	@Override
-	public PathWrap getSourcePath() {
-		if(sourcePath == null)
-			sourcePath = parent.getSourcePath().resolve(filename);
-		return sourcePath;
+	public PathWrap getPath(Type type) {
+		switch (type) {
+			case BACKUP: return getBackupPath();
+			case SOURCE: return getSourcePath();
+			default:
+				throw new NullPointerException();
+		}
 	}
-	@Override
+	
+	public PathWrap getSourcePath() {
+		if(srcPath == null)
+			srcPath = getParent().getPath(Type.SOURCE).resolve(filename);
+		return srcPath;
+	}
 	public PathWrap getBackupPath() {
 		if(backupPath == null)
-			backupPath = parent.getBackupPath().resolve(filename);
+			backupPath = getParent().getPath(Type.BACKUP).resolve(filename);
 		return backupPath;
 	}
 	
-	public Status getStatus() {
-		// FIXME Auto-generated method stub
-		Junk.notYetImplemented();
-		return null;
-	}
 	@Override
 	public long getSourceSize() {
-		// TODO Auto-generated method stub
-		return 0;
+		if(srcAttrs == null) {
+			Attr a = attr(Type.SOURCE);
+			if(a == null)
+				return 0;
+			return a.size;
+		}
+			
+		Attrs a = getAttrs(Type.SOURCE); 
+		return a.size();
 	}
 	@Override
 	public int hashCode() {
@@ -98,6 +106,10 @@ public class FileImpl implements FileEntity {
 			return false;
 		FileImpl other = (FileImpl) obj;
 		return id == other.id;
+	}
+	@Override
+	public String toString() {
+		return "FileImpl [dir_id=" + getParent() + ", filename=" + filename + "]";
 	}
 	
 }

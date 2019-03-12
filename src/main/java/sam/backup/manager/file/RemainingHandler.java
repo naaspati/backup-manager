@@ -19,18 +19,29 @@ class RemainingHandler {
 	public RemainingHandler(Path path) {
 		this.path = path;
 	}
-	void write(int nextId, FileImpl[] data, FileImpl[] new_data, BitSet isDir, Resources r) throws IOException {
+	void write(ArrayWrap<FileImpl> files, Resources r) throws IOException {
 		try (FileChannel fc = FileChannel.open(path, WRITE, TRUNCATE_EXISTING)) {
 			ByteBuffer buffer = r.buffer();
 			buffer.clear();
 
 			fc.write(buffer);
 			buffer.clear();
+			buffer.putInt(files.size());
+			BitSet isDir = new BitSet(files.size());
+			
+			for (int i = 0; i < files.size(); i++) {
+				FileImpl f = files.get(i);
 
-			buffer.putInt(nextId);
+				writeIf(buffer, fc, Integer.BYTES);
 
-			writeParents(data, data.length, buffer, fc);
-			writeParents(new_data, nextId - data.length, buffer, fc);
+				if(f == null)
+					buffer.putInt(-1);
+				else {
+					buffer.putInt(f.getParent() == null ? -10 : f.getParent().id);
+					if(f.isDirectory())
+						isDir.set(i);
+				}
+			}
 
 			long[] longs = isDir.toLongArray();
 
@@ -47,20 +58,6 @@ class RemainingHandler {
 		}
 	}
 	
-	
-	private void writeParents(FileImpl[] data, int length, ByteBuffer buffer, FileChannel fc) throws IOException {
-		for (int i = 0; i < length; i++) {
-			FileImpl f = data[i];
-
-			writeIf(buffer, fc, Integer.BYTES);
-
-			if(f == null)
-				buffer.putInt(-1);
-			else
-				buffer.putInt(f.parent == null ? -10 : f.parent.id);
-		}
-	}
-
 	private void writeIf(ByteBuffer buffer, FileChannel fc, int bytes) throws IOException {
 		if(buffer.remaining() < bytes)
 			IOUtils.write(buffer, fc, true);

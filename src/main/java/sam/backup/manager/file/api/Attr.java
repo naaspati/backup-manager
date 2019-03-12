@@ -1,10 +1,12 @@
 package sam.backup.manager.file.api;
 
+import sam.myutils.MyUtilsBytes;
+
 public class Attr {
 	public final long lastModified;
-	public final int size;
+	public final long size;
 	
-	public Attr(long lastModified, int size){
+	public Attr(long lastModified, long size){
 		this.lastModified = lastModified;
 		this.size = size;
 	}
@@ -15,9 +17,9 @@ public class Attr {
 	
 	@Override
 	public String toString() {
-		return "Attr [lastModified=" + lastModified + ", size=" + size + "]";
+		return "Attr [lastModified=" + lastModified + ", size=" + size+"("+MyUtilsBytes.bytesToHumanReadableUnits(size, false) +")]";
 	}
-	public int size() {
+	public long size() {
 		return size;
 	}
 	public long lastModified() {

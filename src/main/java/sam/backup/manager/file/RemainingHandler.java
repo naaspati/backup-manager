@@ -10,6 +10,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.BitSet;
 
+import sam.backup.manager.file.api.Dir;
 import sam.io.IOUtils;
 import sam.nopkg.Resources;
 
@@ -28,8 +29,10 @@ class RemainingHandler {
 			buffer.clear();
 			buffer.putInt(files.size());
 			BitSet isDir = new BitSet(files.size());
+			int dir_count = 0;
 			
-			for (int i = 0; i < files.size(); i++) {
+			final int size = files.size();
+			for (int i = 0; i < size; i++) {
 				FileImpl f = files.get(i);
 
 				writeIf(buffer, fc, Integer.BYTES);
@@ -38,23 +41,37 @@ class RemainingHandler {
 					buffer.putInt(-1);
 				else {
 					buffer.putInt(f.getParent() == null ? -10 : f.getParent().id);
-					if(f.isDirectory())
+					if(f.isDirectory()) {
+						dir_count++;
 						isDir.set(i);
+					}
 				}
 			}
 
 			long[] longs = isDir.toLongArray();
 
 			writeIf(buffer, fc, Integer.BYTES);
-
 			buffer.putInt(longs.length);
 
 			for (long c : longs) {
 				writeIf(buffer, fc, Long.BYTES);
 				buffer.putLong(c);
 			}
+			
+			writeIf(buffer, fc, Integer.BYTES);
+			buffer.putInt(dir_count * 2);
+			
+			for (int i = 0; i < size; i++) {
+				FileImpl f = files.get(i);
+				
+				writeIf(buffer, fc, Integer.BYTES * 2);
+
+				if(f != null && f.isDirectory())
+					buffer.putInt(i).putInt(((Dir)f).childrenCount());
+			}
 
 			IOUtils.write(buffer, fc, true);
+			
 		}
 	}
 	
@@ -63,7 +80,16 @@ class RemainingHandler {
 			IOUtils.write(buffer, fc, true);
 	}
 	
-	int[] parents;
+	/**
+	 * parents[child_id] = parent_id
+	 */
+	int[] parents; 
+	/**
+	 * size[n] = child_id
+	 * size[n+1] = child_count
+	 * 
+	 */
+	int[] sizes;
 	BitSet isDir;
 	
 	public void read(ByteBuffer buffer) throws IOException {
@@ -79,7 +105,7 @@ class RemainingHandler {
 				parents[i] = buffer.getInt();
 			}
 
-			readIf(fc, buffer, Long.BYTES);
+			readIf(fc, buffer, Integer.BYTES);
 
 			long[] isDir = new long[buffer.getInt()];
 
@@ -89,6 +115,16 @@ class RemainingHandler {
 			}
 			
 			this.isDir = BitSet.valueOf(isDir);
+			
+			readIf(fc, buffer, Integer.BYTES);
+			
+			sizes = new int[buffer.getInt()];
+			
+			int n = 0;
+			while(n < sizes.length) {
+				sizes[n++] = buffer.getInt();
+				sizes[n++] = buffer.getInt();
+			}
 		}
 	}
 	
@@ -98,6 +134,14 @@ class RemainingHandler {
 			fc.read(buffer);
 			buffer.flip();
 		}
+	}
+	public int sizeOf(int[] sizes, int id) {
+		for (int i = 0; i < sizes.length; i+=2) {
+			if(sizes[i] == id)
+				return sizes[i+1];
+		}
+		
+		return 0;
 	}
 	
 

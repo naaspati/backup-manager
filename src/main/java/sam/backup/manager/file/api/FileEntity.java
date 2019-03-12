@@ -1,7 +1,6 @@
 package sam.backup.manager.file.api;
 
 import sam.backup.manager.config.impl.PathWrap;
-import sam.backup.manager.file.Status;
 
 public interface FileEntity {
 	Dir getParent();

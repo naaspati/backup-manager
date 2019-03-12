@@ -14,13 +14,10 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTreeWalker;
 import sam.backup.manager.file.api.FilteredDir;
-import sam.backup.manager.file.api.Status;
-import sam.backup.manager.file.api.Type;
 import sam.collection.IntSet;
 import sam.collection.Iterators;
 import sam.myutils.Checker;
@@ -30,20 +27,21 @@ public class DirImpl extends FileImpl implements Dir {
 	public static final Predicate<FileEntity> ALWAYS_TRUE = e -> true;
 	public static final FileEntity[] EMPTY_ARRAY = new FileEntity[0];
 	
-	private final DirImpl parent;
-	private Status status;
-	private final IntSet children = new IntSet();
+	private final DirHelper dirHelper;
+	private final IntSet children;
 	private int mod;
-	private final DirHelper helper;
 	
-
 	private long sourceSize = -1;
 	
-	public DirImpl(int id, String filename, DirImpl parent, DirHelper helper) {
-		super(id, filename);
-		this.parent = parent;
-		this.helper = helper;
+	public DirImpl(int id, String filename, DirImpl parent, FileHelper fileHelper, DirHelper dirHelper, int childCount) {
+		super(id, filename, parent, fileHelper);
+		this.dirHelper = dirHelper;
+		this.children = new IntSet(childCount + 5);
 	}
+	public void add(int id) {
+		children.add(id);
+	}
+	
 	@Override
 	public final boolean isDirectory() {
 		return true;
@@ -56,25 +54,7 @@ public class DirImpl extends FileImpl implements Dir {
 	public FilteredDir filtered(Predicate<FileEntity> filter) {
 		return new FilteredDirImpl(this, null, filter);
 	}
-	@Override
-	public DirImpl getParent() {
-		return parent;
-	}
-	protected DirHelper helper() {
-		return helper;
-	}
-	@Override
-	public Status getStatus() {
-		if(status == null)
-			status = helper().statusOf(id);
-		
-		return status;
-	}
 
-	@Override
-	protected Attr attr(Type type) {
-		return helper().attr(id, type);
-	}
 	@Override
 	public int childrenCount() {
 		return children.size();
@@ -95,13 +75,17 @@ public class DirImpl extends FileImpl implements Dir {
 				if(n >= children.size())
 					throw new NoSuchElementException();
 				
-				return helper().file(children.get(n++));
+				return dirHelper().file(children.get(n++));
 			}
 			@Override
 			public boolean hasNext() {
 				return n < children.size();
 			}
 		};
+	}
+	
+	protected DirHelper dirHelper() {
+		return dirHelper;
 	}
 	
 	@Override

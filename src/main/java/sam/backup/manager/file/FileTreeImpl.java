@@ -38,15 +38,18 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 	private final BitSet attrsMod = new BitSet();
 	private final BitSet status = new BitSet();
 	
-	private final DirHelper helper = new DirHelper() {
+	private final FileHelper fileHelper = new FileHelper() {
 		@Override
-		public Status statusOf(int id) {
-			return new Stat(id);
+		public Status statusOf(FileImpl file) {
+			return new Stat(file.id);
 		}
 		@Override
-		public Attr attr(int id, Type type) {
-			return attr0(id, type);
+		public Attr attr(FileImpl file, Type type) {
+			return attr0(file.id, type);
 		}
+	};
+	
+	private final DirHelper dirHelper = new DirHelper() {
 		@Override
 		public FileEntity file(int id) {
 			return files.get(id);
@@ -65,28 +68,16 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		
 	}
 
-	private FileTreeImpl(int tree_id, Path saveDir, String[] filenames, int[] parents, BitSet isDir, Attr[] srcAttrs,
-			Attr[] backupAttrs, Path sourceDirPath, Path backupDirPath) throws IOException {
-		super(0, sourceDirPath.toString(), null, null);
+	private FileTreeImpl(int tree_id, FileImpl[] data, Path saveDir, Attr[] srcAttrs, Attr[] backupAttrs, Path sourceDirPath, Path backupDirPath, int childCount) throws IOException {
+		super(0, sourceDirPath.toString(), null, null, null, childCount);
 		
-		Checker.requireNonNull("filenames, parents, isDir, srcAttrs, backupAttrs, sourceDirPath, backupDirPath",
-				filenames, parents, isDir, srcAttrs, backupAttrs, sourceDirPath, backupDirPath);
+		Checker.requireNonNull("filenames, parents, isDir, srcAttrs, backupAttrs, sourceDirPath, backupDirPath", srcAttrs, backupAttrs, sourceDirPath, backupDirPath);
 
 		this.tree_id = tree_id;
 		this.saveDir = saveDir;
 
 		this.srcPath = new PathWrap(sourceDirPath);
 		this.backupPath = new PathWrap(backupDirPath);
-
-		FileImpl[] data = new FileImpl[filenames.length];
-		IntFunction<DirImpl> parent = id -> (DirImpl) data[parents[id]];
-
-		for (int id = 0; id < filenames.length; id++) {
-			if (isDir.get(id))
-				data[id] = new DirImpl(id, filenames[id], parent.apply(id), helper);
-			else
-				data[id] = new FileImpl2(id, filenames[id], parent.apply(id));
-		}
 		
 		this.files = new ArrayWrap<>(data);
 		this.srcAttrs = new Aw(srcAttrs);
@@ -95,7 +86,7 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 	}
 
 	private FileTreeImpl(int tree_id, Path saveDir, Path sourceDirPath, Path backupDirPath) {
-		super(0, sourceDirPath.toString(), null, null);
+		super(0, sourceDirPath.toString(), null, null, null, 0);
 		
 		this.srcPath = PathWrap.of(Objects.requireNonNull(sourceDirPath));
 		this.backupPath = PathWrap.of(Objects.requireNonNull(backupDirPath));
@@ -210,14 +201,21 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 	public DirImpl getParent() {
 		return null;
 	}
-
-	@Override
-	protected Attr attr(Type type) {
-		return attr0(0, type);
+	public Attr attr0(int id, Type type) {
+		switch (type) {
+			case BACKUP: return backupAttrs.get(id);
+			case SOURCE: return srcAttrs.get(id);
+			default:
+				throw new NullPointerException();
+		}
 	}
 	@Override
-	protected DirHelper helper() {
-		return helper;
+	protected FileHelper fileHelper() {
+		return fileHelper;
+	}
+	@Override
+	protected DirHelper dirHelper() {
+		return dirHelper;
 	}
 	
 	public void save() throws IOException {
@@ -244,20 +242,14 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		TreePaths t = new TreePaths(tree_id, saveDir);
 		t.existsValidate();
 
-		final BitSet isDir;
-		final int[] parents;
-		final Attr[] src;
-		final Attr[] backup;
-		final String[] filenames;
-
 		try (Resources r = Resources.get()) {
 			final int count = new MetaHandler(t.meta, tree_id).validate(r, sourceDirPath, backupDirPath);
-			filenames =  new FileNamesHandler(t.filenamesPath).read(r, count);
+			String[] filenames =  new FileNamesHandler(t.filenamesPath).read(r, count);
 			AttrsHandler attrs = new AttrsHandler(t.attrsPath);
 			attrs.read(r, filenames);
 
-			src = attrs.src;
-			backup = attrs.backup;
+			final Attr[] src = attrs.src;
+			final Attr[] backup = attrs.backup;
 			
 			attrs.src = null;
 			attrs.backup = null;
@@ -265,16 +257,33 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 			RemainingHandler rh = new RemainingHandler(t.remainingPath);
 			rh.read(r.buffer());
 			
-			isDir = rh.isDir;
-			parents = rh.parents;
+			BitSet isDir = rh.isDir;
+			int[] parents = rh.parents;
+			int[] sizes = rh.sizes;
 			
 			rh.isDir = null;
 			rh.parents = null;
+			rh.sizes = null;
+			
+			FileImpl[] files = new FileImpl[filenames.length];
+			FileTreeImpl tree = new FileTreeImpl(tree_id, files, saveDir, src, backup, sourceDirPath, backupDirPath, rh.sizeOf(sizes, 0));
+			files[0] = tree;
+			
+			for (int id = 1; id < files.length; id++) {
+				String name = filenames[id];
+				DirImpl parent = (DirImpl) files[parents[id]];
+				
+				if (isDir.get(id))
+					files[id] = new DirImpl(id, name, parent, tree.fileHelper, tree.dirHelper, rh.sizeOf(sizes, id));
+				else
+					files[id] = new FileImpl(id, name, parent, tree.fileHelper);
+				
+				parent.add(id);
+			}
+			return tree;
 		}
-
-		return new FileTreeImpl(tree_id, saveDir, filenames, parents, isDir, src, backup, sourceDirPath, backupDirPath);
 	}
-	
+
 	private class Stat implements Status2 {
 		private final int id;
 		private String reason;
@@ -300,42 +309,6 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		@Override
 		public void setBackupReason(String reason) {
 			this.reason = reason;
-		}
-	}
-	
-	public class FileImpl2 extends FileImpl {
-		final DirImpl parent;
-		Stat status;
-		
-		public FileImpl2(int id, String filename, DirImpl parent) {
-			super(id, filename);
-			this.parent = parent;
-		}
-		@Override
-		public DirImpl getParent() {
-			return parent;
-		}
-
-		@Override
-		public Status getStatus() {
-			if(status == null)
-				status = new Stat(id);
-			
-			return status;
-		}
-
-		@Override
-		protected Attr attr(Type type) {
-			return attr0(id, type);
-		}
-	}
-
-	public Attr attr0(int id, Type type) {
-		switch (type) {
-			case BACKUP: return backupAttrs.get(id);
-			case SOURCE: return srcAttrs.get(id);
-			default:
-				throw new NullPointerException();
 		}
 	}
 }

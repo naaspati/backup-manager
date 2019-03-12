@@ -7,22 +7,52 @@ import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.Status;
 import sam.backup.manager.file.api.Type;
 
-public abstract class FileImpl implements FileEntity {
+public class FileImpl implements FileEntity {
+	
+	private final FileHelper helper;
+
 	public final int id;
-	protected final String filename;
-	protected Attrs srcAttrs, backupAttrs; // direct
-	protected PathWrap srcPath;
-	protected PathWrap backupPath;
+	
+	private final DirImpl parent;
+	private final String filename;
+	private Attrs srcAttrs, backupAttrs; // direct
+	private PathWrap srcPath;
+	private PathWrap backupPath;
+	private Status status;
 	
 	// to used by FileTree
-	protected FileImpl(int id, String filename) {
+	protected FileImpl(int id, String filename, DirImpl parent, FileHelper helper) {
 		this.id = id;
 		this.filename = Objects.requireNonNull(filename);
+		this.helper = helper;
+		this.parent = parent;
 		
 		if(!(this instanceof FileTree))
 			throw new IllegalAccessError("can on be accessed by FileTree");
+	}
+	
+	@Override
+	public DirImpl getParent() {
+		return parent;
+	}
+	
+	@Override
+	public Status getStatus() {
+		if(status == null)
+			status = fileHelper().statusOf(this);
+		
+		return status;
+	}
+
+	protected Attr attr(Type type) {
+		return fileHelper().attr(this, type);
+	}
+	
+	protected FileHelper fileHelper() {
+		return helper;
 	}
 	@Override
 	public boolean isDirectory() {
@@ -38,8 +68,6 @@ public abstract class FileImpl implements FileEntity {
 		}
 	}
 	
-	@Override
-	public abstract DirImpl getParent() ;
 	
 	public Attrs getSourceAttrs() {
 		if(srcAttrs == null)
@@ -51,7 +79,6 @@ public abstract class FileImpl implements FileEntity {
 			backupAttrs = new Attrs(attr(Type.BACKUP));
 		return backupAttrs;
 	}
-	protected abstract Attr attr(Type type);
 	
 	@Override
 	public String getName() {

@@ -17,7 +17,7 @@ public class FileImpl implements FileEntity {
 	public final int id;
 	
 	private final DirImpl parent;
-	private final String filename;
+	public final String filename;
 	private Attrs srcAttrs, backupAttrs; // direct
 	private PathWrap srcPath;
 	private PathWrap backupPath;

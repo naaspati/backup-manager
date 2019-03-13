@@ -39,7 +39,6 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired {
 		singleton.init();
 	}
 
-	private final Logger logger = getLogger(UtilsImpl.class);
 	private BiConsumer<Object, Exception> errorHandler = (o, e) -> {throw new RuntimeException(e);};
 	private Path temp_dir;
 	private Supplier<String> counter;
@@ -74,9 +73,9 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired {
 	private String bytesToString(long bytes, long divisor) {
 		double d = divide(bytes, divisor);
 		if (d == (int) d)
-			return String.valueOf((int) d);
+			return toString((int) d);
 		else
-			return String.valueOf(d);
+			return Double.toString(d);
 	}
 
 	@Override
@@ -214,5 +213,20 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired {
 		} catch (IOException e) {
 			errorHandler.accept(errorMessage+target, e);
 		}
+	}
+	
+	private final String[] intStringCache = new String[100]; 
+	
+	@Override
+	public String toString(int n) {
+		if(n < 0 || n >= intStringCache.length)
+			return Integer.toString(n);
+		
+		String s = intStringCache[n];
+		
+		if(s == null)
+			return s = intStringCache[n] = Integer.toString(n);
+		
+		return s;
 	}
 }

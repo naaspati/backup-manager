@@ -3,6 +3,7 @@ package sam.backup.manager.file;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
 import static java.nio.file.StandardOpenOption.WRITE;
+import static sam.backup.manager.file.WithId.id;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,7 +41,7 @@ class RemainingHandler {
 				if(f == null)
 					buffer.putInt(-1);
 				else {
-					buffer.putInt(f.getParent() == null ? -10 : f.getParent().id);
+					buffer.putInt(f.getParent() == null ? -10 : id(f.getParent()));
 					if(f.isDirectory()) {
 						dir_count++;
 						isDir.set(i);
@@ -135,14 +136,4 @@ class RemainingHandler {
 			buffer.flip();
 		}
 	}
-	public int sizeOf(int[] sizes, int id) {
-		for (int i = 0; i < sizes.length; i+=2) {
-			if(sizes[i] == id)
-				return sizes[i+1];
-		}
-		
-		return 0;
-	}
-	
-
 }

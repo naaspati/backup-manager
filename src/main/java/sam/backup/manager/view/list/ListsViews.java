@@ -1,6 +1,5 @@
 package sam.backup.manager.view.list;
 
-import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.concurrent.Executor;
@@ -24,13 +23,9 @@ import javafx.scene.paint.Color;
 import sam.backup.manager.Injector;
 import sam.backup.manager.Lists;
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.config.api.ConfigManager;
-import sam.backup.manager.config.api.FileTreeMeta;
-import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.view.TextViewer;
 import sam.backup.manager.view.ViewsBase;
-import sam.functions.IOExceptionFunction;
 import sam.fx.helpers.FxCss;
 import sam.nopkg.EnsureSingleton;
 import sam.reference.WeakAndLazy;

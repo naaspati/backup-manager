@@ -20,7 +20,6 @@ import org.apache.logging.log4j.Logger;
 import javafx.application.Platform;
 import javafx.concurrent.Worker.State;
 import javafx.scene.Node;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 import sam.backup.manager.Utils;
@@ -113,7 +112,7 @@ public class ListConfigView extends ViewBase {
 					textViewer.accept(treeText);
 					break;
 				default:
-					throw new IllegalArgumentException(String.valueOf(type));
+					throw new IllegalArgumentException(Utils.toString(type));
 			}
 		}
 		

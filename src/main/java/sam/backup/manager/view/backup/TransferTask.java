@@ -117,7 +117,7 @@ class TransferTask {
 		FutureTask task = this.task.get();
 
 		if(task != null && !task.isDone() && !task.isCancelled()) 
-			throw new IllegalStateException(String.valueOf(getState()));
+			throw new IllegalStateException(Utils.toString(getState()));
 
 		task = new FutureTask<>(() -> {run() ; return null;});
 

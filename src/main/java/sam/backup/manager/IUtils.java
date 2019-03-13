@@ -30,4 +30,5 @@ public interface IUtils {
 	 */
 	void setTextNoError(Path target, CharSequence content, String errorMessage);
 	Logger getLogger(Class<?> cls);
+	String toString(int n);
 }

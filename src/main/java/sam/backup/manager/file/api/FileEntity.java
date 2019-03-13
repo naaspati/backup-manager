@@ -4,10 +4,12 @@ import sam.backup.manager.config.impl.PathWrap;
 
 public interface FileEntity {
 	Dir getParent();
-	Attrs getAttrs(Type type);
+	Attrs getBackupAttrs();
+	Attrs getSourceAttrs();
 	boolean isDirectory();
 	Status getStatus();
 	String getName();
-	PathWrap getPath(Type type);
+	PathWrap getBackupPath();
+	PathWrap getSourcePath();
 	long getSourceSize();
 }

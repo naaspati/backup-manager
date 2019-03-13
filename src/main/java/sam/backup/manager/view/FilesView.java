@@ -52,13 +52,13 @@ import sam.backup.manager.ParentWindow;
 import sam.backup.manager.StopTasksQueue;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.impl.PathWrap;
-import sam.backup.manager.file.FileTreeString;
-import sam.backup.manager.file.Status;
 import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
+import sam.backup.manager.file.api.FileTreeManager;
+import sam.backup.manager.file.api.Status;
 import sam.fx.helpers.FxGridPane;
 import sam.fx.helpers.FxHBox;
 import sam.fx.helpers.FxUtils;
@@ -81,12 +81,15 @@ public class FilesView extends BorderPane {
 	private FilesViewSelector selector;
 	private FileTree fileTree;
 	private final Provider<Window> parent;
+	private final FileTreeManager manager;
 	private static SavedAsStringResource<String> lastVisited;
 	
 
 	@Inject
-	public FilesView(AppConfig config, StopTasksQueue queue, @ParentWindow Provider<Window> parent) {
+	public FilesView(AppConfig config, FileTreeManager manager, StopTasksQueue queue, @ParentWindow Provider<Window> parent) {
 		this.parent = parent;
+		this.manager = manager;
+		
 		
 		if(lastVisited == null) {
 			lastVisited = new SavedAsStringResource<>(config.appDataDir().resolve(getClass().getName()+".last.visited"), s -> s);
@@ -214,7 +217,6 @@ public class FilesView extends BorderPane {
 	}
 
 	private void saveAction() {
-		FileTreeString ft = new FileTreeString(treeToDisplay);
 		String s = Optional.ofNullable(lastVisited.get()).orElseGet(() -> Optional.ofNullable(System.getenv("USERPROFILE")).filter(Checker::isNotEmptyTrimmed).orElse("."));
 		
 		File parent = new File(s);
@@ -230,6 +232,7 @@ public class FilesView extends BorderPane {
 		}
 		
 		lastVisited.set(file.getParent());
+		
 		setTextNoError(file.toPath(), ft, "failed to save filetree: ");
 	}
 	private class Unit extends CheckBoxTreeItem<FileEntity> {

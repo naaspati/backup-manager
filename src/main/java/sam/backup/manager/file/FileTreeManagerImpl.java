@@ -5,8 +5,10 @@ import static java.nio.file.FileVisitResult.SKIP_SIBLINGS;
 import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
 import static java.nio.file.FileVisitResult.TERMINATE;
 
+import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Path;
+import java.util.function.Predicate;
 
 import javax.inject.Singleton;
 
@@ -85,5 +87,10 @@ public class FileTreeManagerImpl implements FileTreeManager  {
 	public void save(Config config, Path saveDir, FileTree filetree) {
 		// TODO Auto-generated method stub
 		Junk.notYetImplemented();
+	}
+	
+	@Override
+	public void toTreeString(Dir dir, Predicate<FileEntity> filter, Appendable sink) throws IOException {
+		new FileTreeString(dir, filter).render(sink);
 	}
 }

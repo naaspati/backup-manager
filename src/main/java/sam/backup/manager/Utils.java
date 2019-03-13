@@ -77,4 +77,7 @@ public final class Utils {
 				.max()
 				.orElse(0);
 	}
+	public static String toString(int n) {
+		return utils.toString(n);
+	}
 }

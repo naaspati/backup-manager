@@ -2,7 +2,7 @@ package sam.backup.manager.file;
 
 import sam.nopkg.Junk;
 
-public class ArrayWrap<E> {
+class ArrayWrap<E> {
 	private int size;
 	private final E[] data;
 	private E[] new_data;

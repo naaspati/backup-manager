@@ -35,7 +35,7 @@ class MetaHandler {
 		this.tree_id = tree_id;
 	}
 
-	void write(ArrayWrap<FileImpl> data, Resources r) throws IOException {
+	void write(ArrayWrap<FileImpl> data, Resources r, Path sourceDirPath, Path backupDirPath) throws IOException {
 		if (Files.notExists(path)) {
 			StringBuilder sb = r.sb();
 			ByteBuffer buffer = r.buffer();
@@ -46,9 +46,13 @@ class MetaHandler {
 			encoder.reset();
 
 			buffer.putInt(tree_id).putInt(data.size());
+			
+			sb.append(sourceDirPath)
+			.append('\t')
+			.append(backupDirPath);
 
 			try (FileChannel fc = FileChannel.open(path, CREATE_NEW, WRITE)) {
-				StringIOUtils.write(StringIOUtils.writer(fc), sb, encoder, buffer, REPORT, REPORT);
+				StringIOUtils.write(StringIOUtils.writer(fc), sb, encoder, buffer);
 			}
 		} else {
 			try (FileChannel fc = FileChannel.open(path, WRITE)) {
@@ -136,7 +140,7 @@ class MetaHandler {
 			};
 
 			Checker.assertTrue(checked[0] == 2);
-			StringIOUtils.read(supplier, consumer, r.decoder(), r.chars(), REPORT, REPORT);
+			StringIOUtils.read(supplier, consumer, r.decoder(), r.chars());
 
 			return count;
 		}

@@ -1,6 +1,5 @@
 package sam.backup.manager.file;
 
-import java.nio.file.FileVisitResult;
 import java.util.Iterator;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -9,13 +8,13 @@ import java.util.function.Predicate;
 
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Attrs;
-import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTreeWalker;
 import sam.backup.manager.file.api.FilteredDir;
+import sam.backup.manager.file.api.Status;
 import sam.collection.Iterators;
 
-class FilteredDirImpl implements FilteredDir, FileEntityWithId {
+class FilteredDirImpl implements FilteredDir, WithId {
 	private final DirImpl dir;
 	private final FilteredDirImpl parent;
 	private final Predicate<FileEntity> filter;
@@ -32,7 +31,7 @@ class FilteredDirImpl implements FilteredDir, FileEntityWithId {
 		update();
 	}
 	private void update() {
-		if(mod == dir.mod())
+		if(mod == dir.children().mod())
 			return;
 		
 		childCount = 0;
@@ -44,7 +43,7 @@ class FilteredDirImpl implements FilteredDir, FileEntityWithId {
 		}
 		
 		sourceSize = -1;
-		mod = dir.mod();
+		mod = dir.children().mod();
 	}
 
 	@Override 
@@ -114,22 +113,7 @@ class FilteredDirImpl implements FilteredDir, FileEntityWithId {
 		if(sourceSize >= 0)
 			return sourceSize;
 		
-		sourceSize = 0;
-		
-		DirImpl.walk(dir, new FileTreeWalker() {
-			
-			@Override
-			public FileVisitResult file(FileEntity ft) {
-				sourceSize += ft.getSourceSize();
-				return FileVisitResult.CONTINUE;
-			}
-			
-			@Override
-			public FileVisitResult dir(Dir ft) {
-				return FileVisitResult.CONTINUE;
-			}
-		}, filter);
-		
+		sourceSize = dir.computeSize(filter);
 		return sourceSize;
 	}
 

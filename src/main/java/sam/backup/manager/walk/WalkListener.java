@@ -1,7 +1,6 @@
 package sam.backup.manager.walk;
 
 import java.nio.file.Path;
-import java.util.List;
 
 import javafx.concurrent.Worker.State;
 import sam.backup.manager.file.api.Dir;

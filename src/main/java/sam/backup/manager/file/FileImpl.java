@@ -5,18 +5,18 @@ import java.util.Objects;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Attrs;
+import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
-import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.Status;
 import sam.backup.manager.file.api.Type;
 
-public class FileImpl implements FileEntity {
+class FileImpl implements FileEntity, WithId {
 	
 	private final FileHelper helper;
 
-	public final int id;
+	private final int id;
 	
-	private final DirImpl parent;
+	private final Dir parent;
 	public final String filename;
 	private Attrs srcAttrs, backupAttrs; // direct
 	private PathWrap srcPath;
@@ -24,18 +24,20 @@ public class FileImpl implements FileEntity {
 	private Status status;
 	
 	// to used by FileTree
-	protected FileImpl(int id, String filename, DirImpl parent, FileHelper helper) {
+	protected FileImpl(int id, String filename, Dir parent, FileHelper helper) {
 		this.id = id;
 		this.filename = Objects.requireNonNull(filename);
 		this.helper = helper;
 		this.parent = parent;
-		
-		if(!(this instanceof FileTree))
-			throw new IllegalAccessError("can on be accessed by FileTree");
 	}
 	
 	@Override
-	public DirImpl getParent() {
+	public final int getId() {
+		return id;
+	}
+	
+	@Override
+	public Dir getParent() {
 		return parent;
 	}
 	
@@ -58,22 +60,14 @@ public class FileImpl implements FileEntity {
 	public boolean isDirectory() {
 		return false;
 	}
+	
 	@Override
-	public Attrs getAttrs(Type type) {
-		switch (type) {
-			case BACKUP: return getBackupAttrs();
-			case SOURCE: return getSourceAttrs();
-			default:
-				throw new NullPointerException();
-		}
-	}
-	
-	
 	public Attrs getSourceAttrs() {
 		if(srcAttrs == null)
 			srcAttrs = new Attrs(attr(Type.BACKUP));
 		return srcAttrs;
 	}
+	@Override
 	public Attrs getBackupAttrs() {
 		if(backupAttrs == null)
 			backupAttrs = new Attrs(attr(Type.BACKUP));
@@ -86,23 +80,15 @@ public class FileImpl implements FileEntity {
 	}
 	
 	@Override
-	public PathWrap getPath(Type type) {
-		switch (type) {
-			case BACKUP: return getBackupPath();
-			case SOURCE: return getSourcePath();
-			default:
-				throw new NullPointerException();
-		}
-	}
-	
 	public PathWrap getSourcePath() {
 		if(srcPath == null)
-			srcPath = getParent().getPath(Type.SOURCE).resolve(filename);
+			srcPath = getParent().getSourcePath().resolve(filename);
 		return srcPath;
 	}
+	@Override
 	public PathWrap getBackupPath() {
 		if(backupPath == null)
-			backupPath = getParent().getPath(Type.BACKUP).resolve(filename);
+			backupPath = getParent().getBackupPath().resolve(filename);
 		return backupPath;
 	}
 	
@@ -115,7 +101,7 @@ public class FileImpl implements FileEntity {
 			return a.size;
 		}
 			
-		Attrs a = getAttrs(Type.SOURCE); 
+		Attrs a = getSourceAttrs(); 
 		return a.size();
 	}
 	@Override

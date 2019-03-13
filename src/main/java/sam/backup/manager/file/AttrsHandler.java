@@ -1,5 +1,13 @@
 package sam.backup.manager.file;
 
+import static java.nio.file.StandardOpenOption.APPEND;
+import static java.nio.file.StandardOpenOption.READ;
+import static java.nio.file.StandardOpenOption.WRITE;
+import static sam.backup.manager.file.api.FileTree.DELETED_ATTR;
+import static sam.backup.manager.file.api.FileTree.DELETED_ATTR_MARKER;
+import static sam.backup.manager.file.api.FileTree.EMPTY_ATTR;
+import static sam.backup.manager.file.api.FileTree.EMPTY_ATTR_MARKER;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -11,11 +19,6 @@ import sam.backup.manager.file.api.Attrs;
 import sam.io.IOUtils;
 import sam.myutils.Checker;
 import sam.nopkg.Resources;
-
-import static java.nio.file.StandardOpenOption.APPEND;
-import static java.nio.file.StandardOpenOption.READ;
-import static java.nio.file.StandardOpenOption.WRITE;
-import static sam.backup.manager.file.api.FileTree.*;
 
 class AttrsHandler {
 

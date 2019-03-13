@@ -3,9 +3,10 @@ package sam.backup.manager.file;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import sam.backup.manager.Utils;
 import sam.myutils.Checker;
 
-public class TreePaths {
+class TreePaths {
 	
 	final Path meta;
 	final Path filenamesPath;
@@ -14,10 +15,10 @@ public class TreePaths {
 
 	public TreePaths(int tree_id, Path saveDir) {
 		int filen = tree_id * 100;
-		meta = saveDir.resolve(String.valueOf(filen++));
-		filenamesPath = saveDir.resolve(String.valueOf(filen++));
-		attrsPath = saveDir.resolve(String.valueOf(filen++));
-		remainingPath = saveDir.resolve(String.valueOf(filen++));
+		meta = saveDir.resolve(Utils.toString(filen++));
+		filenamesPath = saveDir.resolve(Utils.toString(filen++));
+		attrsPath = saveDir.resolve(Utils.toString(filen++));
+		remainingPath = saveDir.resolve(Utils.toString(filen++));
 	}
 
 	public void existsValidate() throws FailedToCreateFileTree {

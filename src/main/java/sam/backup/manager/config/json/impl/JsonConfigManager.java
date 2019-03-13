@@ -7,7 +7,6 @@ import static sam.string.StringUtils.contains;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -45,7 +44,6 @@ import sam.backup.manager.config.impl.PathWrap;
 import sam.myutils.Checker;
 import sam.myutils.ThrowException;
 import sam.nopkg.EnsureSingleton;
-import sam.nopkg.Junk;
 import sam.nopkg.SavedResource;
 import sam.nopkg.TsvMapTemp;
 import sam.reference.WeakPool;

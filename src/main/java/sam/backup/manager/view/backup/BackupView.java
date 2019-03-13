@@ -1,6 +1,5 @@
 package sam.backup.manager.view.backup;
 
-import static java.lang.String.valueOf;
 import static sam.backup.manager.Utils.bytesToString;
 import static sam.backup.manager.Utils.millsToTimeString;
 import static sam.backup.manager.Utils.writeInTempDir;
@@ -44,7 +43,6 @@ import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.FileTreeMeta;
 import sam.backup.manager.config.impl.PathWrap;
-import sam.backup.manager.file.FileTreeString;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
@@ -354,7 +352,7 @@ class BackupView extends ViewBase {
 		}
 		
 		private void deleteAction() {
-			writeInTempDir(config, "delete", null, new FileTreeString(deleteFFT.get()), LOGGER);
+			writeInTempDir(config, "delete", null, new FileTreeAsString(deleteFFT.get()), LOGGER);
 			deleter.get()
 			.start(fileTree(), deleteFFT.get());
 		}

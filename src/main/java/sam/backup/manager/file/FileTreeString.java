@@ -1,51 +1,39 @@
 package sam.backup.manager.file;
 
+import static sam.backup.manager.file.FileUtils.ALWAYS_TRUE;
+
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.function.Predicate;
 
+import sam.backup.manager.Utils;
 import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.myutils.MyUtilsBytes;
 
-public class FileTreeString implements CharSequence {
-	private final StringBuilder sb = new StringBuilder();
+class FileTreeString {
 	private final Predicate<FileEntity> filter;
+	private final Dir dir;
 	
 	public FileTreeString(Dir dir, Predicate<FileEntity> filter) {
-		this.filter = filter;
-		
-		appendDetails(dir, new char[0]);
-		walk(new char[] {' ', '|'}, dir);
-	}
-	public FileTreeString(Dir dir) {
-		this(dir, (Predicate<FileEntity>)null);
+		this.filter = filter == null ? ALWAYS_TRUE : filter;
+		this.dir = dir;
 	}
 	public FileTreeString(Dir dir, Collection<? extends FileEntity> containsIn) {
 		this(dir, FileUtils.containsInFilter(containsIn));
 	}
 	
-	//TODO private static final AlphanumericComparator ALPHANUMERIC_COMPARATOR = new AlphanumericComparator();
+	public void render(Appendable sink) throws IOException {
+		appendDetails(dir, new char[0], sink);
+		walk(new char[] {' ', '|'}, dir, sink);
+	}
 	
-	private void walk(final char[] separator, Dir dir) {
-		
-		/**
-		 * TODO  i dont think sorting is that much required
-		 * dir.sort((f1, f2) -> {
-			boolean b1 = f1.isDirectory();
-			boolean b2 = f2.isDirectory();
-
-			if(b1 == b2)
-				return ALPHANUMERIC_COMPARATOR.compare(f1.getName(), f2.getName());
-
-			return b2 ? -1 : 1;
-		});
-		 */
-		
+	private void walk(final char[] separator, Dir dir, Appendable sink) throws IOException {
 		for (FileEntity f : dir) {
-			if(filter == null || filter.test(f)) {
-				appendDetails(f, separator);
+			if(filter.test(f)) {
+				appendDetails(f, separator, sink);
 				
 				if(f.isDirectory()) {
 					int length = separator.length;
@@ -59,7 +47,7 @@ public class FileTreeString implements CharSequence {
 					sp2[sp2.length - 2] = '_';
 					sp2[sp2.length - 1] = '_';
 
-					walk(sp2, asDir(f));
+					walk(sp2, asDir(f), sink);
 				}
 			}
 		}
@@ -67,44 +55,38 @@ public class FileTreeString implements CharSequence {
 	private Dir asDir(FileEntity f) {
 		return (Dir)f;
 	}
-	private void appendDetails(FileEntity f, char[] separator) {
-		sb.append(separator)
+	
+	private final StringBuilder buffer = new StringBuilder(); 
+	
+	private void appendDetails(FileEntity f, char[] separator, Appendable sink) throws IOException {
+		append(separator, sink)
 		.append(f.getName());
 		
 		Attrs ak = f.getSourceAttrs();
 		long size = ak.size();
 
 		if(!f.isDirectory() ? size <= 0 : ( f.isDirectory() && asDir(f).childrenCount() == 0)) 
-			sb.append('\n');
+			sink.append('\n');
 		else {
-			sb.append('\t')
+			sink.append('\t')
 			.append('(');
 
-			if(size > 0)
-				MyUtilsBytes.bytesToHumanReadableUnits(size, false, sb);
-
+			if(size > 0) {
+				buffer.setLength(0);
+				MyUtilsBytes.bytesToHumanReadableUnits(size, false, buffer);
+				sink.append(buffer);
+			}
+			
 			if(f.isDirectory() && asDir(f).childrenCount() != 0)
-				sb.append(' ').append(asDir(f).childrenCount()).append(" files");
+				sink.append(' ').append(Utils.toString(asDir(f).childrenCount())).append(" files");
 
-			sb.append(")\n");	
+			sink.append(")\n");	
 		}
 	}
 	
-	@Override
-	public int length() {
-		return sb.length();
+	private Appendable append(char[] separator, Appendable sink) throws IOException {
+		for (char c : separator) 
+			sink.append(c);
+		return sink;
 	}
-	@Override
-	public char charAt(int index) {
-		return sb.charAt(index);
-	}
-	@Override
-	public CharSequence subSequence(int start, int end) {
-		return sb.subSequence(start, end);
-	}
-	@Override
-	public String toString() {
-		return sb.toString();
-	}
-
 }

@@ -1,6 +1,7 @@
 package sam.backup.manager;
 
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -12,7 +13,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.extra.Writable;
+import sam.functions.IOExceptionConsumer;
+import sam.io.serilizers.WriterImpl;
 
 public final class Utils {
 	private static IUtils utils;
@@ -35,35 +37,14 @@ public final class Utils {
 	public static String millsToTimeString(long d) {
 		return utils.millsToTimeString(d);
 	}
-	public static String hashedName(Path p, String ext) {
-		return utils.hashedName(p, ext);
-	}
-	public static void write(Path path, CharSequence data) throws IOException {
-		utils.write(path, data);
-	}
-	public static void writeInTempDir0(Config config, String prefix, String suffix, CharSequence data, Logger logger)
-			throws IOException {
-		utils.writeInTempDir0(config, prefix, suffix, data, logger);
-	}
-	public static void writeInTempDir(Config config, String prefix, String suffix, CharSequence data, Logger logger) {
-		utils.writeInTempDir(config, prefix, suffix, data, logger);
-	}
+	
 	public static Logger getLogger(@SuppressWarnings("rawtypes") Class cls) {
 		if(utils == null)
 			return LogManager.getLogger(cls);
 		else
 			return utils.getLogger(cls);
 	}
-	public static boolean saveInTempDirHideError(Writable w, Config config, String directory, String fileName) {
-		return utils.saveInTempDirHideError(w, config, directory, fileName);
-	}
-	public static Path saveInTempDir(Writable w, Config config, String directory, String fileName) throws IOException {
-		return utils.saveInTempDir(w, config, directory, fileName);
-	}
-	public static void setTextNoError(Path target, CharSequence content, String errorMessage) {
-		utils.setTextNoError(target, content, errorMessage);
-	}
-	
+
 	static int number(Path path) {
 		if(Files.notExists(path)) return 0;
 
@@ -79,5 +60,20 @@ public final class Utils {
 	}
 	public static String toString(int n) {
 		return utils.toString(n);
+	}
+	public static void write(Path path, boolean append, IOExceptionConsumer<WriterImpl> consumer) throws IOException {
+		utils.write(path, append, consumer);
+	}
+	public static void writeHandled(Path path, boolean append, IOExceptionConsumer<WriterImpl> consumer) {
+		utils.writeHandled(path, append, consumer);
+	}
+	public static FileChannel fileChannel(Path path, boolean append) throws IOException {
+		return utils.fileChannel(path, append);
+	}
+	public static Path tempDir() {
+		return utils.tempDir();
+	}
+	public static Path tempDirFor(Config config) {
+		return utils.tempDirFor(config);
 	}
 }

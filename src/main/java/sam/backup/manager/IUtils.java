@@ -1,12 +1,14 @@
 package sam.backup.manager;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.time.Duration;
 
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.api.Config;
-import sam.backup.manager.extra.Writable;
+import sam.functions.IOExceptionConsumer;
+import sam.io.serilizers.WriterImpl;
 
 public interface IUtils {
 	void setAppConfig(AppConfig config);
@@ -16,19 +18,17 @@ public interface IUtils {
 	String durationToString(Duration d) ;
 	double divide(long dividend, long divisor) ;
 	String millsToTimeString(long d) ;
-	String hashedName(Path p, String ext) ;
-	void write(Path path, CharSequence data) throws IOException ;
-	void writeInTempDir0(Config config, String prefix, String suffix, CharSequence data, Logger logger) throws IOException ;
-	void writeInTempDir(Config config, String prefix, String suffix, CharSequence data, Logger logger) ;
-	
-	boolean saveInTempDirHideError(Writable w, Config config, String directory, String fileName) ;
-	Path saveInTempDir(Writable w, Config config, String directory, String fileName) throws IOException ;
-	/**
-	 * set text to a file, error is handled by default handler
-	 * @param file
-	 * @param ft
-	 */
-	void setTextNoError(Path target, CharSequence content, String errorMessage);
 	Logger getLogger(Class<?> cls);
 	String toString(int n);
+	void write(Path path, boolean append, IOExceptionConsumer<WriterImpl> consumer) throws IOException;
+	/**
+	 * default action on Error
+	 * @param path
+	 * @param append
+	 * @param consumer
+	 */
+	void writeHandled(Path path, boolean append, IOExceptionConsumer<WriterImpl> consumer);
+	FileChannel fileChannel(Path path, boolean append) throws IOException;
+	Path tempDir();
+	Path tempDirFor(Config config);
 }

@@ -1,29 +1,42 @@
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
-
-apply plugin: 'java'
-apply plugin: 'application'
+plugins {
+    id 'jacoco'
+    id 'java'
+    id 'application'
+}
 
 repositories {
     jcenter()
 }
-dependencies {
 
-  // was used by sam.backup.manager.file.FileTreeString
- // compile 'se.sawano.java:alphanumeric-comparator:1.4.1'
-  compile files('myutils.jar')
-  implementation 'org.codejargon.feather:feather:+'
-  implementation 'org.apache.logging.log4j:log4j-api:2.11.2'
-  implementation 'org.apache.logging.log4j:log4j-core:2.11.2'
-  compile 'org.json:json:20180813'
-}
- 
 version = 1.12
 sourceCompatibility = JavaVersion.VERSION_1_8 
 targetCompatibility = JavaVersion.VERSION_1_8
  
 mainClassName = 'Main'
 ext.appdir = file(System.env.SAM_PROGRAMS+'/backup/backup.beta/bin')
+
+ext.JUNIT_VERSION = '5.3.2'
+ext.TRUTH_VERSION = '0.42'
+
+dependencies {
+  implementation files('myutils.jar')
+  implementation 'org.codejargon.feather:feather:+'
+  implementation 'org.apache.logging.log4j:log4j-api:2.11.2'
+  implementation 'org.apache.logging.log4j:log4j-core:2.11.2'
+  implementation 'org.json:json:20180813'
+  
+  testImplementation 'com.thedeanda:lorem:2.1'
+  testImplementation 'org.junit.jupiter:junit-jupiter-api:'+JUNIT_VERSION
+  
+  // testImplementation 'org.junit.jupiter:junit-jupiter-params:'+JUNIT_VERSION
+   testRuntime 'org.junit.jupiter:junit-jupiter-engine:'+JUNIT_VERSION
+   
+    implementation 'org.jacoco:org.jacoco.core:0.8.2'
+    implementation 'org.jacoco:org.jacoco.report:0.8.2'
+   
+  // testImplementation 'com.google.truth:truth:'+TRUTH_VERSION
+  //  testImplementation 'com.google.truth.extensions:truth-java8-extension:'+TRUTH_VERSION
+}
 	
 task combineCss {
   def rsrc = sourceSets.main.resources.srcDirs[0] 
@@ -101,3 +114,18 @@ jar {
 }
 
 defaultTasks 'install'
+
+
+test {
+  useJUnitPlatform()
+  systemProperty 'java.util.logging.config.file','test-logging.properties'
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled false
+        csv.enabled false
+        html.destination file("${buildDir}/jacoco.html")
+    }
+}
+

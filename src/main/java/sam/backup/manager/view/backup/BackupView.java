@@ -2,7 +2,6 @@ package sam.backup.manager.view.backup;
 
 import static sam.backup.manager.Utils.bytesToString;
 import static sam.backup.manager.Utils.millsToTimeString;
-import static sam.backup.manager.Utils.writeInTempDir;
 import static sam.backup.manager.UtilsFx.fx;
 import static sam.backup.manager.UtilsFx.hyperlink;
 import static sam.backup.manager.view.ButtonType.DELETE;
@@ -14,6 +13,7 @@ import static sam.fx.helpers.FxClassHelper.removeClass;
 import static sam.fx.helpers.FxMenu.menuitem;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -71,6 +71,7 @@ class BackupView extends ViewBase {
 	private final SimpleObjectProperty<FileTree> currentFileTree = new SimpleObjectProperty<>();
 	private final Provider<Deleter> deleter;
 	private final boolean SAVE_EXCLUDE_LIST;
+	private Path _tempDir;
 	
 	public BackupView(Config config, FileTreeManager factory, Executor executor, Provider<Deleter> deleter, boolean saveExcludedList) {
 		super(config, "config-view", factory, executor);
@@ -87,6 +88,12 @@ class BackupView extends ViewBase {
 			else 
 				getChildren().remove(root);
 		});
+	}
+	private Path tempDir() {
+		if(_tempDir == null)
+			_tempDir = Utils.tempDirFor(config);
+		
+		return _tempDir;
 	}
 	
 	@Override
@@ -286,10 +293,10 @@ class BackupView extends ViewBase {
 			fx(() -> {
 				if(mode == WalkMode.SOURCE) {
 					sourceSizeT.setText(bytesToString(sourceSize += size));
-					sourceFileCountT.setText(valueOf(++sourceFileCount));
+					sourceFileCountT.setText(Utils.toString(++sourceFileCount));
 				} else if(mode == WalkMode.BACKUP){
 					targetSizeT.setText(bytesToString(targetSize += size));
-					targetFileCountT.setText(valueOf(++targetFileCount));
+					targetFileCountT.setText(Utils.toString(++targetFileCount));
 				} else {
 					throw new IllegalStateException("invalid walkMode: "+mode);
 				}
@@ -299,9 +306,9 @@ class BackupView extends ViewBase {
 		public void onDirFound(Dir ft, WalkMode mode) {
 			fx(() -> {
 				if(mode == WalkMode.SOURCE) 
-					sourceDirCountT.setText(valueOf(++sourceDirCount));
+					sourceDirCountT.setText(Utils.toString(++sourceDirCount));
 				else if(mode == WalkMode.BACKUP)
-					targetDirCountT.setText(valueOf(++targetDirCount));
+					targetDirCountT.setText(Utils.toString(++targetDirCount));
 				else 
 					throw new IllegalStateException("invalid walkMode: "+mode);
 			});
@@ -317,7 +324,7 @@ class BackupView extends ViewBase {
 			walk(backup, l);
 			fx(() -> {
 				backupSizeT.setText(bytesToString(l[1]));
-				backupFileCountT.setText(valueOf(l[0]));
+				backupFileCountT.setText(Utils.toString((int)l[0]));
 			});
 		}
 		private void walk(Dir backup, long[] l) {
@@ -351,10 +358,16 @@ class BackupView extends ViewBase {
 			});
 		}
 		
+		
+		
 		private void deleteAction() {
-			writeInTempDir(config, "delete", null, new FileTreeAsString(deleteFFT.get()), LOGGER);
-			deleter.get()
-			.start(fileTree(), deleteFFT.get());
+			Utils.writeHandled(tempDir().resolve("delete.txt"), true, w -> {
+				w.append(LocalDateTime.now().toString()).append("\n\n");
+				manager.writeFileTreeAsString(deleteFFT.get(), w);
+				w.append("\n-------------------------------------------\n");
+			});
+			
+			deleter.get().start(fileTree(), deleteFFT.get());
 		}
 		
 		private FileTree fileTree() {

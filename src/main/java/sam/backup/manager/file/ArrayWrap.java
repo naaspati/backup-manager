@@ -22,8 +22,14 @@ class ArrayWrap<E> {
 	public E get(int index) {
 		return index >= size ? null : data[index < data.length ? index : index - data.length];
 	}
-	public void set(int id, E e){
-		Junk.notYetImplemented(); //FIXME
+	public void set(int index, E e){
+		if(index >= size)
+			throw new IndexOutOfBoundsException("id("+index+") >= size("+size+")");
+		if(index < data.length)
+			data[index] = e;
+		else 
+			data[index - data.length] = e;
+		
 	}
 	public boolean isModified() {
 		return data.length != size;

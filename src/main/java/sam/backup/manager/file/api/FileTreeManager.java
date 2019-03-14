@@ -10,8 +10,9 @@ public interface FileTreeManager {
 	void walk(Dir start, FileTreeWalker walker) ;
 	void save(Config config, Path saveDir, FileTree filetree) throws Exception;
 	FileTree read(Config config, Path saveDir, boolean createNewIfNotExists);
-	default void toTreeString(Dir dir, Appendable sink) throws IOException  {
-		toTreeString(dir, null, sink);
+	
+	default void writeFileTreeAsString(Dir dir, Appendable sink) throws IOException  {
+		writeFileTreeAsString(dir, null, sink);
 	}
-	void toTreeString(Dir dir, Predicate<FileEntity> filter, Appendable sink) throws IOException ;
+	void writeFileTreeAsString(Dir dir, Predicate<FileEntity> filter, Appendable sink) throws IOException ;
 }

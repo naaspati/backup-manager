@@ -90,7 +90,7 @@ public class FileTreeManagerImpl implements FileTreeManager  {
 	}
 	
 	@Override
-	public void toTreeString(Dir dir, Predicate<FileEntity> filter, Appendable sink) throws IOException {
+	public void writeFileTreeAsString(Dir dir, Predicate<FileEntity> filter, Appendable sink) throws IOException {
 		new FileTreeString(dir, filter).render(sink);
 	}
 }

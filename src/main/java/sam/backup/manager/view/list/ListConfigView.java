@@ -112,7 +112,7 @@ public class ListConfigView extends ViewBase {
 					textViewer.accept(treeText);
 					break;
 				default:
-					throw new IllegalArgumentException(Utils.toString(type));
+					throw new IllegalArgumentException(String.valueOf(type));
 			}
 		}
 		

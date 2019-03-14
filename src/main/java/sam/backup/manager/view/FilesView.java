@@ -3,7 +3,6 @@ package sam.backup.manager.view;
 import static sam.backup.manager.Utils.bytesToString;
 import static sam.backup.manager.Utils.getLogger;
 import static sam.backup.manager.Utils.millsToTimeString;
-import static sam.backup.manager.Utils.setTextNoError;
 import static sam.backup.manager.UtilsFx.fileChooser;
 import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.setClass;
@@ -50,6 +49,7 @@ import javafx.stage.Window;
 import sam.backup.manager.AppConfig;
 import sam.backup.manager.ParentWindow;
 import sam.backup.manager.StopTasksQueue;
+import sam.backup.manager.Utils;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.Attr;
@@ -223,8 +223,6 @@ public class FilesView extends BorderPane {
 		if(!parent.exists())
 			parent = new File(".");
 
-		//FIXME Utils.saveToFile2()
-
 		File file = fileChooser(parent, new File(treeToDisplay.getName()).getName()+".txt", "save File Tree").showSaveDialog(this.parent.get());
 		if(file == null) {
 			FxPopupShop.showHidePopup("CANCELLED", 1500);
@@ -232,8 +230,7 @@ public class FilesView extends BorderPane {
 		}
 		
 		lastVisited.set(file.getParent());
-		
-		setTextNoError(file.toPath(), ft, "failed to save filetree: ");
+		Utils.writeHandled(file.toPath(), false, w -> manager.writeFileTreeAsString(treeToDisplay, w));
 	}
 	private class Unit extends CheckBoxTreeItem<FileEntity> {
 		final FileEntity file;

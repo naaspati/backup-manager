@@ -14,8 +14,11 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
@@ -78,9 +81,7 @@ class FileNamesHandler {
 		}
 	}
 
-	String[] read(Resources r, final int count) throws IOException {
-		String[] filenames = new String[count];
-
+	void read(Resources r, Consumer<String> consumer) throws IOException {
 		try (InputStream _is = Files.newInputStream(path, READ); 
 				GZIPInputStream gis = new GZIPInputStream(_is);) {
 
@@ -94,35 +95,7 @@ class FileNamesHandler {
 			decoder.reset();
 			buffer.clear();
 			
-			BufferSupplier supplier = BufferSupplier.of(gis, buffer);
-			
-			IOExceptionConsumer<CharBuffer> eater = new IOExceptionConsumer<CharBuffer>() {
-				int n = 0;
-				
-				@Override
-				public void accept(CharBuffer e) throws IOException {
-					while(e.hasRemaining()) {
-						char c = e.get();
-						if(c == SEPARATOR) {
-							if(sb.length() != 0 && c == '\n' && sb.charAt(sb.length() - 1) == '\r')
-								sb.setLength(sb.length() - 1);
-							
-							if(sb.length() == 0) {
-								n++; // filenames[n++] = null;
-							} else {
-								filenames[n++] = sb.toString();
-								sb.setLength(0);
-							}
-						} else {
-							sb.append(c);
-						}
-					}
-					e.clear();
-				}
-			};
-
-			StringIOUtils.read(supplier, eater, decoder, chars);
-			return filenames;
+			StringIOUtils.collect(BufferSupplier.of(gis, buffer), SEPARATOR, consumer, decoder, chars, sb);
 		}
 	}
 }

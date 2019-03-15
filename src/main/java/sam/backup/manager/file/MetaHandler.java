@@ -1,6 +1,5 @@
 package sam.backup.manager.file;
 
-import static java.nio.charset.CodingErrorAction.REPORT;
 import static java.nio.file.StandardOpenOption.CREATE_NEW;
 import static java.nio.file.StandardOpenOption.READ;
 import static java.nio.file.StandardOpenOption.WRITE;
@@ -18,6 +17,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sam.functions.IOExceptionConsumer;
+import sam.io.BufferConsumer;
 import sam.io.BufferSupplier;
 import sam.io.IOUtils;
 import sam.io.serilizers.StringIOUtils;
@@ -52,7 +52,7 @@ class MetaHandler {
 			.append(backupDirPath);
 
 			try (FileChannel fc = FileChannel.open(path, CREATE_NEW, WRITE)) {
-				StringIOUtils.write(StringIOUtils.writer(fc), sb, encoder, buffer);
+				StringIOUtils.write(BufferConsumer.of(fc, false), sb, encoder, buffer);
 			}
 		} else {
 			try (FileChannel fc = FileChannel.open(path, WRITE)) {

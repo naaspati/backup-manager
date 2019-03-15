@@ -11,6 +11,7 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -282,7 +283,15 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 
 		try (Resources r = Resources.get()) {
 			final int count = new MetaHandler(t.meta, tree_id).validate(r, sourceDirPath, backupDirPath);
-			String[] filenames =  new FileNamesHandler(t.filenamesPath).read(r, count);
+			String[] filenames =  new String[count];
+			new FileNamesHandler(t.filenamesPath).read(r, new Consumer<String>() {
+				int n = 0;
+				@Override
+				public void accept(String t) {
+					filenames[n++] = Checker.isEmpty(t) ? null : t;
+				}
+			});
+			
 			AttrsHandler attrs = new AttrsHandler(t.attrsPath);
 			attrs.read(r, filenames);
 

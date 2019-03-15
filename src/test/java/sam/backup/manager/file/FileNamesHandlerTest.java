@@ -12,6 +12,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.zip.GZIPInputStream;
 
 import org.junit.jupiter.api.Test;
@@ -88,18 +90,27 @@ class FileNamesHandlerTest {
 		StringBuilder sb = r.sb();
 		
 		int cap = sb.capacity(); 
-		String[] array = new FileNamesHandler(p).read(r, list.size());
+		Supplier<int[]> count[] = new Supplier[1];
 		
-		int n = 0;
-		int chars = 0;
-		for (String line : array) {
-			String e = line == null ? "" : line;
-			assertEquals(list.get(n++), e);
-			chars += e.length();
-		}
+		new FileNamesHandler(p).read(r, new Consumer<String>() {
+			int n = 0;
+			int chars = 0;
+			{
+				count[0] = () -> new int[]{this.n, this.chars};
+			}
+			
+			@Override
+			public void accept(String t) {
+				String e = t == null ? "" : t;
+				assertEquals(list.get(n++), e);
+				chars += e.length();
+			}
+		});
+		
+		int[] n = count[0].get();
 
-		assertEquals(n, list.size());
-		System.out.println("cap: "+cap+" "+sb.capacity()+", list.size: "+list.size()+", chars: "+chars);
+		assertEquals(n[0], list.size());
+		System.out.println("cap: "+cap+" "+sb.capacity()+", list.size: "+list.size()+", chars: "+n[1]);
 	}
 
 }

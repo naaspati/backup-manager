@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.inject.Provider;
 
@@ -59,6 +60,7 @@ import sam.backup.manager.view.ViewBase;
 import sam.backup.manager.view.ViewsBase;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
+import sam.backup.manager.walk.WalkTask;
 import sam.fx.helpers.FxConstants;
 import sam.fx.helpers.FxGridPane;
 import sam.fx.helpers.FxLabel;
@@ -236,9 +238,10 @@ class BackupView extends ViewBase {
 					view.setButtons(new CustomButton(ButtonType.DELETE, e -> deleteAction()));
 					break;
 				case WALK:
-					walk.setType(ButtonType.LOADING);
-					//FIXME handler.start(config, this);
-					walk.setType(ButtonType.CANCEL);	
+					startWalk();
+					break;
+				case CANCEL:
+					cancelWalk();
 					break;
 				case SET_MODIFIED:
 					throw new IllegalStateException("not yet implemented");
@@ -247,6 +250,30 @@ class BackupView extends ViewBase {
 			}
 		}
 		
+		private void cancelWalk() {
+			WalkTask task = (WalkTask) walk.getUserData() ;
+			if(task == null)
+				return;
+			
+			walk.setUserData(null);
+			task.cancel();
+		}
+		
+		private void startWalk() {
+			if(walk.getUserData() != null)
+				return;
+			
+			walk.setType(ButtonType.LOADING);
+			walk.setDisable(true);
+			
+			WalkTask w = new WalkTask(config, WalkMode.BOTH, manager, this);
+			executor.execute(w);
+			walk.setUserData(w);
+			
+			walk.setType(ButtonType.CANCEL);
+			walk.setDisable(false);
+		}
+
 		public boolean hashBackups() {
 			return backupFFT.get() != null && !backupFFT.get().isEmpty();
 		}
@@ -383,7 +410,6 @@ class BackupView extends ViewBase {
 		@Override
 		public void failed(String msg, Throwable error) {
 			// TODO Auto-generated method stub
-			
 		}
 
 		@Override
@@ -401,6 +427,7 @@ class BackupView extends ViewBase {
 	}
 	
 	private FilesView openFilesView(String title, Dir dir, FilesViewSelector selector) {
+		
 		// FIXME Auto-generated method stub
 		return Junk.notYetImplemented();
 	}

@@ -1,5 +1,7 @@
 package sam.backup.manager.config.api;
 
+import java.io.IOException;
+
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
@@ -9,5 +11,5 @@ public interface FileTreeMeta {
 	PathWrap getTarget();
 	FileTree getFileTree();
 	long getLastModified(); //FIXME confisuing name
-	FileTree loadFiletree(FileTreeManager manager, boolean createNewIfNotExists) throws Exception;
+	FileTree loadFiletree(FileTreeManager manager, boolean createNewIfNotExists) throws IOException;
 }

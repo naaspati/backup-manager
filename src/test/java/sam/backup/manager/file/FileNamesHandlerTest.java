@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import com.thedeanda.lorem.LoremIpsum;
 
+import sam.functions.IOExceptionConsumer;
 import sam.nopkg.Resources;
 
 class FileNamesHandlerTest {
@@ -92,7 +93,7 @@ class FileNamesHandlerTest {
 		int cap = sb.capacity(); 
 		Supplier<int[]> count[] = new Supplier[1];
 		
-		new FileNamesHandler(p).read(r, new Consumer<String>() {
+		new FileNamesHandler(p).read(r, new IOExceptionConsumer<String>() {
 			int n = 0;
 			int chars = 0;
 			{

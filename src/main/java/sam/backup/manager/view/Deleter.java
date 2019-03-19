@@ -24,6 +24,7 @@ import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeWalker;
+import sam.backup.manager.file.api.Type;
 import sam.myutils.MyUtilsException;
 
 public class Deleter extends BorderPane implements FileTreeWalker {
@@ -73,7 +74,7 @@ public class Deleter extends BorderPane implements FileTreeWalker {
 						
 						if(!fte.isDirectory()) {
 							try {
-								editor.delete(fte, p);
+								editor.delete(fte, Type.BACKUP);
 								success++;
 								sb.append("success").append("  ").append(p.string()).append('\n');
 							} catch (IOException e) {

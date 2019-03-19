@@ -34,7 +34,7 @@ class FiletreeMetaImpl implements FileTreeMeta {
 		return Junk.notYetImplemented(); //FIXME
 	}
 	@Override
-	public FileTree loadFiletree(FileTreeManager manager, boolean createNewIfNotExists) throws Exception {
+	public FileTree loadFiletree(FileTreeManager manager, boolean createNewIfNotExists) throws IOException {
 		return Junk.notYetImplemented(); //FIXME return this.filetree = manager.read(config, config.getType() == ConfigType.LIST ? listPath : backupPath, createNewIfNotExists);
 	}
 }

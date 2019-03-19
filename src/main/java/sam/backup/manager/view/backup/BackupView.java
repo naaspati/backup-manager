@@ -12,6 +12,7 @@ import static sam.fx.helpers.FxClassHelper.addClass;
 import static sam.fx.helpers.FxClassHelper.removeClass;
 import static sam.fx.helpers.FxMenu.menuitem;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -266,7 +267,17 @@ class BackupView extends ViewBase {
 			walk.setType(ButtonType.LOADING);
 			walk.setDisable(true);
 			
-			WalkTask w = new WalkTask(config, WalkMode.BOTH, manager, this);
+			if(meta.getFileTree() == null) {
+				try {
+					meta.loadFiletree(manager, true);
+				} catch (IOException e) {
+					failed("failed to load filetree: "+meta, e);
+					walk.setVisible(false); 
+					return;
+				}
+			}
+			
+			WalkTask w = new WalkTask(meta, config, WalkMode.BOTH, this);
 			executor.execute(w);
 			walk.setUserData(w);
 			
@@ -384,8 +395,6 @@ class BackupView extends ViewBase {
 				menu.show(this, e.getScreenX(), e.getScreenY());
 			});
 		}
-		
-		
 		
 		private void deleteAction() {
 			Utils.writeHandled(tempDir().resolve("delete.txt"), true, w -> {

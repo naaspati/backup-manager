@@ -11,7 +11,7 @@ public interface WalkListener {
 	void onFileFound(FileEntity ft, long size, WalkMode mode);
 	void onDirFound(Dir ft, WalkMode mode);
 	void stateChange(State s);
-	void failed(FileTreeMeta ftm, String msg, Throwable error);
+	void failed(String msg, Throwable error);
 	void startWalking(Path path);
 	void endWalking(Path path);
 }

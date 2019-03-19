@@ -1,5 +1,7 @@
 package sam.backup.manager.config.json.impl;
 
+import java.io.IOException;
+
 import sam.backup.manager.config.api.FileTreeMeta;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.config.json.impl.JsonConfigManager.JConfig;

@@ -1,5 +1,6 @@
 package sam.backup.manager.config.dummy.impl;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -161,7 +162,7 @@ public class Factory implements ConfigManagerFactory {
 		}
 
 		@Override
-		public FileTree loadFiletree(FileTreeManager manager, boolean createNewIfNotExists) throws Exception {
+		public FileTree loadFiletree(FileTreeManager manager, boolean createNewIfNotExists) throws IOException {
 			return Junk.notYetImplemented();
 		}
 	}

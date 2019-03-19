@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -18,9 +19,7 @@ import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.FileTreeMeta;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.FileTree;
-import sam.backup.manager.file.api.FileTreeManager;
 import sam.myutils.Checker;
-import sam.nopkg.Junk;
 
 public class WalkTask implements Runnable {
 	public static final Logger logger = Utils.getLogger(WalkTask.class); 
@@ -32,13 +31,15 @@ public class WalkTask implements Runnable {
 	private final AtomicReference<State> state = new AtomicReference<>(null);
 	private final AtomicReference<Thread> thread = new AtomicReference<>(null);
 	private final AtomicBoolean cancel = new AtomicBoolean(false);
-	private final FileTreeManager fmanager;
+	private final FileTree filetree;
+	private final FileTreeMeta meta;
 
 	private List<Path> exucludePaths;
 
-	public WalkTask(Config config, WalkMode walkMode, FileTreeManager fmanager, WalkListener listener) {
-		this.fmanager = fmanager;
+	public WalkTask(FileTreeMeta meta, Config config, WalkMode walkMode, WalkListener listener) {
 		this.config = config;
+		this.meta = meta;
+		this.filetree = Objects.requireNonNull(meta.getFileTree()); 
 		this.initialWalkMode = walkMode;
 		this.listener = listener;
 		setState(State.READY);
@@ -63,15 +64,38 @@ public class WalkTask implements Runnable {
 
 		setState(State.RUNNING);
 		thread.set(Thread.currentThread());
-		FileTreeMeta ftm = null;
+		
 		List<Path> exucludePaths = new ArrayList<>();
 		State state = null;
+		boolean backupWalked = true;
+		boolean sourceWalkFailed = true;
+		Path target = null, src = null;
 
 		try {
-			List<FileTreeMeta> metas = config.getFileTreeMetas();
+			src = path(meta.getSource());
 
-			for (int i = 0; i < metas.size(); i++) 
-				call(ftm = metas.get(i), exucludePaths);
+			if(Checker.notExists(src)) {
+				failed("Source not found: "+src, null);
+				return;
+			} 
+
+			if(initialWalkMode.isSource())
+				walk(src, WalkMode.SOURCE, exucludePaths);
+
+			sourceWalkFailed = false;
+			target = path(meta.getTarget()); 
+
+			if(config.getWalkConfig().walkBackup() 
+					&& initialWalkMode.isBackup() 
+					&& target != null 
+					&& Files.exists(target)) {
+
+				walk(target, WalkMode.BACKUP, exucludePaths);
+				backupWalked = true;
+			}
+
+			new ProcessFileTree(filetree, config, backupWalked)
+			.run();
 			
 			state = State.SUCCEEDED;
 		} catch (Throwable e) {
@@ -79,7 +103,7 @@ public class WalkTask implements Runnable {
 				state = State.CANCELLED;
 			} else {
 				String s = sourceWalkFailed ? "Source walk failed: "+src : "Target walk failed: "+target;
-				failed(ftm, s, e);	
+				failed(s, e);	
 				state = State.FAILED;
 			}
 		} finally {
@@ -87,43 +111,6 @@ public class WalkTask implements Runnable {
 			this.exucludePaths = exucludePaths;
 			setState(state);
 		}
-	}
-
-	boolean sourceWalkFailed = true;
-	Path target = null, src = null;
-
-	private void call(FileTreeMeta meta, List<Path> exucludePaths) throws IOException {
-		FileTree filetree = meta.loadFiletree(fmanager, true); 
-
-		sourceWalkFailed = true;
-		boolean backupWalked = true;
-		target = null;
-		src = null;
-
-		src = path(meta.getSource());
-
-		if(Checker.notExists(src)) {
-			failed(meta, "Source not found: "+src, null);
-			return;
-		} 
-
-		if(initialWalkMode.isSource())
-			walk(filetree, src, WalkMode.SOURCE, exucludePaths);
-
-		sourceWalkFailed = false;
-		target = path(meta.getTarget()); 
-
-		if(config.getWalkConfig().walkBackup() 
-				&& initialWalkMode.isBackup() 
-				&& target != null 
-				&& Files.exists(target)) {
-
-			walk(filetree, target, WalkMode.BACKUP, exucludePaths);
-			backupWalked = true;
-		}
-
-		new ProcessFileTree(fmanager, filetree, config, backupWalked)
-		.run();
 	}
 
 	private Path path(PathWrap p) {
@@ -144,10 +131,10 @@ public class WalkTask implements Runnable {
 			t.interrupt();
 	}
 
-	private void failed(FileTreeMeta ftm, String msg, Throwable error) {
-		fx(() -> listener.failed(ftm, msg, error));
+	private void failed(String msg, Throwable error) {
+		fx(() -> listener.failed(msg, error));
 	}
-	private void walk(FileTree filetree, Path path, WalkMode w, List<Path> exucludePaths) throws IOException {
+	private void walk(Path path, WalkMode w, List<Path> exucludePaths) throws IOException {
 		new Walker(filetree, config, listener, path, w == WalkMode.SOURCE ? config.getSourceExcluder() : config.getTargetExcluder(), w, exucludePaths)
 		.call();
 	}

@@ -11,7 +11,6 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,7 +25,9 @@ import sam.backup.manager.file.api.Status;
 import sam.backup.manager.file.api.Type;
 import sam.backup.manager.walk.WalkMode;
 import sam.collection.IntSet;
+import sam.functions.IOExceptionConsumer;
 import sam.myutils.Checker;
+import sam.myutils.ThrowException;
 import sam.nopkg.Junk;
 import sam.nopkg.Resources;
 
@@ -53,6 +54,16 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		@Override
 		public int mod() {
 			return mod;
+		}
+		private void remove(FileEntity f) {
+			if(f == null)
+				return;
+			
+			int id = id(f);
+			if(set.remove(id)) {
+				mod++;
+				files.set(id, null);
+			}
 		}
 		public void ensureNotMod(int expectedMod) {
 			if(expectedMod != mod)
@@ -88,6 +99,7 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		public int size() {
 			return set.size();
 		}
+		
 	}
 
 	private final FileHelper fileHelper = new FileHelper() {
@@ -126,7 +138,7 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		this.files = new ArrayWrap<>(data);
 		this.srcAttrs = new Aw(srcAttrs);
 		this.backupAttrs = new Aw(backupAttrs);
-		dirWalked = new BitSet(files.size() + 100);
+		this.dirWalked = new BitSet(files.size() + 100);
 	}
 
 	private FileTreeImpl(int tree_id, Path saveDir, Path sourceDirPath, Path backupDirPath) {
@@ -148,18 +160,24 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		return new FileTreeDeleter() {
 
 			@Override
-			public void delete(FileEntity f, PathWrap file) throws IOException {
-				if (file != null)
-					Files.deleteIfExists(file.path());
-				// if file is null, only remove from
-				// TODO Auto-generated method stub
-				Junk.notYetImplemented();
+			public void delete(FileEntity f, Type type) throws IOException {
+				if(f == null)
+					return;
+				
+				if(type == Type.SOURCE)
+					ThrowException.illegalArgumentException("type == Type.SOURCE not supported");
+				
+				PathWrap p = f.getBackupPath();
+				
+				if (p != null)
+					Files.deleteIfExists(p.path());
+
+				children(f.getParent()).remove(f);
 			}
 
 			@Override
 			public void close() throws IOException {
 				// TODO Auto-generated method stub
-
 			}
 		};
 	}
@@ -284,7 +302,7 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		try (Resources r = Resources.get()) {
 			final int count = new MetaHandler(t.meta, tree_id).validate(r, sourceDirPath, backupDirPath);
 			String[] filenames =  new String[count];
-			new FileNamesHandler(t.filenamesPath).read(r, new Consumer<String>() {
+			new FileNamesHandler(t.filenamesPath).read(r, new IOExceptionConsumer<String>() {
 				int n = 0;
 				@Override
 				public void accept(String t) {
@@ -334,7 +352,7 @@ final class FileTreeImpl extends DirImpl implements FileTree, Dir {
 		}
 	}
 
-	private static ChildrenImpl children(FileImpl f) {
+	private static ChildrenImpl children(Object f) {
 		return (ChildrenImpl)(((DirImpl)f).children());
 	}
 

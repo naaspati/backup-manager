@@ -81,7 +81,7 @@ class FileNamesHandler {
 		}
 	}
 
-	void read(Resources r, Consumer<String> consumer) throws IOException {
+	void read(Resources r, IOExceptionConsumer<String> consumer) throws IOException {
 		try (InputStream _is = Files.newInputStream(path, READ); 
 				GZIPInputStream gis = new GZIPInputStream(_is);) {
 

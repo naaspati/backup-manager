@@ -10,13 +10,13 @@ import org.json.JSONObject;
 
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
-import sam.backup.manager.Injector;
 import sam.backup.manager.JsonRequired;
 import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.FileTreeMeta;
+import sam.di.Injector;
 import sam.myutils.Checker;
 
 public abstract class ViewsBase extends BorderPane implements SelectionListener, JsonRequired {

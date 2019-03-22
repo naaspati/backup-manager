@@ -2,7 +2,6 @@ package sam.backup.manager.file;
 
 import java.io.IOException;
 
-import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.Type;
 

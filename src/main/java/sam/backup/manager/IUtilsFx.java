@@ -11,6 +11,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 import sam.backup.manager.config.impl.PathWrap;
+import sam.di.Injector;
 
 
 public interface IUtilsFx {

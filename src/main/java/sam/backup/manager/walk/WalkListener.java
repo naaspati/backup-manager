@@ -3,7 +3,6 @@ package sam.backup.manager.walk;
 import java.nio.file.Path;
 
 import javafx.concurrent.Worker.State;
-import sam.backup.manager.config.api.FileTreeMeta;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 

@@ -47,6 +47,7 @@ import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.ConfigManagerFactory;
 import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.file.api.FileTreeManager;
+import sam.di.Injector;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
 import sam.io.fileutils.FileOpenerNE;

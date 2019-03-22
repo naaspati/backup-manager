@@ -31,6 +31,7 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import sam.backup.manager.config.impl.PathWrap;
+import sam.di.Injector;
 import sam.fx.alert.FxAlert;
 import sam.fx.helpers.FxText;
 import sam.fx.helpers.FxUtils;

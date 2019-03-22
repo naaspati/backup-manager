@@ -13,11 +13,11 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import sam.backup.manager.AppConfig;
 import sam.backup.manager.Backups;
-import sam.backup.manager.Injector;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.view.Deleter;
 import sam.backup.manager.view.ViewsBase;
+import sam.di.Injector;
 import sam.nopkg.EnsureSingleton;
 import sam.reference.WeakAndLazy;
 

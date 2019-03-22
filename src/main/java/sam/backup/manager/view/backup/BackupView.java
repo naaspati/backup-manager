@@ -17,7 +17,6 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.inject.Provider;
 

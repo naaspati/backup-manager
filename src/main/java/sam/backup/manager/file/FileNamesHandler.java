@@ -14,11 +14,8 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 

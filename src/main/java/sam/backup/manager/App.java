@@ -1,397 +1,162 @@
 
 package sam.backup.manager;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.PrimitiveIterator.OfDouble;
-import java.util.Properties;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 import javax.inject.Singleton;
 
 import org.apache.logging.log4j.Logger;
-import org.codejargon.feather.Feather;
-import org.codejargon.feather.Key;
 import org.codejargon.feather.Provides;
-import org.json.JSONException;
-import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import javafx.application.Application;
 import javafx.application.Preloader;
-import javafx.scene.Group;
-import javafx.scene.Parent;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.text.Text;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import sam.backup.manager.config.api.Config;
+import sam.backup.manager.api.ErrorHandler;
+import sam.backup.manager.api.HasTitle;
+import sam.backup.manager.api.IUtils;
+import sam.backup.manager.api.IUtilsFx;
+import sam.backup.manager.api.SelectionListener;
+import sam.backup.manager.api.StopTasksQueue;
+import sam.backup.manager.api.Stoppable;
 import sam.backup.manager.config.api.ConfigManager;
-import sam.backup.manager.config.api.ConfigManagerFactory;
-import sam.backup.manager.config.api.ConfigType;
-import sam.backup.manager.file.api.FileTreeManager;
+import sam.di.FeatherInjector;
 import sam.di.Injector;
 import sam.fx.alert.FxAlert;
 import sam.fx.popup.FxPopupShop;
-import sam.io.fileutils.FileOpenerNE;
-import sam.myutils.Checker;
-import sam.myutils.MyUtilsPath;
-import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 
 @Singleton
-public class App extends Application implements StopTasksQueue, Executor {
-	private final Logger logger = Utils.getLogger(App.class);
-	private static final EnsureSingleton singleton = new EnsureSingleton();
+public class App extends Application implements StopTasksQueue, Executor, ErrorHandler {
+    private static final EnsureSingleton singleton = new EnsureSingleton();
+    { singleton.init(); }
 
-	{
-		singleton.init();
-	}
-	
-	private static class RunWrap {
-		private final String location;
-		private final Runnable task ;
-		
-		public RunWrap(String location, Runnable task) {
-			this.location = location;
-			this.task = task;
-		}
-	}  
-	
-	private final AtomicBoolean stopping = new AtomicBoolean(false);
-	private final List<ViewWrap> tabs = new ArrayList<>();
-	private final Scene scene = new Scene(new Group(new Text("NOTHING TO VIEW")));
-	private FileTreeManager fileTreeFactory;
-	private ConfigManager configManager;
-	private Stage stage;
-	private IUtils utils;
-	private IUtilsFx fx;
-	private ArrayList<RunWrap> stops = new ArrayList<>();
-	private ExecutorService pool;
-	private Injector injector; 
-	private AppConfigImpl appConfig;
-	private FileStoreManager fileStoreManager;
+    private final Logger logger = Utils.getLogger(App.class);
 
-	@Override
-	public void init() throws Exception {
-		OfDouble itr = new OfDouble() {
-			int p = 0;
-			double unit = 0.01;
-			@Override
-			public double nextDouble() {
-				return (p++) * unit;
-			}
-			@Override
-			public boolean hasNext() {
-				return true;
-			}
-		};
+    private static class RunWrap {
+        private final String location;
+        private final Stoppable task ;
 
-		Consumer<String> s = t -> notifyPreloader(new PreloaderImpl.Progress(itr.nextDouble(), t));
-		
-		if(logger.isDebugEnabled()) {
-			Consumer<String> old = s;
-			 s = t -> {
-				logger.debug(t);
-				old.accept(t);
-			};
-		}
-		String name = getClass().getSimpleName()+".bindings.properties";
-		s.accept("loading: "+name);
-		@SuppressWarnings("rawtypes")
-		Map<Class, Class> map = AppInitHelper.getClassesMapping(App.class, name, logger);
-		s.accept("loaded: "+name);
+        public RunWrap(String location, Stoppable task) {
+            this.location = location;
+            this.task = task;
+        }
+    }  
 
-		this.utils = AppInitHelper.instance(map, IUtils.class, UtilsImpl.class, s);
-		this.fx = AppInitHelper.instance(map, IUtilsFx.class, UtilsFxImpl.class, s);
-		
-		Utils.setUtils(utils);
-		UtilsFx.setFx(fx);
-		
-		this.appConfig = new AppConfigImpl();
-		utils.setAppConfig(appConfig);
-		this.fileStoreManager = AppInitHelper.instance(map, FileStoreManager.class, FileStoreManagerImpl.class, s);
-		
-		ConfigManagerFactory fac = AppInitHelper.instance(map, ConfigManagerFactory.class, null, s);
-		this.configManager = fac.newInstance(appConfig);
-		this.fileTreeFactory = AppInitHelper.instance(map, FileTreeManager.class, null, s);
-		
-		map.keySet().removeAll(Arrays.asList(IUtils.class, IUtilsFx.class, ConfigManager.class, FileTreeManager.class));
-		
-		s.accept("Load tabs");
+    private final AtomicBoolean stopping = new AtomicBoolean(false);
+    private final List<Node> tabs = new ArrayList<>();
+    private final StackPane center = new StackPane();
+    private final BorderPane root = new BorderPane(center);
+    private final Scene scene = new Scene(root);
+    private Stage stage;
+    private ArrayList<RunWrap> stops = new ArrayList<>();
+    private ExecutorService pool;
 
-		new JSONObject(new JSONTokener(getClass().getResourceAsStream(getClass().getSimpleName()+".tabs.json"))) {
-			@Override
-			public JSONObject put(String key, Object value) throws JSONException {
-				try {
-					tabs.add(new ViewWrap(key, (JSONObject) value));
-				} catch (ClassNotFoundException e) {
-					throw new JSONException(String.valueOf(value), e);
-				}
-				return super.put(key, value);
-			};
-		};
-		
-		pool =  Executors.newSingleThreadExecutor();
-		this.injector = new InjectorImpl(map);
-		
-		notifyPreloader(new Preloader.ProgressNotification(1));
-	}
-	@Override
-	public void start(Stage stage) throws Exception {
-		this.stage = stage;
-		FxAlert.setParent(stage);
-		FxPopupShop.setParent(stage);
-		setErrorHandler();
+    @Override
+    public void init() throws Exception {
+        BufferedReader br = new BufferedReader(new InputStreamReader(ClassLoader.getSystemResourceAsStream(HasTitle.class.getName().concat(".tabs"))));
+        String line;
 
-		scene.getStylesheets().add("styles.css");
+        Injector injector = Injector.init(new FeatherInjector(this));
 
-		stage.setScene(scene);
-		stage.setWidth(500);
-		stage.setHeight(500);
-		stage.show();
+        Utils.setUtils(injector.instance(IUtils.class));
+        UtilsFx.setFx(injector.instance(IUtilsFx.class));
 
-		if(tabs.isEmpty()) {
-			scene.setRoot(new BorderPane(fx.bigPlaceholder("NO TABS SPECIFIED")));
-			return;
-		}
-		
-		setView(tabs.get(0));
-	}
+        injector.instance(ConfigManager.class);
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	private void setErrorHandler() {
-		BiConsumer handler = (file, e) -> FxAlert.showErrorDialog(file, "Failed to open File", e);
-		FileOpenerNE.setErrorHandler(handler);
-		
-		Consumer c = o -> {
-			if( o instanceof ErrorHandlerRequired)
-				((ErrorHandlerRequired) o).setErrorHandler(handler);	
-		};
-		
-		c.accept(utils);
-		c.accept(fx);
-	}
+        while((line = br.readLine()) != null) {
+            line = line.trim();
+            if(line.isEmpty() || line.charAt(0) == '#')
+                continue;
 
-	private void setView(ViewWrap tab) {
-		try {
-			Parent parent = tab.instance();
-			scene.setRoot(parent);
-			
-			if(parent instanceof SelectionListener)
-				((SelectionListener) parent).selected();
-		} catch (Exception e) {
-			logger.error("failed to load view: {}", tab, e);
-			FxAlert.showErrorDialog(tab, "failed to load view", e);
-		}
-	}
-	
-	@Override
-	public void add(Runnable runnable) {
-		stops.add(new RunWrap(Thread.currentThread().getStackTrace()[2].toString(), runnable));
-	}
+            Object o = injector.instance(Class.forName(line));
+            tabs.add((Node)o);
+        }
 
-	@Override
-	public void stop() throws Exception {
-		if(10 < System.currentTimeMillis())
-			return; //FIXME
-		
-		if(!stopping.compareAndSet(false, true))
-			return;
-		
-		try {
-			pool.shutdownNow();
-			logger.warn("waiting thread to die");
-			pool.awaitTermination(2, TimeUnit.SECONDS);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		
-		tabs.forEach(view -> stop(view.instance(), view));
-		
-		for (Object o : new Object[]{fileTreeFactory, configManager, utils, fx}) 
-			stop(o, o);
-		
-		stops.forEach(r -> {
-			try {
-				r.task.run();
-			} catch (Exception e) {
-				logger.error("failed to run: {}", r.location, e);
-			}
-		});
-		
-		System.exit(0); 
-	}
+        pool =  Executors.newSingleThreadExecutor(); 
+        notifyPreloader(new Preloader.ProgressNotification(1));
+    }
+    @Override
+    public void start(Stage stage) throws Exception {
+        this.stage = stage;
+        FxAlert.setParent(stage);
+        FxPopupShop.setParent(stage);
 
-	private void stop(Object tostop, Object message) {
-		if(tostop == null)
-			return;
-		
-		try {
-			if(tostop instanceof Stoppable)
-				((Stoppable) tostop).stop();
-		} catch (Exception e1) {
-			logger.error("failed to stop: {}", message, e1);
-		}
-	}
-	
-	@Override
-	public void execute(Runnable command) {
-		pool.execute(command);
-	}
-	
-	private class ViewWrap {
-		final Class<? extends Parent> cls;
-		final String key;
-		
-		JSONObject json;
+        scene.getStylesheets().add("styles.css");
 
-		@SuppressWarnings({ "unchecked"})
-		public ViewWrap(String key, JSONObject json) throws ClassNotFoundException, JSONException {
-			this.key = key;
-			this.cls = (Class<? extends Parent>) Class.forName(json.getString("class"));
-			this.json = json;
-		}
-		
-		@Override
-		public String toString() {
-			return json == null ? "ViewWrap []" : (key+":"+ json.toString());
-		}
-		
-		public Parent instance() {
-			Parent instance = injector.instance(cls);
-			
-			if(instance instanceof JsonRequired)
-				((JsonRequired) instance).setJson(key, json);
-			
-			return instance; 
-		}
-	}
-	
-	private class AppConfigImpl implements AppConfig {
-		public final Path app_data = Paths.get("app_data");
-		private final Properties properties = new Properties(); 
-		public final Path temp_dir;
-		
-		public AppConfigImpl() throws IOException {
-			String apf = System2.lookup(AppConfig.class.getName()+".file");
-			if(apf == null)
-				throw new IOException("no property found: \""+AppConfig.class.getName()+".file\"");
-			
-			properties.load(new FileInputStream(apf));
-			
-			String dt = MyUtilsPath.pathFormattedDateTime();
-			String dir = Stream.of(MyUtilsPath.TEMP_DIR.toFile().list())
-					.filter(s -> s.endsWith(dt))
-					.findFirst()
-					.orElse(null);
+        stage.setScene(scene);
+        stage.setWidth(500);
+        stage.setHeight(500);
+        stage.show();
 
-			if(dir != null) {
-				temp_dir = MyUtilsPath.TEMP_DIR.resolve(dir);
-			} else {
-				int n = Utils.number(MyUtilsPath.TEMP_DIR);
-				temp_dir = MyUtilsPath.TEMP_DIR.resolve((n+1)+" - "+MyUtilsPath.pathFormattedDateTime());
-				Files.createDirectories(temp_dir);		
-			}
-		}
+        if(tabs.isEmpty()) 
+            root.setCenter(UtilsFx.bigPlaceholder("NO TABS SPECIFIED"));
+        else
+            setView(tabs.get(0));
+    }
 
-		@Override
-		public Path appDataDir() {
-			return app_data;
-		}
-		@Override
-		public Path tempDir() {
-			return temp_dir;
-		}
-		@Override
-		public String getConfig(String name) {
-			return properties.getProperty(name);
-		}
-		@Override
-		public Path backupDrive() {
-			return fileStoreManager.getBackupDrive();
-		}
-	}
-	
-	@SuppressWarnings({"unchecked", "rawtypes"})
-	private class InjectorImpl implements Injector {
-		final Feather feather;
-		final Map<Class, Class> mapping ;
-		
-		public InjectorImpl(Map<Class, Class> mapping) throws IOException, ClassNotFoundException {
-			this.mapping = Checker.isEmpty(mapping) ? Collections.emptyMap() : Collections.unmodifiableMap(mapping);
-			this.feather = Feather.with(this);
-		}
+    @Override
+    public void handleError(Object msg, Object header, Throwable thrown) {
+        FxAlert.showErrorDialog(msg, header, thrown);
+    }
 
-		@Override
-		public <E> E instance(Class<E> type) {
-			return feather.instance(map(type));
-		}
-		@Override
-		public <E, F extends Annotation> E instance(Class<E> type, Class<F> qualifier) {
-			return feather.instance(Key.of(map(type), qualifier));
-		}
-		private <E> Class<E> map(Class<E> type) {
-			return mapping.getOrDefault(type, type);
-		}
-		@Provides
-		private AppConfig config() {
-			return appConfig;
-		}
-		@Provides
-		private FileStoreManager fsm() {
-			return fileStoreManager;
-		}
-		@Provides
-		private Injector me() {
-			return this;
-		}
-		@Provides
-		private ConfigManager configManager() {
-			return configManager;
-		}
-		@Provides
-		private FileTreeManager filtreeFactory() {
-			return fileTreeFactory;
-		}
-		@Provides
-		private IUtils getUtils() {
-			return utils;
-		}
-		@Provides
-		private IUtilsFx getFx() {
-			return fx;
-		}
-		@Provides
-		@Backups
-		private Collection<Config> backups() {
-			return configManager.get(ConfigType.BACKUP);
-		}
-		@Provides
-		@Lists
-		private Collection<Config> lists() {
-			return configManager.get(ConfigType.LIST);
-		}
-		@Provides
-		private Executor executor() {
-			return App.this;
-		}
-	}  
+    private void setView(Node tab) {
+        try {
+            center.getChildren().add(tab);
+
+            if(tab instanceof SelectionListener)
+                ((SelectionListener) tab).selected();
+        } catch (Exception e) {
+            logger.error("failed to load view: {}", tab, e);
+            FxAlert.showErrorDialog(tab, "failed to load view", e);
+        }
+    }
+
+    @Override
+    public void addStopable(Stoppable runnable) {
+        Objects.requireNonNull(runnable);
+        stops.add(new RunWrap(Thread.currentThread().getStackTrace()[2].toString(), runnable));
+    }
+
+    @Override
+    public void stop() throws Exception {
+        try {
+            pool.shutdownNow();
+            logger.debug("waiting thread to die");
+            pool.awaitTermination(2, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        stops.forEach(r -> {
+            try {
+                r.task.stop();
+            } catch (Throwable e) {
+                logger.error("failed to run: {}, description: {}", r.location, r.task.description(), e);
+            }
+        });
+
+        System.exit(0); 
+    }
+
+    @Provides public StopTasksQueue p1() { return this;} 
+    @Provides public Executor  p2() { return this;}
+    @Provides public ErrorHandler  p3() { return this;}
+
+    @Override
+    public void execute(Runnable command) {
+        pool.execute(command);
+    }
 }

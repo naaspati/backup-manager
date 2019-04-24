@@ -22,7 +22,7 @@ import sam.nopkg.EnsureSingleton;
 import sam.nopkg.Junk;
 
 @Singleton
-public class FileTreeManagerImpl implements FileTreeManager  {
+class FileTreeManagerImpl implements FileTreeManager  {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 	{ singleton.init(); }
 

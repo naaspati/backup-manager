@@ -1,6 +1,6 @@
-package sam.backup.manager.file;
+package sam.backup.manager.file.api;
 
-interface WithId {
+public interface WithId {
 	int getId();
 	
 	public static int id(Object o) {

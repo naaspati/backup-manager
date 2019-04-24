@@ -31,11 +31,11 @@ import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
+import sam.backup.manager.view.AbstractMainView;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
 import sam.backup.manager.view.ViewBase;
-import sam.backup.manager.view.ViewsBase;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.console.ANSI;
@@ -86,7 +86,7 @@ public class ListConfigView extends ViewBase {
 			Node src = hyperlink(meta.getSource());
 			addClass(src, "header");
 
-			if(!ViewsBase.exists(meta)) {
+			if(!AbstractMainView.exists(meta)) {
 				getChildren().addAll(src, FxText.ofString("Last updated: "+millsToTimeString(meta.getLastModified())));
 				setDisable(true);
 			} else {

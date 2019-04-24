@@ -1,27 +1,19 @@
-package sam.backup.manager.file;
+package sam.backup.manager.file.api;
 import static java.nio.file.FileVisitResult.CONTINUE;
 import static java.nio.file.FileVisitResult.SKIP_SIBLINGS;
 import static java.nio.file.FileVisitResult.SKIP_SUBTREE;
 import static java.nio.file.FileVisitResult.TERMINATE;
-import static sam.backup.manager.file.FileUtils.ALWAYS_TRUE;
+import static sam.backup.manager.file.api.FilteredDir.ALWAYS_TRUE;
 
 import java.nio.file.FileVisitResult;
-import java.util.Iterator;
 import java.util.function.Predicate;
-
-import sam.backup.manager.file.api.Dir;
-import sam.backup.manager.file.api.FileEntity;
-import sam.backup.manager.file.api.FileTreeWalker;
-import sam.backup.manager.file.api.FilteredDir;
-class DirImpl extends FileImpl implements Dir {
+public abstract class AbstractDirImpl extends AbstractFileImpl implements Dir {
 	public static final FileEntity[] EMPTY_ARRAY = new FileEntity[0];
 
-	private final Children children;
 	private long sourceSize = -1;
 
-	public DirImpl(int id, String filename, Dir parent, FileHelper fileHelper, Children children) {
-		super(id, filename, parent, fileHelper);
-		this.children = children;
+	public AbstractDirImpl(String filename) {
+		super(filename);
 	}
 
 	@Override
@@ -31,25 +23,6 @@ class DirImpl extends FileImpl implements Dir {
 	@Override
 	public void walk(FileTreeWalker walker) {
 		walk(this, walker, ALWAYS_TRUE);
-	}
-
-	public FilteredDir filtered(Predicate<FileEntity> filter) {
-		return new FilteredDirImpl(this, null, filter);
-	}
-
-	@Override
-	public int childrenCount() {
-		return children().size();
-	}
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	@Override
-	public Iterator<FileEntity> iterator() {
-		Iterator itr = children().iterator(); 
-		return itr;
-	}
-
-	public Children children() {
-		return children;
 	}
 
 	@Override
@@ -99,8 +72,8 @@ class DirImpl extends FileImpl implements Dir {
 		return CONTINUE;
 	}
 
-	static DirImpl dir(FileEntity f) {
-		return (DirImpl)f;
+	static AbstractDirImpl dir(FileEntity f) {
+		return (AbstractDirImpl)f;
 	}
 
 	@Override

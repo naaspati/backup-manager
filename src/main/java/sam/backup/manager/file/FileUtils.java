@@ -1,6 +1,6 @@
 package sam.backup.manager.file;
 
-import static sam.backup.manager.file.WithId.id;
+import static sam.backup.manager.file.api.WithId.id;
 
 import java.util.BitSet;
 import java.util.Collection;
@@ -10,6 +10,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.file.api.FileEntity;
+import sam.backup.manager.file.api.WithId;
 import sam.collection.IntSet;
 import sam.myutils.Checker;
 

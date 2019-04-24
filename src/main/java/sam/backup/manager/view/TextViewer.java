@@ -17,7 +17,7 @@ public class TextViewer extends BorderPane {
 	private final Text text = new Text();
 	private Runnable onBackAction;
 
-	public TextViewer() {
+	TextViewer() {
 		setCenter(ta);
 		Button save = button("SAVE", e -> save());
 		ta.textProperty().addListener((p, o, n) -> {

@@ -1,4 +1,4 @@
-package sam.backup.manager;
+package sam.backup.manager.api;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
@@ -11,8 +11,6 @@ import sam.functions.IOExceptionConsumer;
 import sam.io.serilizers.WriterImpl;
 
 public interface IUtils {
-	void setAppConfig(AppConfig config);
-	
 	String bytesToString(long bytes) ;
 	String millisToString(long millis) ;
 	String durationToString(Duration d) ;

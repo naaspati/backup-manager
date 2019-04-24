@@ -3,6 +3,8 @@ package sam.backup.manager.file.api;
 import sam.myutils.MyUtilsBytes;
 
 public class Attr {
+    public static final int BYTES = Long.BYTES * 2; 
+    
 	public final long lastModified;
 	public final long size;
 	

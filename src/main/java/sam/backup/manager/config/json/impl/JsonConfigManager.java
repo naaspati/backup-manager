@@ -23,15 +23,19 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
 import org.apache.logging.log4j.Logger;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
-import sam.backup.manager.AppConfig;
-import sam.backup.manager.Stoppable;
 import sam.backup.manager.Utils;
+import sam.backup.manager.api.AppConfig;
+import sam.backup.manager.api.StopTasksQueue;
+import sam.backup.manager.api.Stoppable;
 import sam.backup.manager.config.api.BackupConfig;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
@@ -49,7 +53,11 @@ import sam.nopkg.TsvMapTemp;
 import sam.reference.WeakPool;
 import sam.string.StringResolver;
 
+@Singleton
 class JsonConfigManager implements ConfigManager, Stoppable {
+    private static final EnsureSingleton singleton = new EnsureSingleton();
+    {  singleton.init(); }
+    
 	public static final String  DETECTED_DRIVE = "DETECTED_DRIVE";
 
 	public static final String  BACKUPS = "backups";
@@ -68,7 +76,6 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 
 	private Set<String> JCONFIG_VALID_KEYS, JFILTER_VALID_KEYS;
 
-	private static final EnsureSingleton singleton = new EnsureSingleton();
 	private final Logger logger;
 	private final WeakPool<StringBuilder> sbPool;
 
@@ -80,8 +87,8 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 	private Path listPath, backupPath;
 	private final Path backupDrive;
 
-	public JsonConfigManager(AppConfig config) throws IOException {
-		singleton.init();
+	@Inject
+	public JsonConfigManager(AppConfig config, StopTasksQueue queue) throws IOException {
 		logger = Utils.getLogger(getClass());
 
 		logger.debug("INIT {}", getClass());
@@ -177,6 +184,8 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 			JCONFIG_VALID_KEYS = null;
 			JFILTER_VALID_KEYS = null;
 		}
+		
+		queue.addStopable(this);
 	}
 
 	private List<ConfigImpl> parseArray(ConfigImpl root,ConfigType type, JSONArray array) {
@@ -225,8 +234,12 @@ class JsonConfigManager implements ConfigManager, Stoppable {
 	}
 
 	@Override
-	public void stop() throws Exception {
-		backupLastPerformed.close();
+	public void stop() {
+		try {
+            backupLastPerformed.close();
+        } catch (IOException e) {
+            logger.error("failed to close: backupLastPerformed ", e);
+        }
 	}
 	public static List<String> getList(Object obj, boolean unmodifiable) {
 		if(obj == null)

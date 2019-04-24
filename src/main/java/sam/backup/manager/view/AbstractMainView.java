@@ -3,29 +3,22 @@ package sam.backup.manager.view;
 import java.lang.annotation.Annotation;
 import java.util.Collection;
 
-import javax.inject.Provider;
-
 import org.apache.logging.log4j.Logger;
-import org.json.JSONObject;
 
 import javafx.scene.Node;
 import javafx.scene.layout.BorderPane;
-import sam.backup.manager.JsonRequired;
-import sam.backup.manager.SelectionListener;
 import sam.backup.manager.Utils;
 import sam.backup.manager.UtilsFx;
+import sam.backup.manager.api.HasTitle;
+import sam.backup.manager.api.SelectionListener;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.FileTreeMeta;
 import sam.di.Injector;
-import sam.myutils.Checker;
 
-public abstract class ViewsBase extends BorderPane implements SelectionListener, JsonRequired {
+public abstract class AbstractMainView extends BorderPane implements SelectionListener, HasTitle {
 	protected final Logger logger = Utils.getLogger(getClass());
-	protected final Provider<Injector> injector;
-	protected String title;
 
-	public ViewsBase(Provider<Injector> injector) {
-		this.injector = injector;
+	public AbstractMainView() {
 		logger.debug("INIT {}", getClass());
 	}
 
@@ -39,7 +32,7 @@ public abstract class ViewsBase extends BorderPane implements SelectionListener,
 			return;
 
 		init = true;
-		Injector injector = this.injector.get();
+		Injector injector = Injector.getInstance();
 		@SuppressWarnings("unchecked")
 		Collection<? extends Config> configs = injector.instance(Collection.class, annotation());
 		
@@ -49,13 +42,6 @@ public abstract class ViewsBase extends BorderPane implements SelectionListener,
 			setCenter(UtilsFx.bigPlaceholder(nothingFoundString()));
 		 else 
 			setCenter(initView(injector, configs));
-	}
-
-	@Override
-	public void setJson(String key, JSONObject json) {
-		this.title = json.optString("title");
-		if(Checker.isEmptyTrimmed(title))
-			this.title = null;
 	}
 
 	protected abstract Node initView(Injector injector, Collection<? extends Config> configs);

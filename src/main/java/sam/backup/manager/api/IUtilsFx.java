@@ -1,4 +1,4 @@
-package sam.backup.manager;
+package sam.backup.manager.api;
 
 import java.io.File;
 import java.util.List;

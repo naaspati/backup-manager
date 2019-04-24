@@ -50,6 +50,7 @@ import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.file.api.FilteredDir;
 import sam.backup.manager.file.api.ForcedMarkable;
+import sam.backup.manager.view.AbstractMainView;
 import sam.backup.manager.view.ButtonAction;
 import sam.backup.manager.view.ButtonType;
 import sam.backup.manager.view.CustomButton;
@@ -57,7 +58,6 @@ import sam.backup.manager.view.Deleter;
 import sam.backup.manager.view.FilesView;
 import sam.backup.manager.view.FilesViewSelector;
 import sam.backup.manager.view.ViewBase;
-import sam.backup.manager.view.ViewsBase;
 import sam.backup.manager.walk.WalkListener;
 import sam.backup.manager.walk.WalkMode;
 import sam.backup.manager.walk.WalkTask;
@@ -179,7 +179,7 @@ class BackupView extends ViewBase {
 			setCenter(tiles);
 			bottomText = new Text();
 
-			if(!ViewsBase.exists(meta)) {
+			if(!AbstractMainView.exists(meta)) {
 				setBottom(bottomText);
 				finish("Source not found", true);
 			} else {

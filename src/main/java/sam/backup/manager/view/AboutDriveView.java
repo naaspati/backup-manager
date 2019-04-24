@@ -7,28 +7,27 @@ import static sam.fx.helpers.FxClassHelper.setClass;
 import java.io.IOException;
 import java.nio.file.FileStore;
 
-import javax.inject.Inject;
-import javax.inject.Provider;
 import javax.inject.Singleton;
 
 import javafx.event.EventHandler;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.VBox;
-import sam.backup.manager.FileStoreManager;
-import sam.backup.manager.SelectionListener;
+import sam.backup.manager.api.FileStoreManager;
+import sam.backup.manager.api.HasTitle;
+import sam.backup.manager.api.SelectionListener;
+import sam.di.Injector;
 import sam.fx.helpers.FxUtils;
 import sam.myutils.MyUtilsException;
 
 @Singleton
-public class AboutDriveView extends VBox implements EventHandler<MouseEvent>, SelectionListener {
-	private final Provider<FileStoreManager> drives;
-	
-	@Inject
-	public AboutDriveView(Provider<FileStoreManager> drives) {
-		this.drives = drives;
-	}
-
+public class AboutDriveView extends VBox implements EventHandler<MouseEvent>, SelectionListener, HasTitle {
+    
+    @Override
+    public String getTabTitle() {
+        return "Drive Properties";
+    }
+    
 	@Override
 	public void handle(MouseEvent event) {
 		if(event.getClickCount() > 1) {
@@ -39,6 +38,7 @@ public class AboutDriveView extends VBox implements EventHandler<MouseEvent>, Se
 	}
 	
 	private boolean init = false;
+	private FileStoreManager fsm;
 	
 	@Override
 	public void selected() {
@@ -49,7 +49,10 @@ public class AboutDriveView extends VBox implements EventHandler<MouseEvent>, Se
 		setClass(this, "AboutDriveView");
 		setOnMouseClicked(this);
 		
-		for(FileStore fs: drives.get().getDrives()) 
+		if(fsm == null)
+		    fsm = Injector.getInstance().instance(FileStoreManager.class);
+		
+		for(FileStore fs: this.fsm.getDrives()) 
 			getChildren().add(new FileStoreView(fs));
 		
 	}

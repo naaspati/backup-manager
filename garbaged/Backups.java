@@ -1,4 +1,4 @@
-package sam.backup.manager;
+package sam.backup.manager.api;
 
 import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.PARAMETER;

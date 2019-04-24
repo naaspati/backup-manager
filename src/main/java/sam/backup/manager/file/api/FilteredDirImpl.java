@@ -1,4 +1,4 @@
-package sam.backup.manager.file;
+package sam.backup.manager.file.api;
 
 import java.util.Iterator;
 import java.util.Spliterator;
@@ -7,22 +7,18 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import sam.backup.manager.config.impl.PathWrap;
-import sam.backup.manager.file.api.Attrs;
-import sam.backup.manager.file.api.FileEntity;
-import sam.backup.manager.file.api.FileTreeWalker;
-import sam.backup.manager.file.api.FilteredDir;
-import sam.backup.manager.file.api.Status;
 import sam.collection.Iterators;
+import static sam.backup.manager.file.api.WithId.id;
 
-class FilteredDirImpl implements FilteredDir, WithId {
-	private final DirImpl dir;
+public abstract class FilteredDirImpl implements FilteredDir, WithId {
+	private final AbstractDirImpl dir;
 	private final FilteredDirImpl parent;
 	private final Predicate<FileEntity> filter;
 	private int childCount = -1;
 	private int mod = -1;
 	private long sourceSize = -1;
 
-	public FilteredDirImpl(DirImpl me, FilteredDirImpl parent, Predicate<FileEntity> filter) {
+	public FilteredDirImpl(AbstractDirImpl me, FilteredDirImpl parent, Predicate<FileEntity> filter) {
 		super();
 		this.dir = me;
 		this.filter = filter;
@@ -31,7 +27,7 @@ class FilteredDirImpl implements FilteredDir, WithId {
 		update();
 	}
 	private void update() {
-		if(mod == dir.children().mod())
+		if(mod == mod(dir))
 			return;
 		
 		childCount = 0;
@@ -43,10 +39,13 @@ class FilteredDirImpl implements FilteredDir, WithId {
 		}
 		
 		sourceSize = -1;
-		mod = dir.children().mod();
+		mod = mod(dir);
 	}
 
-	@Override 
+	protected abstract FilteredDir newFilteredDirImpl(AbstractDirImpl dir, FilteredDirImpl filtered, Predicate<FileEntity> filter);
+	protected abstract int mod(AbstractDirImpl dir2);
+	
+    @Override 
 	public int childrenCount() {
 		update();
 		return childCount;
@@ -62,7 +61,7 @@ class FilteredDirImpl implements FilteredDir, WithId {
 	}
 	@Override 
 	public int getId() {
-		return dir.getId();
+		return id(dir);
 	}
 	@Override 
 	public FilteredDir getParent() {
@@ -78,7 +77,7 @@ class FilteredDirImpl implements FilteredDir, WithId {
 	}
 	@Override 
 	public void walk(FileTreeWalker walker) {
-		DirImpl.walk(dir, walker, filter);
+		AbstractDirImpl.walk(dir, walker, filter);
 	}
 	@Override 
 	public boolean isDirectory() {
@@ -102,10 +101,10 @@ class FilteredDirImpl implements FilteredDir, WithId {
 	}
 	@Override 
 	public FilteredDir filtered(Predicate<FileEntity> filter0) {
-		return new FilteredDirImpl(dir, this, filter.and(filter0));
+		return newFilteredDirImpl(dir, this, filter.and(filter0));
 	}
 	
-	@Override 
+    @Override 
 	public long getSourceSize() {
 		if(isEmpty())
 			return 0;

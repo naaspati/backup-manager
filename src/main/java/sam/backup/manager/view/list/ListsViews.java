@@ -4,7 +4,6 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 
-import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
 
@@ -23,38 +22,40 @@ import javafx.scene.paint.Color;
 import sam.backup.manager.Lists;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.file.api.FileTreeManager;
+import sam.backup.manager.view.AbstractMainView;
 import sam.backup.manager.view.TextViewer;
-import sam.backup.manager.view.ViewsBase;
 import sam.di.Injector;
 import sam.fx.helpers.FxCss;
 import sam.nopkg.EnsureSingleton;
-import sam.reference.WeakAndLazy;
 
 @Singleton
-public class ListsViews extends ViewsBase {
+public class ListsViews extends AbstractMainView {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
+	{singleton.init();}
 	
-	@Inject
-	public ListsViews(Provider<Injector> injector) {
-		super(injector);
-		singleton.init();
-	}
+	private Provider<TextViewer> textViewer;  
 
 	@Override
 	protected Class<? extends Annotation> annotation() {
 		return Lists.class;
 	}
 	@Override
-	protected String header(int size) {
-		return (title != null ? title : "Lists") +" ("+size+")";
-	}
+    public String getTabTitle() {
+        return "Lists";
+    }
+    @Override
+    protected String header(int size) {
+        return "Lists ("+size+")";
+    }
 	@Override
 	protected String nothingFoundString() {
 		return "NO LIST CONFIG(s) FOUND";
 	}
+	
 	@Override
 	protected Node initView(Injector injector, Collection<? extends Config> configs) {
 		FileTreeManager factory = injector.instance(FileTreeManager.class);
+		textViewer = injector.provider(TextViewer.class);
 		Executor executor = injector.instance(Executor.class);
 
 		CheckBox cb = new CheckBox("save without asking");
@@ -80,10 +81,8 @@ public class ListsViews extends ViewsBase {
 		return rootSp;
 	}
 
-	private WeakAndLazy<TextViewer> wtextViewer = new WeakAndLazy<>(TextViewer::new); 
-
 	private void textView(String s) {
-		TextViewer ta = wtextViewer.get();
+		TextViewer ta = textViewer.get();
 		ta.setText(s);
 
 		Node node = getCenter();

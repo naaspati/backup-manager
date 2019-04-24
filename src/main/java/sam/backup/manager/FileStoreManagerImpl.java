@@ -15,6 +15,7 @@ import java.util.stream.StreamSupport;
 import org.apache.logging.log4j.Logger;
 import org.json.JSONObject;
 
+import sam.backup.manager.api.FileStoreManager;
 import sam.nopkg.EnsureSingleton;
 
 public class FileStoreManagerImpl implements FileStoreManager {

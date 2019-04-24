@@ -19,14 +19,17 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import sam.backup.manager.api.AppConfig;
+import sam.backup.manager.api.ErrorHandler;
+import sam.backup.manager.api.IUtils;
 import sam.backup.manager.config.api.Config;
 import sam.functions.IOExceptionConsumer;
 import sam.io.fileutils.FileNameSanitizer;
@@ -36,21 +39,20 @@ import sam.nopkg.Resources;
 import sam.reference.WeakAndLazy;
 
 @Singleton
-class UtilsImpl implements IUtils, ErrorHandlerRequired {
+class UtilsImpl implements IUtils {
 	private static final EnsureSingleton singleton = new EnsureSingleton();
 	private final Logger logger = getLogger(UtilsImpl.class);
 
-	{
-		singleton.init();
-	}
+	{ singleton.init(); }
 
-	private BiConsumer<Object, Exception> errorHandler = (o, e) -> {throw new RuntimeException(e);};
-	private Path temp_dir;
-	private Supplier<String> counter;
-
-	@Override
-	public void setAppConfig(AppConfig config) {
+	private final ErrorHandler errorHandler;
+	private final Path temp_dir;
+	private final Supplier<String> counter;
+	
+	@Inject
+	public UtilsImpl(AppConfig config, ErrorHandler errorHandler) {
 		this.temp_dir = config.tempDir();
+		this.errorHandler = errorHandler;
 
 		counter = new Supplier<String>() {
 			AtomicInteger n = new AtomicInteger(Utils.number(temp_dir));
@@ -60,7 +62,6 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired {
 				return n.incrementAndGet()+" - ";
 			}
 		};
-
 	}
 
 	@Override
@@ -136,11 +137,7 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired {
 				: LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneOffset.of("+05:30"))
 				.format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM));
 	}
-
-	@Override
-	public void setErrorHandler(BiConsumer<Object, Exception> errorHandler) {
-		this.errorHandler = Objects.requireNonNull(errorHandler);
-	}
+	
 	private final String[] intStringCache = new String[100]; 
 
 	@Override
@@ -169,7 +166,7 @@ class UtilsImpl implements IUtils, ErrorHandlerRequired {
 		try {
 			write(path, append, consumer);
 		} catch (IOException e) {
-			errorHandler.accept(path, e);
+			errorHandler.handleError(path, "failed to write", e);
 		}
 	}
 	@Override

@@ -4,15 +4,14 @@ import java.util.Objects;
 
 import sam.backup.manager.config.impl.PathWrap;
 
-public abstract class AbstractFileImpl implements FileEntity {
+public abstract class AbstractFileEntity implements FileEntity {
 	
 	public final String filename;
 	private Attrs srcAttrs, backupAttrs; // direct
 	private PathWrap srcPath;
 	private PathWrap backupPath;
 	
-	// to used by FileTree
-	protected AbstractFileImpl(String filename) {
+	protected AbstractFileEntity(String filename) {
 		this.filename = Objects.requireNonNull(filename);
 	}
 

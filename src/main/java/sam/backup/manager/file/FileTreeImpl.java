@@ -18,8 +18,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sam.backup.manager.config.impl.PathWrap;
-import sam.backup.manager.file.api.AbstractDirImpl;
-import sam.backup.manager.file.api.AbstractFileImpl;
+import sam.backup.manager.file.api.AbstractDir;
+import sam.backup.manager.file.api.AbstractFileEntity;
 import sam.backup.manager.file.api.Attr;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
@@ -36,10 +36,10 @@ import sam.myutils.Checker;
 import sam.myutils.ThrowException;
 import sam.nopkg.Junk;
 
-final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
+final class FileTreeImpl extends AbstractDir implements FileTree, Dir {
     private static final Logger logger = LogManager.getLogger(FileTreeImpl.class);
 
-    private ArrayWrap<AbstractFileImpl> files;
+    private ArrayWrap<AbstractFileEntity> files;
     private Aw srcAttrs;
     private Aw backupAttrs;
     private DirImpl me;
@@ -85,7 +85,7 @@ final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
         this.me = new DirImpl(0, filename, -1, -1);
         this.saveDir = saveDir;
         this.tree_id = tree_id;
-        this.files = new ArrayWrap<>(new AbstractFileImpl[]{this});
+        this.files = new ArrayWrap<>(new AbstractFileEntity[]{this});
         this.srcAttrs = new Aw(new Attr[]{null});
         this.backupAttrs = new Aw(new Attr[]{null});
         this.dirWalked = new BitSet(200);
@@ -253,25 +253,21 @@ final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
             protected int id(FileEntity f) {
                 if(f == null)
                     return -1;
-                else if(f instanceof DirImpl)
-                    return ((DirImpl) f).id;
-                else if(f instanceof FileImpl)
-                    return ((FileImpl) f).id;
-                else
-                    throw new IllegalArgumentException();
+                else 
+                    return WithId.id(f);
             }
 
             @Override
-            protected AbstractFileImpl newFile(int id, int parent_id, String filename) {
+            protected AbstractFileEntity newFile(int id, int parent_id, String filename) {
                 return new FileImpl(parent_id, filename, parent_id);
             }
 
             @Override
-            protected AbstractDirImpl newDir(int id, int parent_id, int child_count, String filename) {
+            protected AbstractDir newDir(int id, int parent_id, int child_count, String filename) {
                 return new DirImpl(id, filename, parent_id, child_count);
             }
             @Override
-            protected void addChild(AbstractFileImpl parent, AbstractFileImpl child) {
+            protected void addChild(AbstractFileEntity parent, AbstractFileEntity child) {
                 ((DirImpl)parent).set.add(id(child));
             }
         };
@@ -283,20 +279,20 @@ final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
 
         FileTreeImpl tree = new FileTreeImpl(tree_id, saveDir, sourceDirPath, backupDirPath, null);
         Serializer s = tree.serializer();
-        
+
         s.t = t;
         s.srcPath = PathWrap.of(sourceDirPath);
         s.backupPath = PathWrap.of(backupDirPath);
-        
+
         try {
             s.read();
             tree.me = (DirImpl) s.files.get(0);
             s.files.set(0, tree);
-            
+
             tree.files = s.files;
             tree.srcAttrs = tree.aw(s.srcAttrs);
             tree.backupAttrs = tree.aw(s.backupAttrs);
-            
+
             return tree;
         } catch (NoSuchAlgorithmException e) {
             throw new IOException(e);
@@ -307,7 +303,7 @@ final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
         return new Aw(data);
     }
 
-    private class FileImpl extends AbstractFileImpl implements WithId {
+    private class FileImpl extends AbstractFileEntity implements WithId {
         private final int id, parent_id;
         private Stat stat;
 
@@ -316,7 +312,7 @@ final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
             this.id = id;
             this.parent_id = parent_id;
         }
-        
+
         @Override
         public Dir getParent() {
             return (Dir) files.get(parent_id);
@@ -333,14 +329,14 @@ final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
         protected Attr attr(Type type) {
             return attr0(id, type);
         }
-    
+
         @Override
         public int getId() {
             return id;
         }
     }
 
-    private class DirImpl extends AbstractDirImpl implements WithId {
+    private class DirImpl extends AbstractDir implements WithId {
         private final IntSet set;
         private int mod;
         private final int id, parent_id;
@@ -352,12 +348,12 @@ final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
             this.parent_id = parent_id;
             this.set = child_count < 0 ? new IntSet() : new IntSet(child_count);
         }
-        
+
         @Override
         public int getId() {
             return id;
         }
-        
+
         @Override
         public Dir getParent() {
             return (Dir) files.get(parent_id);
@@ -423,19 +419,19 @@ final class FileTreeImpl extends AbstractDirImpl implements FileTree, Dir {
             return attr0(id, type);
         }
     }
-    
+
     private class FilteredDirImpl2 extends FilteredDirImpl {
 
-        public FilteredDirImpl2(AbstractDirImpl me, FilteredDirImpl parent, Predicate<FileEntity> filter) {
+        public FilteredDirImpl2(AbstractDir me, FilteredDirImpl parent, Predicate<FileEntity> filter) {
             super(me, parent, filter);
         }
         @Override
-        protected FilteredDir newFilteredDirImpl(AbstractDirImpl dir, FilteredDirImpl filtered, Predicate<FileEntity> filter) {
+        protected FilteredDir newFilteredDirImpl(AbstractDir dir, FilteredDirImpl filtered, Predicate<FileEntity> filter) {
             return new FilteredDirImpl2(dir, filtered, filter);
         }
 
         @Override
-        protected int mod(AbstractDirImpl dir) {
+        protected int mod(AbstractDir dir) {
             return ((DirImpl)dir).mod;
         }
     }

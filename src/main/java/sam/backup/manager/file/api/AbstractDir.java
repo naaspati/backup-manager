@@ -7,12 +7,12 @@ import static sam.backup.manager.file.api.FilteredDir.ALWAYS_TRUE;
 
 import java.nio.file.FileVisitResult;
 import java.util.function.Predicate;
-public abstract class AbstractDirImpl extends AbstractFileImpl implements Dir {
+public abstract class AbstractDir extends AbstractFileEntity implements Dir {
 	public static final FileEntity[] EMPTY_ARRAY = new FileEntity[0];
 
 	private long sourceSize = -1;
 
-	public AbstractDirImpl(String filename) {
+	public AbstractDir(String filename) {
 		super(filename);
 	}
 
@@ -72,8 +72,8 @@ public abstract class AbstractDirImpl extends AbstractFileImpl implements Dir {
 		return CONTINUE;
 	}
 
-	static AbstractDirImpl dir(FileEntity f) {
-		return (AbstractDirImpl)f;
+	static AbstractDir dir(FileEntity f) {
+		return (AbstractDir)f;
 	}
 
 	@Override

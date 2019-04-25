@@ -20,12 +20,12 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.BitSet;
 
 import sam.backup.manager.config.impl.PathWrap;
-import sam.backup.manager.file.api.AbstractDirImpl;
-import sam.backup.manager.file.api.AbstractFileImpl;
+import sam.backup.manager.file.api.AbstractDir;
+import sam.backup.manager.file.api.AbstractFileEntity;
 import sam.backup.manager.file.api.Attr;
-import sam.backup.manager.file.api.Attrs;
 import sam.backup.manager.file.api.Dir;
 import sam.backup.manager.file.api.FileEntity;
 import sam.backup.manager.file.api.FileTree;
@@ -40,29 +40,32 @@ abstract class Serializer {
     private static final long NULL_ATTR = -1574818154;
     private static final long EMPTY_ATTR = -432306467;
 
-    ArrayWrap<AbstractFileImpl> files;
+    ArrayWrap<AbstractFileEntity> files;
     public TreePaths t;
     public PathWrap srcPath, backupPath;
-    public Attr[] srcAttrs;
-    public Attr[] backupAttrs;
+    public Attr[] srcAttrs, new_srcAttrs;
+    public Attr[] backupAttrs, new_backupAttrs;
+    public BitSet attrMod;
 
     public void save() throws IOException, NoSuchAlgorithmException {
-        Checker.requireNonNull("files, t, srcPath, backupPath", files, t, srcPath, backupPath);
+        Checker.requireNonNull("files, t, srcPath, backupPath, srcAttrs, backupAttrs, attrMod", files, t, srcPath, backupPath, srcAttrs, backupAttrs, attrMod);
 
         if(!files.isModified())
             return;
 
         try(Resources r = Resources.get()) {
             Path nm = null;
-            if(files.newSize() != 0)
-                nm = appendNewNames(files, r);
+            if(files.newSize() != 0 || files.size() < 2)
+                nm = writeNames(files, r);
 
-            Path mt = writeMeta(files, r);
+            Path mt = null;
+            if(attrMod.cardinality() != 0)
+                mt = writeMeta(files, r);
 
             if(nm != null)
                 Files.move(nm, t.namesPath, REPLACE_EXISTING);
-
-            Files.move(mt, t.metaPath, REPLACE_EXISTING);
+            if(mt != null)
+                Files.move(mt, t.metaPath, REPLACE_EXISTING);
         }
     }
 
@@ -83,33 +86,57 @@ abstract class Serializer {
         }
     }
 
-    private Path writeMeta(ArrayWrap<AbstractFileImpl> files, Resources r) throws IOException, NoSuchAlgorithmException {
+    private Path writeMeta(ArrayWrap<AbstractFileEntity> files, Resources r) throws IOException, NoSuchAlgorithmException {
         MessageDigest digestor = digestor();
 
+        /**
+         * TODO 
+         * decide: 
+         *   - truncate whole file rewrite all attrs (current method)
+         *   - append changed attrs
+         *   
+         * possibly in future:
+         *   - check number of changes in attr and decide append new changes or rewrite whole data  
+         */
         return write(t.metaPath, TRUNCATE_EXISTING, fc -> {
             ByteBuffer buf = r.buffer();
             buf.clear();
+            CharsetEncoder encoder = r.encoder();
 
             buf.putInt(t.tree_id);
-            digest(fc, buf, srcPath, digestor, r.encoder());
-            digest(fc, buf, backupPath, digestor, r.encoder());
+            write_digest(fc, buf, srcPath, digestor, encoder);
+            write_digest(fc, buf, backupPath, digestor, encoder);
 
             writeIf(fc, buf, 4);
             buf.putInt(files.size());
 
             final int BYTES = Integer.BYTES * 2 + Attr.BYTES * 2;
-
-            files.forEach(d -> {
+            
+            int size = files.size();
+            for (int i = 0; i < size; i++) {
+                Attr s = get(srcAttrs, new_srcAttrs, i);
+                Attr b = get(backupAttrs, new_backupAttrs, i);
+                
+                if(s == null || b == null)
+                    continue;
+                
                 writeIf(fc, buf, BYTES);
+                AbstractFileEntity f = files.get(i);
 
-                buf.putInt(id(d));
-                buf.putInt(d.isDirectory() ? ((Dir)d).childrenCount() : -1);
-                writeAttrs(d.getSourceAttrs(), buf);
-                writeAttrs(d.getBackupAttrs(), buf);
-            });
+                buf.putInt(i);
+                buf.putInt(f.isDirectory() ? ((Dir)f).childrenCount() : -1);
+                writeAttrs(s, buf);
+                writeAttrs(b, buf);
+            }
 
+            writeIf(fc, buf, 4);
+            buf.putInt(Integer.MAX_VALUE);
             IOUtils.write(buf, fc, true);
         });
+    }
+
+    private Attr get(Attr[] a, Attr[] b, int n) {
+        return n < a.length ? a[n] : b[n - a.length];
     }
 
     private void writeIf(FileChannel fc, ByteBuffer buf, int num) throws IOException {
@@ -117,7 +144,7 @@ abstract class Serializer {
             IOUtils.write(buf, fc, true);
     }
 
-    private void digest(FileChannel fc, ByteBuffer buf,  PathWrap p, MessageDigest d, CharsetEncoder e) throws IOException {
+    private void write_digest(FileChannel fc, ByteBuffer buf,  PathWrap p, MessageDigest d, CharsetEncoder e) throws IOException {
         byte[] digest = digest(p, d, e);
 
         writeIf(fc, buf, digest.length + 4);
@@ -136,9 +163,8 @@ abstract class Serializer {
     private MessageDigest digestor() throws NoSuchAlgorithmException {
         return MessageDigest.getInstance("MD5");
     }
-
-    private void writeAttrs(Attrs s, ByteBuffer buf) {
-        Attr a = s == null ? null : s.old();
+    
+    private void writeAttrs(Attr a, ByteBuffer buf) {
         if(a == null) 
             buf.putLong(NULL_ATTR);
         else if(a == FileTree.EMPTY_ATTR)
@@ -149,7 +175,7 @@ abstract class Serializer {
         }
     }
 
-    private Attr readAttrs(FileChannel fc, ByteBuffer buf) throws IOException {
+    private Attr readAttr(FileChannel fc, ByteBuffer buf) throws IOException {
         readIf(fc, buf, 8);
         long lm = buf.getLong();
 
@@ -165,23 +191,29 @@ abstract class Serializer {
         }
     }
 
-    private Path appendNewNames(ArrayWrap<AbstractFileImpl> files, Resources r) throws IOException {
-        return write(t.namesPath, files.oldSize() == 0 ? TRUNCATE_EXISTING : APPEND, fc -> {
+    private Path writeNames(ArrayWrap<AbstractFileEntity> files, Resources r) throws IOException {
+        boolean rewrite = files.size() < 2;
+
+        return write(t.namesPath, rewrite ? TRUNCATE_EXISTING : APPEND, fc -> {
             try(DataWriter d = new DataWriter(fc, r.buffer())) {
                 d.setEncoder(r.encoder());
 
-                if(files.oldSize() == 0) {
-                    d.writeInt(t.tree_id);
-                    d.writeUTF(srcPath.string());
-                    d.writeUTF(backupPath.string());
-                }
-
-                files.forEachNew(f -> {
+                IOExceptionConsumer<AbstractFileEntity> w = f -> {
                     d.writeBoolean(f.isDirectory());
                     d.writeInt(id(f));
                     d.writeInt(id(f.getParent()));
                     d.writeUTF(f.filename);
-                });
+                };
+
+                if(rewrite) {
+                    d.writeInt(t.tree_id);
+                    d.writeUTF(srcPath.string());
+                    d.writeUTF(backupPath.string());
+
+                    files.forEach(w);
+                } else {
+                    files.forEachNew(w);    
+                }
             }            
         });
     }
@@ -213,18 +245,18 @@ abstract class Serializer {
             int[] dir_count = new int[size];
 
             while(true) {
-                if(!buf.hasRemaining() && IOUtils.read(buf, true, meta) < 0)
-                    break;
-
                 readIf(meta, buf, 4);
                 int id = buf.getInt();
+                if(id == Integer.MAX_VALUE)
+                    break;
+
                 dir_count[id] = buf.getInt();
 
-                srcAttrs[id] = readAttrs(meta, buf);
-                backupAttrs[id]  = readAttrs(meta, buf);
+                srcAttrs[id] = readAttr(meta, buf);
+                backupAttrs[id]  = readAttr(meta, buf);
             }
 
-            AbstractFileImpl[] files = new AbstractFileImpl[size]; 
+            AbstractFileEntity[] files = new AbstractFileEntity[size]; 
             buf.clear();
 
             try(FileChannel names = FileChannel.open(t.namesPath, READ);
@@ -245,7 +277,7 @@ abstract class Serializer {
                 while(true) {
                     int id = d.readInt();
                     boolean isDir;
-                    
+
                     try {
                         isDir = d.readBoolean(); 
                     } catch (EOFException e) {
@@ -258,11 +290,11 @@ abstract class Serializer {
                         files[id] = newFile(id, d.readInt(), d.readUTF());
                 }
             }
-            
-            for (AbstractFileImpl f : files) {
+
+            for (AbstractFileEntity f : files) {
                 if(f == null)
                     continue;
-                
+
                 int p = id(f.getParent());
                 if(p != -1)
                     addChild(files[p], f);
@@ -272,10 +304,10 @@ abstract class Serializer {
         }
     }
 
-    protected abstract void addChild(AbstractFileImpl parent, AbstractFileImpl child);
+    protected abstract void addChild(AbstractFileEntity parent, AbstractFileEntity child);
     protected abstract int id(FileEntity f);
-    protected abstract AbstractFileImpl newFile(int id, int parent_id, String filename);
-    protected abstract AbstractDirImpl newDir(int id, int parent_id, int child_count, String filename);
+    protected abstract AbstractFileEntity newFile(int id, int parent_id, String filename);
+    protected abstract AbstractDir newDir(int id, int parent_id, int child_count, String filename);
 
     private byte[] readDigest(FileChannel meta, ByteBuffer buf) throws IOException {
         readIf(meta, buf, 4);

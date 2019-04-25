@@ -11,14 +11,14 @@ import sam.collection.Iterators;
 import static sam.backup.manager.file.api.WithId.id;
 
 public abstract class FilteredDirImpl implements FilteredDir, WithId {
-	private final AbstractDirImpl dir;
+	private final AbstractDir dir;
 	private final FilteredDirImpl parent;
 	private final Predicate<FileEntity> filter;
 	private int childCount = -1;
 	private int mod = -1;
 	private long sourceSize = -1;
 
-	public FilteredDirImpl(AbstractDirImpl me, FilteredDirImpl parent, Predicate<FileEntity> filter) {
+	public FilteredDirImpl(AbstractDir me, FilteredDirImpl parent, Predicate<FileEntity> filter) {
 		super();
 		this.dir = me;
 		this.filter = filter;
@@ -42,8 +42,8 @@ public abstract class FilteredDirImpl implements FilteredDir, WithId {
 		mod = mod(dir);
 	}
 
-	protected abstract FilteredDir newFilteredDirImpl(AbstractDirImpl dir, FilteredDirImpl filtered, Predicate<FileEntity> filter);
-	protected abstract int mod(AbstractDirImpl dir2);
+	protected abstract FilteredDir newFilteredDirImpl(AbstractDir dir, FilteredDirImpl filtered, Predicate<FileEntity> filter);
+	protected abstract int mod(AbstractDir dir2);
 	
     @Override 
 	public int childrenCount() {
@@ -77,7 +77,7 @@ public abstract class FilteredDirImpl implements FilteredDir, WithId {
 	}
 	@Override 
 	public void walk(FileTreeWalker walker) {
-		AbstractDirImpl.walk(dir, walker, filter);
+		AbstractDir.walk(dir, walker, filter);
 	}
 	@Override 
 	public boolean isDirectory() {

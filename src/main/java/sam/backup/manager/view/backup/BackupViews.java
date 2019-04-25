@@ -1,6 +1,5 @@
 package sam.backup.manager.view.backup;
 
-import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 
@@ -11,8 +10,9 @@ import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import sam.backup.manager.api.AppConfig;
-import sam.backup.manager.api.Backups;
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.api.ConfigManager;
+import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.view.AbstractMainView;
 import sam.backup.manager.view.Deleter;
@@ -26,7 +26,7 @@ public class BackupViews extends AbstractMainView {
 	{ singleton.init(); }
 	
 	@Override
-	protected Node initView(Injector injector, Collection<? extends Config> configs) {
+	protected Node initView(Injector injector, Collection<Config> configs) {
 		FileTreeManager fac = injector.instance(FileTreeManager.class);
 		Executor executor = injector.instance(Executor.class);
 		WeakAndLazy<Deleter> deleter = new WeakAndLazy<>(Deleter::new);
@@ -43,9 +43,10 @@ public class BackupViews extends AbstractMainView {
 	}
 	
 	@Override
-	protected Class<? extends Annotation> annotation() {
-		return Backups.class;
+	protected Collection<Config> data(ConfigManager c) {
+	    return c.get(ConfigType.BACKUP);
 	}
+	
 	@Override
 	public String getTabTitle() {
 	    return "Backups";

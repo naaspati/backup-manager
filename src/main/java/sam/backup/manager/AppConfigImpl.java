@@ -9,12 +9,13 @@ import java.util.Properties;
 import java.util.stream.Stream;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import sam.backup.manager.api.AppConfig;
 import sam.backup.manager.api.FileStoreManager;
 import sam.myutils.MyUtilsPath;
 import sam.myutils.System2;
-
+@Singleton
 class AppConfigImpl implements AppConfig {
     public final Path app_data = Paths.get("app_data");
     private final Properties properties = new Properties(); 

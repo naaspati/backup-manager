@@ -25,7 +25,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import sam.backup.manager.api.ErrorHandler;
-import sam.backup.manager.api.HasTitle;
 import sam.backup.manager.api.IUtils;
 import sam.backup.manager.api.IUtilsFx;
 import sam.backup.manager.api.SelectionListener;
@@ -66,15 +65,15 @@ public class App extends Application implements StopTasksQueue, Executor, ErrorH
 
     @Override
     public void init() throws Exception {
-        BufferedReader br = new BufferedReader(new InputStreamReader(ClassLoader.getSystemResourceAsStream(HasTitle.class.getName().concat(".tabs"))));
-        String line;
-
         Injector injector = Injector.init(new FeatherInjector(this));
 
         Utils.setUtils(injector.instance(IUtils.class));
         UtilsFx.setFx(injector.instance(IUtilsFx.class));
 
         injector.instance(ConfigManager.class);
+
+        BufferedReader br = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream("tabs")));
+        String line;
 
         while((line = br.readLine()) != null) {
             line = line.trim();

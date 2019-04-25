@@ -1,6 +1,5 @@
 package sam.backup.manager.view.list;
 
-import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.concurrent.Executor;
 
@@ -19,8 +18,9 @@ import javafx.scene.layout.BorderWidths;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
-import sam.backup.manager.Lists;
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.api.ConfigManager;
+import sam.backup.manager.config.api.ConfigType;
 import sam.backup.manager.file.api.FileTreeManager;
 import sam.backup.manager.view.AbstractMainView;
 import sam.backup.manager.view.TextViewer;
@@ -36,8 +36,8 @@ public class ListsViews extends AbstractMainView {
 	private Provider<TextViewer> textViewer;  
 
 	@Override
-	protected Class<? extends Annotation> annotation() {
-		return Lists.class;
+	protected Collection<Config> data(ConfigManager c) {
+	    return c.get(ConfigType.LIST);
 	}
 	@Override
     public String getTabTitle() {
@@ -53,7 +53,7 @@ public class ListsViews extends AbstractMainView {
 	}
 	
 	@Override
-	protected Node initView(Injector injector, Collection<? extends Config> configs) {
+	protected Node initView(Injector injector, Collection<Config> configs) {
 		FileTreeManager factory = injector.instance(FileTreeManager.class);
 		textViewer = injector.provider(TextViewer.class);
 		Executor executor = injector.instance(Executor.class);

@@ -1,6 +1,5 @@
 package sam.backup.manager.view;
 
-import java.lang.annotation.Annotation;
 import java.util.Collection;
 
 import org.apache.logging.log4j.Logger;
@@ -12,8 +11,10 @@ import sam.backup.manager.UtilsFx;
 import sam.backup.manager.api.HasTitle;
 import sam.backup.manager.api.SelectionListener;
 import sam.backup.manager.config.api.Config;
+import sam.backup.manager.config.api.ConfigManager;
 import sam.backup.manager.config.api.FileTreeMeta;
 import sam.di.Injector;
+import sam.myutils.Checker;
 
 public abstract class AbstractMainView extends BorderPane implements SelectionListener, HasTitle {
 	protected final Logger logger = Utils.getLogger(getClass());
@@ -33,21 +34,21 @@ public abstract class AbstractMainView extends BorderPane implements SelectionLi
 
 		init = true;
 		Injector injector = Injector.getInstance();
-		@SuppressWarnings("unchecked")
-		Collection<? extends Config> configs = injector.instance(Collection.class, annotation());
+		ConfigManager c = injector.instance(ConfigManager.class);
+		Collection<Config> configs = data(c);
 		
 		setTop(UtilsFx.headerBanner(header(configs.size())));
 		
-		if(configs.isEmpty()) 
+		if(Checker.isEmpty(configs)) 
 			setCenter(UtilsFx.bigPlaceholder(nothingFoundString()));
 		 else 
 			setCenter(initView(injector, configs));
 	}
 
-	protected abstract Node initView(Injector injector, Collection<? extends Config> configs);
+	protected abstract Collection<Config> data(ConfigManager c);
+    protected abstract Node initView(Injector injector, Collection<Config> configs);
 	protected abstract String nothingFoundString();
 	protected abstract String header(int size);
-	protected abstract Class<? extends Annotation> annotation();
 
 	public static boolean exists(FileTreeMeta f) {
 		return f != null && f.getSource() != null && f.getSource().exists();

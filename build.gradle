@@ -20,7 +20,9 @@ ext.TRUTH_VERSION = '0.42'
 
 dependencies {
   implementation files('myutils.jar')
-  implementation 'org.codejargon.feather:feather:+'
+  // implementation 'org.codejargon.feather:feather:+' using a forked feather
+  implementation files(/..\..\java\feather\feather\build\libs\feather.jar/)
+  implementation 'javax.inject:javax.inject:1'
   implementation 'org.apache.logging.log4j:log4j-core:2.11.2'
   implementation 'org.json:json:20180813'
   
@@ -61,6 +63,8 @@ compileJava.dependsOn << combineCss
 run {
  main 'Main'
  workingDir appdir.parent
+ systemProperty "java.util.logging.config.file", file('test-logging.properties').absolutePath
+ systemProperty 'sam.backup.manager.api.AppConfig.file', 'appconfig.properties'
 }
 
 task deleteJars {

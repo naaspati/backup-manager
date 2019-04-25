@@ -7,6 +7,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
+import javax.inject.Singleton;
+
 import sam.backup.manager.config.api.BackupConfig;
 import sam.backup.manager.config.api.Config;
 import sam.backup.manager.config.api.ConfigManager;
@@ -18,9 +20,11 @@ import sam.backup.manager.config.impl.ConfigImpl;
 import sam.backup.manager.config.impl.PathWrap;
 import sam.backup.manager.file.api.FileTree;
 import sam.backup.manager.file.api.FileTreeManager;
+import sam.myutils.System2;
 import sam.nopkg.EnsureSingleton;
 import sam.nopkg.Junk;
 
+@Singleton
 class DummyConfigManager implements ConfigManager {
     private static final EnsureSingleton cm_singleton = new EnsureSingleton();
 
@@ -30,8 +34,8 @@ class DummyConfigManager implements ConfigManager {
     public DummyConfigManager() {
         cm_singleton.init();
 
-        int backupsize = Integer.parseInt(System.getProperty("CM.backup.size", "10"));
-        int listsize = Integer.parseInt(System.getProperty("CM.list.size", "10"));
+        int backupsize = Integer.parseInt(System2.lookup("CM.backup.size", "10"));
+        int listsize = Integer.parseInt(System2.lookup("CM.list.size", "10"));
 
         this.backup = generate(ConfigType.BACKUP, backupsize);
         this.list = generate(ConfigType.LIST, listsize);

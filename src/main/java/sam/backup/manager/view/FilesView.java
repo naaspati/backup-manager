@@ -83,17 +83,15 @@ public class FilesView extends BorderPane {
 	private final Provider<Window> parent;
 	private final FileTreeManager manager;
 	private static SavedAsStringResource<String> lastVisited;
-	
 
 	@Inject
 	public FilesView(AppConfig config, FileTreeManager manager, StopTasksQueue queue, @ParentWindow Provider<Window> parent) {
 		this.parent = parent;
 		this.manager = manager;
 		
-		
 		if(lastVisited == null) {
 			lastVisited = new SavedAsStringResource<>(config.appDataDir().resolve(getClass().getName()+".last.visited"), s -> s);
-			queue.add(() -> {
+			queue.addStopable(() -> {
 				try {
 					lastVisited.close();
 				} catch (IOException e1) {
